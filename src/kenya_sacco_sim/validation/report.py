@@ -104,7 +104,7 @@ def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[
             ValidationFinding(
                 "error",
                 "benchmark.evaluation_label_density_low",
-                "Benchmark evaluation label density is below the v0.2 validity contract",
+                "Benchmark evaluation label density is below the current benchmark validity contract",
                 "split_manifest.json",
             )
         )

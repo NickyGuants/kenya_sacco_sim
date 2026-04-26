@@ -31,7 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--institutions", type=int, default=None)
     generate.add_argument("--months", type=int, default=None)
     generate.add_argument("--seed", type=int, default=None)
-    generate.add_argument("--output", type=Path, default=Path("./datasets/KENYA_SACCO_SIM_v0_2"))
+    generate.add_argument("--output", type=Path, default=Path("./datasets/KENYA_SACCO_SIM_v1"))
     generate.add_argument("--suspicious-ratio", type=float, default=None)
     generate.add_argument("--difficulty", default=None)
     generate.add_argument("--config-dir", type=Path, default=Path("./config"))

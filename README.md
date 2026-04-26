@@ -1,59 +1,57 @@
 # KENYA_SACCO_SIM
 
-Synthetic AML dataset generator for Kenyan SACCO behavior.
+Synthetic AML benchmark generator for Kenyan SACCO behavior.
 
-The repository carries the frozen v0.1 release-candidate spec, the completed
-v0.2 benchmark foundation, and the first v1 typology implementation branch.
+The current implementation is the v1 benchmark branch. It generates a
+deterministic Kenyan SACCO financial world with members, accounts, loans,
+guarantors, support entities, devices, graph projections, suspicious
+typologies, rule baselines, ML baselines, leakage checks, and multi-seed
+stability reports.
 
 ## Current Status
 
-Implemented v0.1:
+Implemented:
 
-- Milestone 1 world generation: institutions, members, accounts, nodes, and graph edges
-- Milestone 2 normal transaction engine with Kenya-like rails, cash/mobile behavior, seasonality, and ledger replay
-- Milestone 3 credit system with loans, guarantors, loan accounts, repayments, arrears/default states, and graph links
-- Milestone 4 suspicious typologies for `STRUCTURING` and `RAPID_PASS_THROUGH`
-- Milestone 5 benchmark artifacts: deterministic splits, baseline results, feature documentation, dataset card, and known limitations
-- Normal `CHURCH_ORG` behavior with Sunday collections, M-Pesa/cash inflows, donor receipts, rent/vendor/charity outflows, and validation gates
-- Label output in `alerts_truth.csv` with no label columns leaked into feature files
-- Standalone deterministic baseline rules in `src/kenya_sacco_sim/benchmark/baseline_rules.py`
-- Rule reconstruction output in `rule_results.json`
-- Near-miss disclosure metrics for unlabeled suspicious-looking behavior
-- Deterministic `manifest.json` metadata for reproducible seed/config reruns
-- Validation for schema, foreign keys, balances, graph completeness, distributions, credit, guarantors, labels, clean AML baselines, benchmark splits, and ID/reference leakage; benchmark leakage failures affect validation errors
+- World generation for institutions, branches, agents, employers, members,
+  devices, accounts, nodes, and graph edges.
+- Normal transaction engine with Kenya-like rails, cash/mobile behavior,
+  church/org flows, school-fee seasonality, payday clustering, remittances, and
+  ledger replay.
+- Credit system with loans, guarantors, loan accounts, repayments,
+  arrears/default states, and graph links.
+- Suspicious typologies:
+  - `STRUCTURING`
+  - `RAPID_PASS_THROUGH`
+  - `FAKE_AFFORDABILITY_BEFORE_LOAN`
+  - `DEVICE_SHARING_MULE_NETWORK`
+- Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
+  feature files.
+- Deterministic rule reconstruction in `rule_results.json`.
+- Member-level ML baseline using scikit-learn Logistic Regression and Random
+  Forest models.
+- Rule-proxy leakage ablation in `ml_leakage_ablation.json`.
+- Rule-vs-ML comparison in `rule_vs_ml_comparison.json`.
+- Benchmark split artifacts, dataset card, feature documentation, and known
+  limitations.
+- Multi-seed stability harness.
+- Validation for schema, foreign keys, balances, distributions, credit,
+  guarantors, support entities, devices, labels, typology metrics, benchmark
+  validity, split leakage, ID/reference leakage, and device-sharing mule rules.
 
-Implemented v0.2 foundation:
+Current specification:
 
-- Engineer-ready v0.2 spec: `kenya_sacco_sim_v_0_2_specification.md`
-- v1 backlog: `kenya_sacco_sim_v_1_backlog.md`
-- Full research blueprint preserved at `docs/research/deep-research-report.md`
-- External YAML config files in `config/` with current defaults and CLI override support
-- Support entity exports: `institutions.csv`, `branches.csv`, `agents.csv`, `employers.csv`, `devices.csv`
-- Institution archetypes with digital maturity, cash intensity, and guarantor intensity
-- Device baseline population, `DEVICE` nodes, `USES_DEVICE` graph edges, and device validation metrics
-- New suspicious typology and baseline rule: `FAKE_AFFORDABILITY_BEFORE_LOAN`
-- Fake-affordability injection respects configured simulation date windows
-- Member-level ML benchmark baseline using scikit-learn Logistic Regression and Random Forest models
-- Multi-seed stability, evaluation-density gates, rule-vs-ML comparison, and ML rule-proxy ablation diagnostics
+- `kenya_sacco_sim_v_1_specification.md`
 
-v0.2 benchmark release point:
+Research source:
 
-- Git tag: `v0.2-benchmark-final`
+- `docs/research/deep-research-report.md`
 
-In progress for v1:
+Latest local output locations:
 
-- First v1 typology: `DEVICE_SHARING_MULE_NETWORK`
-- Shared-device mule rule reconstruction in `rule_results.json`
-- Device-sharing mule validation summary in `validation_report.json`
-- Device-derived ML features and rule-proxy ablation coverage
-
-Deferred to v1:
-
-- Guarantor fraud rings
-- Wallet funneling
-- Dormant reactivation abuse
-- Remittance layering
-- Graph neural network benchmark and 100,000+ member scale
+```text
+datasets/KENYA_SACCO_SIM_v1_10k
+benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+```
 
 ## Usage
 
@@ -63,13 +61,7 @@ From the repository root:
 python3 -m kenya_sacco_sim generate --members 1000
 ```
 
-Generate normal transactions:
-
-```bash
-python3 -m kenya_sacco_sim generate --members 1000 --with-transactions
-```
-
-Generate the credit system:
+Generate normal transactions and the credit system:
 
 ```bash
 python3 -m kenya_sacco_sim generate --members 1000 --with-loans
@@ -78,36 +70,52 @@ python3 -m kenya_sacco_sim generate --members 1000 --with-loans
 Generate the full benchmark package:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
+python3 -m kenya_sacco_sim generate \
+  --members 10000 \
+  --with-loans \
+  --with-typologies \
+  --with-benchmark \
+  --output ./datasets/KENYA_SACCO_SIM_v1_10k
 ```
 
 Run the multi-seed stability harness:
 
 ```bash
-python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v1_multi_seed
+python3 -m kenya_sacco_sim benchmark \
+  --members 10000 \
+  --seeds 42 1337 2026 9001 314159 \
+  --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
 The harness writes `multi_seed_results.json` with per-seed validation status,
-baseline precision/recall, and distribution stability statistics. It fails if
-any seed has validation errors or if typology precision/recall ranges exceed
-the v0.2 stability threshold of `0.10`. Seed lists must be non-empty and unique;
-duplicate seeds are rejected so optional per-seed dataset exports cannot
-overwrite each other.
+rule precision/recall, evaluation-validity status, and distribution stability
+statistics. It fails if any seed has validation errors or if typology
+precision/recall ranges exceed the stability threshold of `0.10`.
 
-If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
+If your environment maps `python` to Python 3, `python -m kenya_sacco_sim ...`
+is equivalent.
+
+## CLI Notes
+
+`--with-loans` implies `--with-transactions`.
 
 `--with-typologies` injects suspicious labels into the transaction world. When
-combined with `--with-loans`, the active set is `STRUCTURING`,
-`RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and
-`DEVICE_SHARING_MULE_NETWORK`. Without loans, fake-affordability is skipped and
-the non-credit typologies remain active.
-Sub-1,000-member smoke runs do not request partial device-sharing mule groups;
-that typology is either generated in groups of at least three members or left
-at zero for the run.
+combined with `--with-loans`, the active set is:
+
+```text
+STRUCTURING
+RAPID_PASS_THROUGH
+FAKE_AFFORDABILITY_BEFORE_LOAN
+DEVICE_SHARING_MULE_NETWORK
+```
+
+Sub-1,000-member smoke runs do not request partial device-sharing mule groups.
+That typology is either generated in groups of at least three members or left at
+zero for the run.
 
 `--with-benchmark` emits benchmark artifacts, including deterministic rule
-results and member-level ML baseline results. It requires `--with-typologies`.
-The ML baseline uses `scikit-learn`, which is declared in `pyproject.toml`.
+results, member-level ML baseline results, feature importances, rule-vs-ML
+comparison, and leakage-ablation diagnostics. It requires `--with-typologies`.
 
 `--config-dir` defaults to `./config`. Missing config files fall back to built-in
 defaults, and CLI arguments override loaded config values.
@@ -142,10 +150,16 @@ Depending on selected options, the generator writes:
 - `validation_report.json`
 - `manifest.json`
 
-Default output directory:
+Default generator output directory:
 
 ```text
-datasets/KENYA_SACCO_SIM_v0_2
+datasets/KENYA_SACCO_SIM_v1
+```
+
+For current benchmark work, pass an explicit v1 output path:
+
+```text
+datasets/KENYA_SACCO_SIM_v1_10k
 ```
 
 ## Validation
@@ -153,10 +167,10 @@ datasets/KENYA_SACCO_SIM_v0_2
 Basic code check:
 
 ```bash
-python3 -m compileall src
+python3 -m compileall src tests
 ```
 
-Focused automated tests:
+Automated tests:
 
 ```bash
 python3 -m unittest discover -s tests
@@ -165,83 +179,38 @@ python3 -m unittest discover -s tests
 Representative full-package validation:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k
+python3 -m kenya_sacco_sim generate \
+  --members 10000 \
+  --with-loans \
+  --with-typologies \
+  --with-benchmark \
+  --output ./datasets/KENYA_SACCO_SIM_v1_10k
 ```
 
-v0.2 validation adds:
+Validation includes:
 
 ```text
+schema_validation
+balance_validation
+graph_validation
+label_validation
+loan_validation
+guarantor_validation
+credit_distribution_validation
 support_entity_validation
 device_validation
 institution_archetype_metrics
+clean_baseline_aml_metrics
+distribution_validation
+typology_validation
+typology_runtime_metrics
 fake_affordability_validation
 device_sharing_mule_network_validation
+benchmark_validation
 ```
-
-Support entity validation rejects institution archetype parameters outside
-`0.0-1.0` for `digital_maturity`, `cash_intensity`, and
-`loan_guarantor_intensity`.
-
-`device_validation` distinguishes:
-
-```text
-digital_transaction_count
-device_required_transaction_count
-device_required_missing_device_id_count
-device_exempt_transaction_count
-unresolved_transaction_device_id_count
-unresolved_transaction_device_id_distinct_count
-devices_used_by_multiple_members_count
-max_members_per_device
-shared_device_group_missing_count
-shared_device_unexplained_member_count
-```
-
-Benchmark validation also reports institution split drift:
-
-```text
-institution_split_max_share
-institution_split_max_institution_id
-institution_split_max_split
-institution_split_drift_warning
-```
-
-Benchmark outputs also include:
-
-```text
-baseline_model_results.json   deterministic rule baseline metrics
-ml_baseline_results.json      member-level one-vs-rest ML metrics
-feature_importance.json       Logistic Regression coefficients and Random Forest importances
-ml_leakage_ablation.json      rule-proxy feature ablation diagnostics
-rule_vs_ml_comparison.json    split-level rule-vs-ML precision/recall/F1 deltas
-```
-
-The ML baseline builds one feature row per member from exported feature files
-and uses labels only from `alerts_truth.csv` as targets. Raw identifiers and
-label-bearing fields such as `member_id`, `txn_id`, `reference`, `pattern_id`,
-`alert_id`, `account_id`, `device_id`, `node_id`, `edge_id`, and typology fields
-are excluded from model inputs.
-
-The ML feature layer includes temporal, graph, and behavioral aggregates:
-
-```text
-temporal bursts and rolling 24h/7d windows
-48h inflow-to-outflow exit ratios
-counterparty diversity and concentration
-device-sharing and digital-device coverage proxies
-shared-device transaction share and device peer counts
-loan-application proximity and pre-loan external credit share
-persona-relative transaction, inflow, outflow, and cash behavior
-graph/account/guarantor degree features
-```
-
-`ml_leakage_ablation.json` retrains the ML baselines after removing
-typology-specific rule-proxy features. Large validation/test F1 drops in that
-artifact mean the model is probably relying on direct injected-rule proxies
-rather than broader behavioral signals.
 
 Benchmark validity is explicit in `split_manifest.json` under
-`checks.evaluation_validity`. A valid v0.2 benchmark evaluation requires:
+`checks.evaluation_validity`. A valid benchmark evaluation requires:
 
 ```text
 member_count >= 10,000
@@ -255,80 +224,9 @@ labeled transactions per typology split >= 10
 Smaller runs are marked `smoke_only`; full-size runs that miss these thresholds
 fail benchmark validation.
 
-With the v1 device-sharing typology active, the default 10,000-member benchmark
-emits at least 30 positive members per active typology. This can realize about
-120 suspicious members against the default `0.01` suspicious ratio; that remains
-inside the label-count tolerance used for full-size benchmark validation.
+## Latest Verified Gate
 
-Latest verified v0.1 10,000-member Milestone 5 run:
-
-```text
-validation errors:   0
-validation warnings: 0
-members:             10,000
-accounts:            40,969
-transactions:        516,464
-loans:               2,298
-guarantors:          3,231
-alerts_truth:        844
-```
-
-Milestone 5 rule-baseline metrics from the latest verified run:
-
-```text
-STRUCTURING truth patterns:        50
-STRUCTURING candidates:            63
-STRUCTURING false positives:       13
-STRUCTURING recall:                1.0000
-RAPID_PASS_THROUGH truth patterns: 50
-RAPID_PASS_THROUGH detected:       40
-RAPID_PASS_THROUGH false positives: 11
-RAPID_PASS_THROUGH false negatives: 10
-RAPID_PASS_THROUGH recall:         0.8000
-macro precision:                   0.7890
-macro recall:                      0.9000
-near-miss transactions:            157
-near-miss members:                 42
-mirrored references:               0
-```
-
-Milestone 5 split and leakage checks:
-
-```text
-member split leakage count:         0
-pattern split leakage count:        0
-unassigned member references:       0
-unassigned patterns:                0
-split counts, members:              train 6,992 / validation 1,496 / test 1,512
-split counts, transactions:         train 361,884 / validation 77,821 / test 76,759
-CHURCH_ORG active share:            1.0000
-CHURCH_ORG median txns/year:        84.00
-```
-
-`feature_documentation.json` points consumers to `split_manifest.json` as the
-source of truth for splits and records the relevant member or pattern key per
-file. It also exposes explicit file roles so label files are not inferred from
-feature-file metadata. `manifest.json` uses deterministic simulation metadata
-instead of wall clock time so identical seed/config runs are easier to compare.
-Suspicious-member targets are generated and validated with half-up count
-rounding plus a discrete count tolerance, avoiding Python banker-rounding edge
-cases in small runs.
-Persona median transaction metrics include an annualized value so shorter
-`--months` runs are evaluated against comparable yearly thresholds.
-
-The label validator also checks whether a simple transaction-ID threshold can
-recover suspicious transactions. The latest verified 10,000-member run reports:
-
-```text
-suspicious txn_id percentile range: 0.3685-0.7858
-best threshold precision:           0.0024
-best threshold recall:              0.9825
-```
-
-This prevents the benchmark from leaking injection phase through late `txn_id`
-or mirrored `reference` values.
-
-Latest verified v1 10,000-member gate run:
+Latest verified 10,000-member benchmark run:
 
 ```text
 command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
@@ -341,49 +239,37 @@ transactions:        511,026
 loans:               2,352
 guarantors:          3,372
 alerts_truth:        796
-support files:       institutions / branches / agents / employers / devices
 devices:             10,000
-missing devices:      0
-device coverage:      100.00% of digital transactions
-shared device share: 4.35% of active digital members
+device coverage:     100.00% of digital transactions
 shared devices:      343
 max members/device:  5
-device mule rule:    precision 0.9091 / recall 1.0000
-fake affordability:  precision 0.2222 / recall 1.0000
-rapid pass-through:  precision 0.6000 / recall 0.8000
-structuring:         precision 0.7500 / recall 1.0000
 evaluation validity: valid
-min positive labels per split: 5
-min patterns per split: 5
-min labeled txns per typology split: 15
-ML feature count: 53
-rule-vs-ML comparison: available
 ```
 
-Latest v1 multi-seed stability gate:
+Rule-baseline metrics from that run:
+
+```text
+DEVICE_SHARING_MULE_NETWORK precision: 0.9091 / recall: 1.0000
+FAKE_AFFORDABILITY precision:          0.2222 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.6000 / recall: 0.8000
+STRUCTURING precision:                 0.7500 / recall: 1.0000
+```
+
+Latest multi-seed stability gate:
 
 ```text
 command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
-min positive labels per split: 5 for all seeds
-DEVICE precision range:    0.0909
-DEVICE recall range:       0.0000
-STRUCTURING precision range: 0.0791
-STRUCTURING recall range:    0.0000
-RAPID precision range:       0.0300
-RAPID recall range:          0.0000
-FAKE precision range:        0.0301
-FAKE recall range:           0.0333
-cash rail share mean:        0.1939
-digital device coverage:     1.0000
-shared-device share mean:    0.0434
-loan active member mean:     0.2385
-arrears share mean:          0.0927
+digital device coverage mean: 1.0000
+shared-device member share mean: 0.0434
+cash rail share mean: 0.1939
+loan active member mean: 0.2385
+arrears share mean: 0.0927
 ```
 
-Known v0.2 benchmark behavior:
+Known benchmark behavior:
 
 ```text
 FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
@@ -396,8 +282,13 @@ positives are expected and make the benchmark less cartoon-clean.
 
 Before committing changes:
 
+- Check the current spec before starting a new milestone.
 - Run the smallest relevant generator command for the touched milestone.
-- Run `python3 -m compileall src`.
+- Run `python3 -m compileall src tests`.
+- Run `python3 -m unittest discover -s tests` when behavior or validation changes.
 - Run `git diff --check`.
-- Update this README whenever behavior, commands, outputs, milestones, or validation expectations change.
+- Update the README and current docs whenever behavior, commands, outputs,
+  milestones, or validation expectations change.
+- Keep only the latest generated output artifacts in visible dataset/benchmark
+  folders.
 - Do not commit unrelated local files.

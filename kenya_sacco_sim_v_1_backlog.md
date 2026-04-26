@@ -1,22 +1,28 @@
 # KENYA_SACCO_SIM v1 Backlog
 
-This backlog preserves research-blueprint ideas that are intentionally outside the v0.2 foundation release.
+This backlog captures future v1 work that is not part of the current
+`DEVICE_SHARING_MULE_NETWORK` slice.
 
-v1 should only start after v0.2 produces clean 10,000-member benchmark runs with support files, device coverage, institution archetypes, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and multi-seed stability evidence.
-
-## v0.2 Completion Gate Before v1
+The current v1 contract lives in:
 
 ```text
-multi_seed_results.json generated
-all configured seeds have validation_error_count = 0
-typology precision/recall range <= 0.10 across accepted seeds
-cash/device/credit stability statistics reported
-dataset card documents expected ambiguity and benchmark limits
+kenya_sacco_sim_v_1_specification.md
 ```
 
-Do not add v1 typologies until this gate is clean.
+## Active Slice
 
-## v1 Typology Backlog
+```text
+DEVICE_SHARING_MULE_NETWORK
+```
+
+This slice uses the existing device layer, support entities, graph projection,
+rule baseline, ML baseline, and validation framework. It must keep raw
+`device_id` out of model features, label only in `alerts_truth.csv`, export
+candidate IDs, include near-misses, and pass the multi-seed stability gate.
+
+## Next Typology Candidates
+
+Priority order:
 
 ```text
 GUARANTOR_FRAUD_RING
@@ -24,24 +30,27 @@ WALLET_FUNNELING
 CHURCH_CHARITY_MISUSE
 DORMANT_REACTIVATION_ABUSE
 REMITTANCE_LAYERING
-DEVICE_SHARING_MULE_NETWORK
 PAYROLL_PROXY_ABUSE
 PROCUREMENT_CORRUPTION_PARKING
 TILL_PAYBILL_SHELL_ACTIVITY
 ```
 
-## v1 Active Implementation Slice
+## Next Recommended Slice
 
 ```text
-DEVICE_SHARING_MULE_NETWORK
+GUARANTOR_FRAUD_RING
 ```
 
-This first v1 slice uses the v0.2 device layer rather than introducing a new
-support table. It must keep raw `device_id` out of model features, label only in
-`alerts_truth.csv`, export executable rule configuration and candidate IDs, and
-include unlabeled shared-device near-misses.
+Rationale:
 
-## v1 Benchmark Backlog
+```text
+credit and guarantor graph already exists
+the behavior is SACCO-specific
+it exercises graph motifs and default contagion
+it is harder than another pure transaction-flow typology
+```
+
+## Benchmark Backlog
 
 ```text
 Graph neural network benchmark
@@ -54,7 +63,7 @@ notebook-based benchmark walkthrough
 institution-specific calibration packs
 ```
 
-## v1 Data Model Backlog
+## Data Model Backlog
 
 ```text
 dedicated remittance corridors
@@ -67,10 +76,11 @@ crop/county-specific farmer calendars
 institution concentration calibration
 ```
 
-## v1 Validation Backlog
+## Validation Backlog
 
 ```text
 guarantor-cycle detection
+guarantor concentration false-positive baselines
 dormancy reactivation anomaly baselines
 remittance corridor fan-out baselines
 device-sharing false-positive baselines
@@ -81,4 +91,6 @@ train/validation/test leakage checks for new label tables
 
 ## v1 Principle
 
-v1 should expand behavioural ambiguity, not just add suspicious rows. Every new typology must ship with normal near-misses, rule reconstruction, candidate IDs, leakage checks, and validation metrics.
+v1 should expand behavioral ambiguity, not just add suspicious rows. Every new
+typology must ship with normal near-misses, rule reconstruction, candidate IDs,
+leakage checks, validation metrics, and documentation updates.
