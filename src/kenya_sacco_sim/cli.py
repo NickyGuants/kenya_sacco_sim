@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from kenya_sacco_sim.benchmark import build_benchmark_artifacts
 from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
@@ -23,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kenya_sacco_sim")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    generate = subparsers.add_parser("generate", help="Generate a Milestone 1 dataset")
+    generate = subparsers.add_parser("generate", help="Generate a KENYA_SACCO_SIM dataset")
     generate.add_argument("--members", type=int, default=10_000)
     generate.add_argument("--institutions", type=int, default=5)
     generate.add_argument("--months", type=int, default=12)
@@ -34,10 +35,14 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
     generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
+    generate.add_argument("--with-benchmark", action="store_true", help="Emit Milestone 5 split manifest, baseline results, feature docs, dataset card, and known limitations")
     return parser
 
 
 def generate(args: argparse.Namespace) -> int:
+    if args.with_benchmark and not args.with_typologies:
+        raise SystemExit("--with-benchmark requires --with-typologies")
+
     config = WorldConfig(
         member_count=args.members,
         institution_count=args.institutions,
@@ -77,13 +82,20 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["guarantors.csv"] = guarantors
     if alerts_truth is not None:
         rows_by_file["alerts_truth.csv"] = alerts_truth
-    report = build_validation_report(rows_by_file, config, rule_results.get("near_miss_disclosure") if rule_results else None)
+    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config) if args.with_benchmark and rule_results is not None else {}
+    benchmark_validation = benchmark_artifacts.get("baseline_model_results.json", {}).get("benchmark_checks") if benchmark_artifacts else None
+    report = build_validation_report(rows_by_file, config, rule_results.get("near_miss_disclosure") if rule_results else None, benchmark_validation)
 
     write_csvs(args.output, rows_by_file)
     if rule_results is not None:
         write_json(args.output / "rule_results.json", rule_results)
+    for filename, artifact in benchmark_artifacts.items():
+        if isinstance(artifact, dict):
+            write_json(args.output / filename, artifact)
+        else:
+            (args.output / filename).write_text(str(artifact), encoding="utf-8")
     write_json(args.output / "validation_report.json", report)
-    extra_files = ["rule_results.json"] if rule_results is not None else []
+    extra_files = (["rule_results.json"] if rule_results is not None else []) + list(benchmark_artifacts)
     write_json(args.output / "manifest.json", _manifest(config, rows_by_file, report, args.output, extra_files))
 
     error_count = len(report["errors"])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime
+from statistics import median
 
 from kenya_sacco_sim.core.models import ValidationFinding
 
@@ -41,6 +42,12 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
         findings.append(ValidationFinding("warning", "distribution.source_concentration_high", f"One source account handles {source_concentration:.3f} of source-funded txns", "transactions.csv"))
     if sink_concentration > 0.80:
         findings.append(ValidationFinding("warning", "distribution.sink_concentration_high", f"One sink account handles {sink_concentration:.3f} of sink-credit txns", "transactions.csv"))
+    church_summary = persona_summary.get("CHURCH_ORG")
+    if church_summary and int(church_summary["member_count"]) > 0:
+        if float(church_summary["active_member_share"]) < 0.60:
+            findings.append(ValidationFinding("error", "distribution.church_org_active_share_low", f"CHURCH_ORG active share {church_summary['active_member_share']:.3f} is below 0.60", "transactions.csv"))
+        if float(church_summary["median_txns_per_member"]) < 20:
+            findings.append(ValidationFinding("error", "distribution.church_org_median_txns_low", f"CHURCH_ORG median txns/year {church_summary['median_txns_per_member']:.2f} is below 20", "transactions.csv"))
 
     return findings, {
         "transaction_count": total_txns,
@@ -69,6 +76,8 @@ def _max_external_concentration(transactions: list[dict[str, object]], column: s
 
 def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
     by_persona: dict[str, dict[str, object]] = defaultdict(lambda: {"txns": 0, "members": set(), "cash_txns": 0, "wallet_txns": 0})
+    member_counts = Counter(str(member["persona_type"]) for member in member_by_id.values())
+    txns_by_member = Counter(str(txn.get("member_id_primary") or "") for txn in transactions if txn.get("member_id_primary"))
     for txn in transactions:
         member_id = str(txn.get("member_id_primary") or "")
         member = member_by_id.get(member_id)
@@ -84,13 +93,19 @@ def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[s
             row["wallet_txns"] = int(row["wallet_txns"]) + 1
 
     summary: dict[str, dict[str, object]] = {}
-    for persona, row in sorted(by_persona.items()):
+    for persona in sorted(set(member_counts) | set(by_persona)):
+        row = by_persona[persona]
         txns = int(row["txns"])
         members = row["members"]
+        member_count = member_counts[persona]
+        member_txn_counts = [txns_by_member[member_id] for member_id, member in member_by_id.items() if str(member["persona_type"]) == persona]
         summary[persona] = {
+            "member_count": member_count,
             "active_members": len(members),
+            "active_member_share": round(len(members) / member_count, 4) if member_count else 0,
             "txns": txns,
             "txns_per_active_member": round(txns / len(members), 2) if members else 0,
+            "median_txns_per_member": round(median(member_txn_counts), 2) if member_txn_counts else 0,
             "cash_share": round(int(row["cash_txns"]) / txns, 4) if txns else 0,
             "wallet_share": round(int(row["wallet_txns"]) / txns, 4) if txns else 0,
         }

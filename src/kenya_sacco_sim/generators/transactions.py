@@ -97,6 +97,8 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
             _boda_cash_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "FARMER_SEASONAL":
             _farmer_cash_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
+        elif persona == "CHURCH_ORG":
+            _church_org_collections(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
 
     if loans:
         _loan_lifecycle_transactions(config, rng, loans, accounts, members, emit)
@@ -306,6 +308,99 @@ def _farmer_cash_cycle(
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(22, 28)), 16, 30), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
 
 
+def _church_org_collections(
+    config: WorldConfig,
+    rng: random.Random,
+    member: dict[str, object],
+    fosa: dict[str, object],
+    bosa: dict[str, object] | None,
+    wallet: dict[str, object] | None,
+    source: dict[str, object],
+    sink: dict[str, object],
+    monthly_income: float,
+    emit,
+) -> None:
+    for month in range(1, config.months + 1):
+        monthly_collections = 0.0
+        for day in _sundays_in_month(2024, month):
+            collection_base = monthly_income * rng.uniform(0.045, 0.095)
+            rail = rng.choices(["MPESA", "CASH_BRANCH", "CASH_AGENT"], weights=[0.76, 0.16, 0.08], k=1)[0]
+            channel = "PAYBILL" if rail == "MPESA" else "BRANCH" if rail == "CASH_BRANCH" else "AGENT"
+            provider = "MPESA" if rail == "MPESA" else "SACCO_CORE"
+            amount = round(collection_base * (1.18 if month == 12 else 1.0), 2)
+            monthly_collections += amount
+            emit(
+                datetime(2024, month, day, rng.randint(10, 15), rng.choice([0, 15, 30, 45])),
+                source,
+                fosa,
+                member,
+                "CHURCH_COLLECTION_IN",
+                rail,
+                channel,
+                amount,
+                provider,
+                "CHURCH",
+                fosa.get("branch_id"),
+            )
+
+        if rng.random() < 0.32:
+            donor_amount = round(monthly_income * rng.uniform(0.30, 0.90), 2)
+            monthly_collections += donor_amount
+            emit(
+                datetime(2024, month, rng.randint(6, min(22, _last_day(2024, month))), rng.randint(9, 16), rng.choice([0, 20, 40])),
+                source,
+                fosa,
+                member,
+                "PESALINK_IN",
+                "PESALINK",
+                "BANK_TRANSFER",
+                donor_amount,
+                "BANK_PARTNER",
+                "BANK",
+                fosa.get("branch_id"),
+            )
+
+        if monthly_collections <= 0:
+            continue
+
+        rent_or_vendor = round(monthly_collections * rng.uniform(0.22, 0.38), 2)
+        emit(
+            datetime(2024, month, min(_last_day(2024, month), rng.randint(23, 28)), 11, rng.choice([0, 30])),
+            fosa,
+            sink,
+            member,
+            "SUPPLIER_PAYMENT_OUT",
+            rng.choice(["PESALINK", "MPESA"]),
+            rng.choice(["BANK_TRANSFER", "PAYBILL"]),
+            rent_or_vendor,
+            "BANK_PARTNER",
+            "MERCHANT",
+            fosa.get("branch_id"),
+        )
+
+        charity = round(monthly_collections * rng.uniform(0.08, 0.18), 2)
+        emit(
+            datetime(2024, month, min(_last_day(2024, month), rng.randint(24, 29)), 14, rng.choice([0, 15, 45])),
+            fosa,
+            sink,
+            member,
+            "PESALINK_OUT",
+            "PESALINK",
+            "BANK_TRANSFER",
+            charity,
+            "BANK_PARTNER",
+            "CHURCH",
+            fosa.get("branch_id"),
+        )
+
+        if bosa and rng.random() < 0.25:
+            reserve = round(monthly_collections * rng.uniform(0.04, 0.08), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(25, 28)), 9, 0), fosa, bosa, member, "BOSA_DEP_TOPUP", "SACCO_INTERNAL", "MOBILE_APP", reserve, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+        if wallet and rng.random() < 0.18:
+            petty_cash = round(monthly_collections * rng.uniform(0.04, 0.08), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(21, 27)), 16, 0), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", petty_cash, "MPESA", "WALLET_USER")
+
+
 def _loan_lifecycle_transactions(
     config: WorldConfig,
     rng: random.Random,
@@ -435,6 +530,10 @@ def _last_day(year: int, month: int) -> int:
     if month == 12:
         return 31
     return (date(year, month + 1, 1) - timedelta(days=1)).day
+
+
+def _sundays_in_month(year: int, month: int) -> list[int]:
+    return [day for day in range(1, _last_day(year, month) + 1) if date(year, month, day).weekday() == 6]
 
 
 def _narrative(txn_type: str) -> str:
