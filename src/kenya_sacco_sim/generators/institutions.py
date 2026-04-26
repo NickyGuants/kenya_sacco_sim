@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from kenya_sacco_sim.core.config import COUNTIES, WorldConfig
+from kenya_sacco_sim.core.config import COUNTIES, WorldConfig, start_timestamp
 from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
@@ -22,7 +22,7 @@ def generate_institution_world(config: WorldConfig) -> InstitutionWorld:
                 "institution_id": institution_id,
                 "county": county,
                 "urban_rural": "URBAN" if county in {"Nairobi", "Mombasa", "Kisumu"} else "PERI_URBAN",
-                "created_at": f"{config.start_date}T00:00:00",
+                "created_at": start_timestamp(config),
             }
         )
         for _ in range(2):
@@ -32,7 +32,7 @@ def generate_institution_world(config: WorldConfig) -> InstitutionWorld:
                     "institution_id": institution_id,
                     "county": county,
                     "urban_rural": rng.choice(["URBAN", "PERI_URBAN", "RURAL"]),
-                    "created_at": f"{config.start_date}T00:00:00",
+                    "created_at": start_timestamp(config),
                 }
             )
         for _ in range(12):
@@ -42,7 +42,7 @@ def generate_institution_world(config: WorldConfig) -> InstitutionWorld:
                     "institution_id": institution_id,
                     "county": county,
                     "urban_rural": rng.choice(["URBAN", "PERI_URBAN", "RURAL"]),
-                    "created_at": f"{config.start_date}T00:00:00",
+                    "created_at": start_timestamp(config),
                 }
             )
 

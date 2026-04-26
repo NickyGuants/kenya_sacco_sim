@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from datetime import date, timedelta
 
-from kenya_sacco_sim.core.config import COUNTIES, PERSONA_CONFIG, WorldConfig
+from kenya_sacco_sim.core.config import COUNTIES, PERSONA_CONFIG, WorldConfig, start_timestamp
 from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
@@ -48,7 +48,7 @@ def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[
                 "declared_monthly_income_kes": monthly_income,
                 "income_stability_score": round(rng.uniform(0.35, 0.95), 3),
                 "dormant_flag": rng.random() < 0.03,
-                "created_at": f"{config.start_date}T00:00:00",
+                "created_at": start_timestamp(config),
             }
         )
     return members

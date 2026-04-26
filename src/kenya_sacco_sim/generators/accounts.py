@@ -79,7 +79,7 @@ def _external_accounts(ids: IdFactory, config: WorldConfig) -> list[dict[str, ob
     ]:
         rows.append(
             {
-                "account_id": ids.next("EXT"),
+                "account_id": ids.next("ACCT"),
                 "member_id": None,
                 "institution_id": None,
                 "account_owner_type": owner_type,

@@ -963,6 +963,12 @@ OWNS_BUSINESS
 TRANSACTS_WITH
 SHARES_PHONE
 SHARES_DEVICE
+INSTITUTION_HAS_BRANCH
+ACCOUNT_AT_BRANCH
+ACCOUNT_BELONGS_TO_INSTITUTION
+EMPLOYER_BELONGS_TO_INSTITUTION
+SOURCE_FUNDS_ACCOUNT
+ACCOUNT_PAYS_SINK
 ```
 
 No suspicious labels in this file.
@@ -1501,7 +1507,8 @@ Check:
 3. Primary keys are unique.
 4. Foreign keys resolve.
 5. Enum values are valid.
-6. Dates are within simulation window.
+6. Transaction timestamps are within simulation window.
+7. Historical member join_date and account open_date may predate the simulation window, but may not be after the simulation end date.
 ```
 
 ---

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta, timezone
+
+
+EAT = timezone(timedelta(hours=3))
 
 
 @dataclass(frozen=True)
@@ -27,3 +31,7 @@ PERSONA_CONFIG = {
 }
 
 COUNTIES = ["Nairobi", "Kiambu", "Nakuru", "Mombasa", "Kisumu", "Meru", "Nyeri", "Uasin Gishu", "Kakamega", "Machakos"]
+
+
+def start_timestamp(config: WorldConfig) -> str:
+    return f"{config.start_date}T00:00:00+03:00"

@@ -4,18 +4,18 @@ import random
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from kenya_sacco_sim.core.config import WorldConfig
+from kenya_sacco_sim.core.config import EAT, WorldConfig
+from kenya_sacco_sim.core.id_factory import IdFactory
 
 
 def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]]) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 303)
     balances = {str(account["account_id"]): float(account["opening_balance_kes"]) for account in accounts}
+    ids = IdFactory()
     by_member = _accounts_by_member(accounts)
     source_account = next(account for account in accounts if account["account_type"] == "SOURCE_ACCOUNT")
     sink_account = next(account for account in accounts if account["account_type"] == "SINK_ACCOUNT")
     transactions: list[dict[str, object]] = []
-    txn_seq = 0
-
     def emit(
         timestamp: datetime,
         debit_account: dict[str, object],
@@ -29,7 +29,6 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         counterparty_type: str = "EXTERNAL_UNKNOWN",
         branch_id: object | None = None,
     ) -> None:
-        nonlocal txn_seq
         amount = round(float(amount), 2)
         if amount <= 0:
             return
@@ -38,10 +37,10 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         credit_id = str(credit_account["account_id"])
         balances[debit_id] -= amount
         balances[credit_id] += amount
-        txn_seq += 1
+        txn_id = ids.next("TXN")
         transactions.append(
             {
-                "txn_id": f"TXN_{txn_seq:09d}",
+                "txn_id": txn_id,
                 "timestamp": timestamp.isoformat(timespec="seconds"),
                 "institution_id": member["institution_id"] if member else None,
                 "account_id_dr": debit_id,
@@ -57,7 +56,7 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
                 "fee_kes": 0.0,
                 "currency": config.currency,
                 "narrative": _narrative(txn_type),
-                "reference": f"REF{txn_seq:09d}",
+                "reference": txn_id.replace("TXN", "REF", 1),
                 "branch_id": branch_id,
                 "agent_id": None,
                 "device_id": None,
@@ -130,6 +129,10 @@ def _salary_checkoff_wallet_spend(
             provider = "SACCO_CORE"
         spend = round(spend_base * rng.uniform(0.25, 0.55), 2)
         emit(payday + timedelta(days=rng.randint(4, 10)), spend_account, sink, member, "HOUSEHOLD_SPEND_OUT", rail, channel, spend, provider, "MERCHANT")
+        if rng.random() < 0.06:
+            cash = round(net_salary * rng.uniform(0.04, 0.08), 2)
+            cash_day = payday + timedelta(days=rng.randint(2, 6), hours=1)
+            emit(cash_day, fosa, sink, member, "FOSA_CASH_WITHDRAWAL", "CASH_AGENT", "AGENT", cash, "SACCO_CORE", "AGENT", fosa.get("branch_id"))
 
 
 def _sme_receipts_monday_deposit(
@@ -151,7 +154,17 @@ def _sme_receipts_monday_deposit(
             day = rng.randint(1, min(18, _last_day(2024, month)))
             amount = round(monthly_income * rng.uniform(0.08, 0.20), 2)
             inflow_total += amount
-            emit(datetime(2024, month, day, rng.randint(9, 20), rng.choice([0, 10, 20, 30, 40, 50])), source, fosa, member, "BUSINESS_SETTLEMENT_IN", "MPESA", "PAYBILL", amount, "MPESA", "CUSTOMER", fosa.get("branch_id"))
+            if rng.random() < 0.05:
+                rail = rng.choice(["CASH_AGENT", "CASH_BRANCH"])
+                channel = "AGENT" if rail == "CASH_AGENT" else "BRANCH"
+                txn_type = "FOSA_CASH_DEPOSIT"
+                provider = "SACCO_CORE"
+            else:
+                rail = "MPESA"
+                channel = "PAYBILL"
+                txn_type = "BUSINESS_SETTLEMENT_IN"
+                provider = "MPESA"
+            emit(datetime(2024, month, day, rng.randint(9, 20), rng.choice([0, 10, 20, 30, 40, 50])), source, fosa, member, txn_type, rail, channel, amount, provider, "CUSTOMER", fosa.get("branch_id"))
         supplier = round(inflow_total * rng.uniform(0.35, 0.60), 2)
         emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(23, 28)), 11, 0), fosa, sink, member, "SUPPLIER_PAYMENT_OUT", rng.choice(["PESALINK", "MPESA"]), rng.choice(["BANK_TRANSFER", "PAYBILL"]), supplier, "BANK_PARTNER", "MERCHANT")
         if bosa and rng.random() < 0.35:
@@ -196,6 +209,9 @@ def _diaspora_support_household(
         spend = round(spend_base * rng.uniform(0.45, 0.80), 2)
         txn_type = "SCHOOL_FEES_PAYMENT_OUT" if month in {1, 5, 8} and rng.random() < 0.45 else "HOUSEHOLD_SPEND_OUT"
         emit(ts + timedelta(days=rng.randint(2, 8)), spend_account, sink, member, txn_type, rail, channel, spend, provider, "MERCHANT")
+        if rng.random() < 0.08:
+            cash = round(inflow * rng.uniform(0.05, 0.10), 2)
+            emit(ts + timedelta(days=rng.randint(2, 5), hours=2), fosa, sink, member, "FOSA_CASH_WITHDRAWAL", "CASH_BRANCH", "BRANCH", cash, "SACCO_CORE", "AGENT", fosa.get("branch_id"))
 
 
 def _boda_cash_cycle(
@@ -212,9 +228,12 @@ def _boda_cash_cycle(
 ) -> None:
     for month in range(1, config.months + 1):
         monthly_cash = monthly_income * rng.uniform(0.75, 1.15)
-        for cycle in range(2):
+        deposited_total = 0.0
+        cycle_count = 2 if rng.random() < 0.65 else 1
+        for cycle in range(cycle_count):
             deposit_day = min(_last_day(2024, month), 5 + cycle * 14 + rng.randint(0, 3))
             deposit = round(monthly_cash * rng.uniform(0.14, 0.22), 2)
+            deposited_total += deposit
             rail = rng.choices(["CASH_AGENT", "CASH_BRANCH"], weights=[0.72, 0.28], k=1)[0]
             channel = "AGENT" if rail == "CASH_AGENT" else "BRANCH"
             emit(datetime(2024, month, deposit_day, rng.randint(8, 18), rng.choice([0, 15, 30, 45])), source, fosa, member, "FOSA_CASH_DEPOSIT", rail, channel, deposit, "SACCO_CORE", "CUSTOMER", fosa.get("branch_id"))
@@ -222,10 +241,10 @@ def _boda_cash_cycle(
             emit(datetime(2024, month, min(_last_day(2024, month), deposit_day + rng.randint(1, 3)), rng.randint(10, 19), 0), fosa, sink, member, "FOSA_CASH_WITHDRAWAL", rail, channel, cashout, "SACCO_CORE", "AGENT", fosa.get("branch_id"))
 
         if wallet and rng.random() < 0.70:
-            topup = round(monthly_cash * rng.uniform(0.08, 0.16), 2)
+            topup = round(deposited_total * rng.uniform(0.08, 0.16), 2)
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(20, 27)), 17, 30), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
         if bosa and rng.random() < 0.25:
-            bosa_topup = round(monthly_cash * rng.uniform(0.04, 0.08), 2)
+            bosa_topup = round(deposited_total * rng.uniform(0.04, 0.08), 2)
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(24, 28)), 9, 30), fosa, bosa, member, "BOSA_DEP_TOPUP", "SACCO_INTERNAL", "BRANCH", bosa_topup, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
 
 
@@ -300,8 +319,12 @@ def _narrative(txn_type: str) -> str:
 
 
 def _bounded_timestamp(timestamp: datetime, config: WorldConfig) -> datetime:
-    start = datetime.fromisoformat(f"{config.start_date}T00:00:00")
-    end = datetime.fromisoformat(f"{config.end_date}T23:59:59")
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=EAT)
+    else:
+        timestamp = timestamp.astimezone(EAT)
+    start = datetime.fromisoformat(f"{config.start_date}T00:00:00+03:00")
+    end = datetime.fromisoformat(f"{config.end_date}T23:59:59+03:00")
     if timestamp < start:
         return start
     if timestamp > end:
