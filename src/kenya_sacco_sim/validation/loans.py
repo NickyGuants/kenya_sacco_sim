@@ -50,8 +50,9 @@ def validate_loans(rows_by_file: dict[str, list[dict[str, object]]]) -> tuple[li
             findings.append(_error("loan.disbursement_before_approval", "disbursement_date must be >= approval_date", loan_id))
         if round(disbursement_by_account[loan_account_id], 2) != round(principal, 2):
             findings.append(_error("loan.disbursement_principal_mismatch", "LOAN_DISBURSEMENT total must equal principal", loan_id))
-        if repayment_by_account[loan_account_id] - principal > 0.005:
-            findings.append(_error("loan.repayment_exceeds_principal", "Repayments cannot exceed principal", loan_id))
+        total_due = principal + penalty_by_account[loan_account_id]
+        if repayment_by_account[loan_account_id] - total_due > 0.005:
+            findings.append(_error("loan.repayment_exceeds_total_due", "Repayments cannot exceed principal plus posted penalties", loan_id))
         outstanding = round(principal + penalty_by_account[loan_account_id] - repayment_by_account[loan_account_id], 2)
         if round(float(account["current_balance_kes"]), 2) != outstanding:
             findings.append(_error("loan.outstanding_balance_mismatch", "LOAN_ACCOUNT current balance must equal outstanding principal plus penalties", loan_id))

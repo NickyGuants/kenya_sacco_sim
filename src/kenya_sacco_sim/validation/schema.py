@@ -307,7 +307,7 @@ def _validate_transaction_amounts(rows: list[dict[str, object]], findings: list[
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for key in ("member_id", "account_id", "node_id", "edge_id", "txn_id", "loan_id", "guarantee_id"):
+    for key in ("member_id", "account_id", "node_id", "edge_id", "txn_id", "guarantee_id", "loan_id"):
         if row.get(key):
             return str(row[key])
     return None
