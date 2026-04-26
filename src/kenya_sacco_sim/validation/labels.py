@@ -15,11 +15,25 @@ FORBIDDEN_FEATURE_COLUMNS = {
 
 
 def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious_ratio: float, tolerance: float = 0.002) -> tuple[list[ValidationFinding], dict[str, object], dict[str, object]]:
+    findings: list[ValidationFinding] = []
+    findings.extend(_label_leakage_findings(rows_by_file))
+    member_count = len(rows_by_file.get("members.csv", []))
+    target_suspicious_member_count = _target_suspicious_count(member_count, suspicious_ratio)
+    count_tolerance = 0 if target_suspicious_member_count == 0 else _suspicious_count_tolerance(member_count, tolerance)
+    if "alerts_truth.csv" not in rows_by_file:
+        section = _empty_label_section("not_applicable", suspicious_ratio, target_suspicious_member_count, count_tolerance, findings)
+        return findings, section, {"status": "not_applicable"}
+
     alerts = rows_by_file.get("alerts_truth.csv", [])
     if not alerts:
-        return [], {"status": "not_applicable"}, {"status": "not_applicable"}
+        if target_suspicious_member_count > 0:
+            findings.append(_error("label.alerts_missing", "alerts_truth.csv is present but empty while suspicious_ratio expects labels", None))
+            status = "labels_missing"
+        else:
+            status = "no_labels_expected"
+        section = _empty_label_section(status, suspicious_ratio, target_suspicious_member_count, count_tolerance, findings)
+        return findings, section, {"status": status}
 
-    findings: list[ValidationFinding] = []
     transactions = {str(row["txn_id"]) for row in rows_by_file.get("transactions.csv", [])}
     members = {str(row["member_id"]) for row in rows_by_file.get("members.csv", [])}
     accounts = {str(row["account_id"]) for row in rows_by_file.get("accounts.csv", [])}
@@ -56,12 +70,11 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         if not txn_alerts:
             findings.append(_error("label.pattern_without_txn_labels", "Suspicious pattern must label at least one transaction", pattern_id))
 
-    findings.extend(_label_leakage_findings(rows_by_file))
     suspicious_member_count = len({str(alert["member_id"]) for alert in alerts if alert["entity_type"] == "PATTERN"})
-    member_count = len(rows_by_file.get("members.csv", []))
     realized_ratio = suspicious_member_count / member_count if member_count else 0.0
-    if abs(realized_ratio - suspicious_ratio) > tolerance:
-        findings.append(_error("label.suspicious_ratio_out_of_tolerance", f"Suspicious member ratio {realized_ratio:.4f} is outside target {suspicious_ratio:.4f} +/- {tolerance:.4f}", None))
+    count_delta = abs(suspicious_member_count - target_suspicious_member_count)
+    if count_delta > count_tolerance:
+        findings.append(_error("label.suspicious_ratio_out_of_tolerance", f"Suspicious member count {suspicious_member_count} is outside target {target_suspicious_member_count} +/- {count_tolerance}", None))
     blend_metrics = _suspicious_blending_metrics(rows_by_file, suspicious_txn_ids_by_member)
     for member_id in blend_metrics["members_below_50pct_normal_share"]:
         findings.append(_error("label.suspicious_member_blending_low", "Suspicious member normal transaction share must be >= 0.50", member_id))
@@ -86,6 +99,8 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "suspicious_member_count": suspicious_member_count,
         "suspicious_member_ratio": round(realized_ratio, 4),
         "target_suspicious_member_ratio": suspicious_ratio,
+        "target_suspicious_member_count": target_suspicious_member_count,
+        "suspicious_member_count_tolerance": count_tolerance,
         "suspicious_transaction_count": len(suspicious_txn_ids),
         "min_suspicious_member_normal_txn_share": blend_metrics["min_normal_txn_share"],
         "members_below_50pct_normal_share": blend_metrics["members_below_50pct_normal_share"],
@@ -95,6 +110,32 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "warning_count": sum(1 for finding in findings if finding.severity == "warning" and finding.code.startswith("label")),
     }
     return findings, label_section, typology_section
+
+
+def _empty_label_section(status: str, suspicious_ratio: float, target_count: int, count_tolerance: int, findings: list[ValidationFinding]) -> dict[str, object]:
+    return {
+        "status": status,
+        "alert_count": 0,
+        "pattern_count": 0,
+        "suspicious_member_count": 0,
+        "suspicious_member_ratio": 0.0,
+        "target_suspicious_member_ratio": suspicious_ratio,
+        "target_suspicious_member_count": target_count,
+        "suspicious_member_count_tolerance": count_tolerance,
+        "suspicious_transaction_count": 0,
+        "error_count": sum(1 for finding in findings if finding.severity == "error" and finding.code.startswith("label")),
+        "warning_count": sum(1 for finding in findings if finding.severity == "warning" and finding.code.startswith("label")),
+    }
+
+
+def _target_suspicious_count(member_count: int, suspicious_ratio: float) -> int:
+    return max(0, round(member_count * suspicious_ratio))
+
+
+def _suspicious_count_tolerance(member_count: int, ratio_tolerance: float) -> int:
+    if member_count <= 0:
+        return 0
+    return max(1, round(member_count * ratio_tolerance))
 
 
 def _label_leakage_findings(rows_by_file: dict[str, list[dict[str, object]]]) -> list[ValidationFinding]:

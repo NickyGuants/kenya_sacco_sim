@@ -3,11 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
-from kenya_sacco_sim.core.config import EAT, WorldConfig
+from kenya_sacco_sim.core.config import WorldConfig, start_timestamp
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
 from kenya_sacco_sim.generators.edges import generate_edges
@@ -116,7 +115,7 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
         "institutions": config.institution_count,
         "suspicious_ratio": config.suspicious_ratio,
         "difficulty": config.difficulty,
-        "created_at": datetime.now(EAT).isoformat(timespec="seconds"),
+        "created_at": start_timestamp(config),
         "files": payload_files,
         "file_hashes_md5": _file_hashes(output_dir, list(rows_by_file) + extra_files + ["validation_report.json"]),
         "validation": {

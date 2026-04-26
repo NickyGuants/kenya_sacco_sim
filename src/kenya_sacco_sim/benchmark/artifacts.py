@@ -25,6 +25,7 @@ def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], conf
     member_split = {str(member["member_id"]): _split_for_key(str(member["member_id"]), config.seed) for member in rows_by_file.get("members.csv", [])}
     pattern_split: dict[str, str] = {}
     pattern_members: dict[str, set[str]] = defaultdict(set)
+    pattern_member_splits: dict[str, set[str]] = defaultdict(set)
     for alert in rows_by_file.get("alerts_truth.csv", []):
         pattern_id = str(alert["pattern_id"])
         member_id = str(alert.get("member_id") or "")
@@ -32,10 +33,12 @@ def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], conf
             pattern_members[pattern_id].add(member_id)
     for pattern_id, member_ids in pattern_members.items():
         split_counts = Counter(member_split.get(member_id, "unassigned") for member_id in member_ids)
+        pattern_member_splits[pattern_id] = set(split_counts)
         pattern_split[pattern_id] = split_counts.most_common(1)[0][0]
 
-    transaction_counts = Counter(_row_split(row, member_split, config.seed) for row in rows_by_file.get("transactions.csv", []))
-    alert_counts = Counter(pattern_split.get(str(row["pattern_id"]), member_split.get(str(row.get("member_id") or ""), "unassigned")) for row in rows_by_file.get("alerts_truth.csv", []))
+    transaction_splits = [_row_split(row, member_split, config.seed) for row in rows_by_file.get("transactions.csv", [])]
+    alert_splits = [pattern_split.get(str(row["pattern_id"]), member_split.get(str(row.get("member_id") or ""), "unassigned")) for row in rows_by_file.get("alerts_truth.csv", [])]
+    checks = _split_checks(rows_by_file, member_split, pattern_split, pattern_member_splits, transaction_splits, alert_splits)
     return {
         "split_strategy": "member_hash_70_15_15",
         "seed": config.seed,
@@ -44,16 +47,11 @@ def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], conf
         "pattern_id_to_split": pattern_split,
         "counts": {
             "members": dict(sorted(Counter(member_split.values()).items())),
-            "transactions": dict(sorted(transaction_counts.items())),
-            "alerts_truth": dict(sorted(alert_counts.items())),
+            "transactions": dict(sorted(Counter(transaction_splits).items())),
+            "alerts_truth": dict(sorted(Counter(alert_splits).items())),
             "patterns": dict(sorted(Counter(pattern_split.values()).items())),
         },
-        "checks": {
-            "no_member_id_split_leakage": True,
-            "no_pattern_id_split_leakage": True,
-            "member_id_split_leakage_count": 0,
-            "pattern_id_split_leakage_count": 0,
-        },
+        "checks": checks,
     }
 
 
@@ -102,7 +100,7 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
 def _build_feature_documentation() -> dict[str, object]:
     return {
         "feature_files": {
-            filename: {"columns": columns, "label_file": filename == "alerts_truth.csv"}
+            filename: {"columns": columns, "label_file": filename == "alerts_truth.csv", "split_key": _split_key_for_file(filename)}
             for filename, columns in REQUIRED_COLUMNS.items()
             if filename != "alerts_truth.csv"
         },
@@ -117,7 +115,16 @@ def _build_feature_documentation() -> dict[str, object]:
             "members.csv": ["criminal_flag", "shell_flag", "suspicious_member", "injected_typology"],
             "accounts.csv": ["mule_account_flag", "laundering_account_flag"],
         },
-        "recommended_split_key": "member_id",
+        "recommended_split_source": "split_manifest.json",
+        "recommended_split_entity": "member",
+        "recommended_split_key_by_file": {
+            "members.csv": "member_id",
+            "accounts.csv": "member_id",
+            "transactions.csv": "member_id_primary",
+            "loans.csv": "member_id",
+            "guarantors.csv": ["borrower_member_id", "guarantor_member_id"],
+            "alerts_truth.csv": "pattern_id",
+        },
     }
 
 
@@ -168,6 +175,65 @@ def _row_split(row: dict[str, object], member_split: dict[str, str], seed: int) 
     if member_id in member_split:
         return member_split[member_id]
     return _split_for_key(str(row.get("txn_id") or ""), seed)
+
+
+def _split_checks(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    member_split: dict[str, str],
+    pattern_split: dict[str, str],
+    pattern_member_splits: dict[str, set[str]],
+    transaction_splits: list[str],
+    alert_splits: list[str],
+) -> dict[str, object]:
+    member_observed_splits: dict[str, set[str]] = defaultdict(set)
+    unknown_member_ids: set[str] = set()
+    for row, split in zip(rows_by_file.get("transactions.csv", []), transaction_splits):
+        member_id = str(row.get("member_id_primary") or "")
+        if not member_id:
+            continue
+        if member_id not in member_split:
+            unknown_member_ids.add(member_id)
+            continue
+        member_observed_splits[member_id].add(split)
+    for row, split in zip(rows_by_file.get("alerts_truth.csv", []), alert_splits):
+        member_id = str(row.get("member_id") or "")
+        if not member_id:
+            continue
+        if member_id not in member_split:
+            unknown_member_ids.add(member_id)
+            continue
+        member_observed_splits[member_id].add(split)
+
+    member_leaks = sorted(member_id for member_id, splits in member_observed_splits.items() if len(splits) > 1 or next(iter(splits)) != member_split[member_id])
+    pattern_leaks = sorted(
+        pattern_id
+        for pattern_id, splits in pattern_member_splits.items()
+        if not splits or "unassigned" in splits or len(splits) > 1 or pattern_split.get(pattern_id) == "unassigned"
+    )
+    unknown_pattern_ids = sorted(pattern_id for pattern_id, split in pattern_split.items() if split == "unassigned")
+    return {
+        "no_member_id_split_leakage": not member_leaks and not unknown_member_ids,
+        "no_pattern_id_split_leakage": not pattern_leaks and not unknown_pattern_ids,
+        "member_id_split_leakage_count": len(member_leaks),
+        "pattern_id_split_leakage_count": len(pattern_leaks),
+        "unassigned_member_reference_count": len(unknown_member_ids),
+        "unassigned_pattern_count": len(unknown_pattern_ids),
+        "member_ids_with_split_leakage_sample": member_leaks[:20],
+        "pattern_ids_with_split_leakage_sample": pattern_leaks[:20],
+        "unassigned_member_id_sample": sorted(unknown_member_ids)[:20],
+        "unassigned_pattern_id_sample": unknown_pattern_ids[:20],
+    }
+
+
+def _split_key_for_file(filename: str) -> str | list[str] | None:
+    return {
+        "members.csv": "member_id",
+        "accounts.csv": "member_id",
+        "transactions.csv": "member_id_primary",
+        "loans.csv": "member_id",
+        "guarantors.csv": ["borrower_member_id", "guarantor_member_id"],
+        "alerts_truth.csv": "pattern_id",
+    }.get(filename)
 
 
 def _split_for_key(key: str, seed: int) -> str:

@@ -19,6 +19,7 @@ Implemented:
 - Label output in `alerts_truth.csv` with no label columns leaked into feature files
 - Rule reconstruction output in `rule_results.json`
 - Near-miss disclosure metrics for unlabeled suspicious-looking behavior
+- Deterministic `manifest.json` metadata for reproducible seed/config reruns
 - Validation for schema, foreign keys, balances, graph completeness, distributions, credit, guarantors, labels, clean AML baselines, benchmark splits, and ID/reference leakage
 
 Deferred by the frozen v0.1 spec:
@@ -140,11 +141,18 @@ Milestone 5 split and leakage checks:
 ```text
 member split leakage count:         0
 pattern split leakage count:        0
+unassigned member references:       0
+unassigned patterns:                0
 split counts, members:              train 6,992 / validation 1,496 / test 1,512
 split counts, transactions:         train 361,884 / validation 77,821 / test 76,759
 CHURCH_ORG active share:            1.0000
 CHURCH_ORG median txns/year:        84.00
 ```
+
+`feature_documentation.json` points consumers to `split_manifest.json` as the
+source of truth for splits and records the relevant member or pattern key per
+file. `manifest.json` uses deterministic simulation metadata instead of wall
+clock time so identical seed/config runs are easier to compare.
 
 The label validator also checks whether a simple transaction-ID threshold can
 recover suspicious transactions. The latest verified 10,000-member run reports:
