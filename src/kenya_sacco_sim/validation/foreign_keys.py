@@ -9,6 +9,7 @@ def validate_foreign_keys(rows_by_file: dict[str, list[dict[str, object]]]) -> l
     findings: list[ValidationFinding] = []
     members = {str(row["member_id"]) for row in rows_by_file.get("members.csv", [])}
     accounts = {str(row["account_id"]) for row in rows_by_file.get("accounts.csv", [])}
+    loans = {str(row["loan_id"]) for row in rows_by_file.get("loans.csv", [])}
     nodes = rows_by_file.get("nodes.csv", [])
     node_ids = {str(row["node_id"]) for row in nodes}
     entity_to_types: dict[str, set[str]] = defaultdict(set)
@@ -57,6 +58,22 @@ def validate_foreign_keys(rows_by_file: dict[str, list[dict[str, object]]]) -> l
         _check_txn_entity(txn, "device_id", entity_to_types, {"DEVICE"}, findings, nullable=True)
         if txn.get("rail") == "CASH_AGENT" and not txn.get("agent_id"):
             findings.append(_error("foreign_key.cash_agent_missing_agent", "CASH_AGENT transactions must have agent_id", "transactions.csv", row_id))
+
+    for loan in rows_by_file.get("loans.csv", []):
+        row_id = str(loan["loan_id"])
+        if str(loan["member_id"]) not in members:
+            findings.append(_error("foreign_key.loan_member_missing", "loan member_id must resolve to members.csv", "loans.csv", row_id))
+        if str(loan["loan_account_id"]) not in accounts:
+            findings.append(_error("foreign_key.loan_account_missing", "loan_account_id must resolve to accounts.csv", "loans.csv", row_id))
+        _check_entity_type([loan], "loans.csv", "institution_id", entity_to_types, {"INSTITUTION"}, findings)
+
+    for guarantee in rows_by_file.get("guarantors.csv", []):
+        row_id = str(guarantee["guarantee_id"])
+        if str(guarantee["loan_id"]) not in loans:
+            findings.append(_error("foreign_key.guarantee_loan_missing", "guarantee loan_id must resolve to loans.csv", "guarantors.csv", row_id))
+        for column in ("borrower_member_id", "guarantor_member_id"):
+            if str(guarantee[column]) not in members:
+                findings.append(_error("foreign_key.guarantee_member_missing", f"{column} must resolve to members.csv", "guarantors.csv", row_id))
 
     _check_required_accounts(rows_by_file.get("members.csv", []), rows_by_file.get("accounts.csv", []), findings)
     return findings
@@ -145,7 +162,7 @@ def _check_txn_entity(
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for key in ("member_id", "account_id", "edge_id", "node_id", "txn_id"):
+    for key in ("member_id", "account_id", "edge_id", "node_id", "txn_id", "guarantee_id", "loan_id"):
         if row.get(key):
             return str(row[key])
     return None

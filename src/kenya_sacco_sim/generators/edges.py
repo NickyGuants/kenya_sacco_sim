@@ -11,6 +11,7 @@ def generate_edges(
     accounts: list[dict[str, object]],
     world: InstitutionWorld,
     nodes: list[dict[str, object]],
+    guarantors: list[dict[str, object]] | None = None,
 ) -> list[dict[str, object]]:
     node_by_entity = {str(node["entity_id"]): str(node["node_id"]) for node in nodes}
     ids = IdFactory()
@@ -64,6 +65,17 @@ def generate_edges(
         employer_id = member.get("employer_id")
         if employer_id:
             _append_edge(ids, edges, node_by_entity[str(member["member_id"])], node_by_entity[str(employer_id)], "EMPLOYED_BY", str(member["join_date"]), {})
+
+    for guarantee in guarantors or []:
+        _append_edge(
+            ids,
+            edges,
+            node_by_entity[str(guarantee["guarantor_member_id"])],
+            node_by_entity[str(guarantee["borrower_member_id"])],
+            "GUARANTEES",
+            str(guarantee["pledge_date"]),
+            {"loan_id": guarantee["loan_id"], "guarantee_amount_kes": guarantee["guarantee_amount_kes"]},
+        )
 
     source_nodes = [node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"]
     sink_nodes = [node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SINK_ACCOUNT"]

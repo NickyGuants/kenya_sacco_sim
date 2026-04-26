@@ -6,11 +6,13 @@ from datetime import date, datetime, timedelta
 
 from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.core.id_factory import IdFactory
+from kenya_sacco_sim.generators.repayment_schedule import missed_payment_count, scheduled_repayment_count
 
 
-def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]], world=None) -> list[dict[str, object]]:
+def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]], world=None, loans: list[dict[str, object]] | None = None) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 303)
-    balances = {str(account["account_id"]): float(account["opening_balance_kes"]) for account in accounts}
+    account_by_id = {str(account["account_id"]): account for account in accounts}
+    balances = {account_id: float(account["opening_balance_kes"]) for account_id, account in account_by_id.items()}
     ids = IdFactory()
     by_member = _accounts_by_member(accounts)
     source_accounts = [account for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"]
@@ -32,7 +34,7 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         counterparty_type: str = "EXTERNAL_UNKNOWN",
         branch_id: object | None = None,
     ) -> None:
-        amount = round(float(amount), 2)
+        amount = _realistic_amount(round(float(amount), 2), txn_type, rail, rng)
         if amount <= 0:
             return
         timestamp = _bounded_timestamp(timestamp, config)
@@ -42,8 +44,8 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         credit_id = str(credit_account["account_id"])
         agent_id = _select_agent_id(agents_by_branch, branch_id, rng) if rail == "CASH_AGENT" else None
         counterparty_id_hash = _counterparty_hash(counterparty_type, txn_type, member, debit_id, credit_id, branch_id, agent_id)
-        balances[debit_id] -= amount
-        balances[credit_id] += amount
+        _apply_movement(balances, account_by_id, debit_id, "dr", amount)
+        _apply_movement(balances, account_by_id, credit_id, "cr", amount)
         txn_id = ids.next("TXN")
         transactions.append(
             {
@@ -96,8 +98,13 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         elif persona == "FARMER_SEASONAL":
             _farmer_cash_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
 
+    if loans:
+        _loan_lifecycle_transactions(config, rng, loans, accounts, members, emit)
+
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _recompute_balances(transactions, accounts)
+    if loans:
+        _finalize_loan_statuses(loans, accounts)
     return transactions
 
 
@@ -299,6 +306,66 @@ def _farmer_cash_cycle(
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(22, 28)), 16, 30), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
 
 
+def _loan_lifecycle_transactions(
+    config: WorldConfig,
+    rng: random.Random,
+    loans: list[dict[str, object]],
+    accounts: list[dict[str, object]],
+    members: list[dict[str, object]],
+    emit,
+) -> None:
+    account_by_id = {str(account["account_id"]): account for account in accounts}
+    member_by_id = {str(member["member_id"]): member for member in members}
+    accounts_by_member = _accounts_by_member(accounts)
+    for loan in loans:
+        member = member_by_id[str(loan["member_id"])]
+        member_accounts = accounts_by_member[str(loan["member_id"])]
+        fosa = _first(member_accounts, {"FOSA_SAVINGS", "FOSA_CURRENT"})
+        loan_account = account_by_id[str(loan["loan_account_id"])]
+        if not fosa:
+            continue
+        disbursement_ts = datetime.fromisoformat(f"{loan['disbursement_date']}T10:00:00")
+        principal = float(loan["principal_kes"])
+        emit(disbursement_ts, loan_account, fosa, member, "LOAN_DISBURSEMENT", "SACCO_INTERNAL", "SYSTEM", principal, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+
+        scheduled_payments = scheduled_repayment_count(disbursement_ts.month, int(loan["tenor_months"]), config.months)
+        if scheduled_payments <= 0:
+            continue
+        missed = missed_payment_count(str(loan["performing_status"]), scheduled_payments, rng)
+        paid_count = max(0, scheduled_payments - missed)
+        installment = round(principal / int(loan["tenor_months"]), 2)
+        paid_total = 0.0
+        for index in range(paid_count):
+            pay_month = disbursement_ts.month + index + 1
+            if pay_month > 12:
+                break
+            remaining = principal - paid_total
+            amount = remaining if index == paid_count - 1 and remaining <= installment + 0.01 else min(installment, remaining)
+            paid_total += amount
+            pay_ts = datetime(2024, pay_month, min(28, rng.choice([24, 25, 26, 27, 28])), 9, rng.choice([0, 15, 30]))
+            if loan["repayment_mode"] == "PAYROLL_CHECKOFF":
+                emit(pay_ts, fosa, loan_account, member, "CHECKOFF_LOAN_RECOVERY", "PAYROLL_CHECKOFF", "PAYROLL_FILE", amount, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+            elif loan["repayment_mode"] == "MPESA_PAYBILL":
+                emit(pay_ts, fosa, loan_account, member, "LOAN_REPAYMENT", "MPESA", "PAYBILL", amount, "MPESA", "SACCO", fosa.get("branch_id"))
+            else:
+                if rng.random() < 0.85:
+                    emit(pay_ts, fosa, loan_account, member, "LOAN_REPAYMENT", "CASH_BRANCH", "BRANCH", amount, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+                else:
+                    emit(pay_ts, fosa, loan_account, member, "LOAN_REPAYMENT", "MPESA", "PAYBILL", amount, "MPESA", "SACCO", fosa.get("branch_id"))
+
+        if loan["performing_status"] in {"IN_ARREARS", "DEFAULTED"}:
+            penalty = round(principal * rng.uniform(0.006, 0.018), 2)
+            penalty_ts = datetime(2024, min(12, disbursement_ts.month + scheduled_payments), 28, 17, 0)
+            emit(penalty_ts, loan_account, account_by_id[_sink_account_id(accounts)], member, "PENALTY_POST", "SACCO_INTERNAL", "SYSTEM", penalty, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+
+
+def _sink_account_id(accounts: list[dict[str, object]]) -> str:
+    for account in accounts:
+        if account["account_type"] == "SINK_ACCOUNT":
+            return str(account["account_id"])
+    raise ValueError("No SINK_ACCOUNT available")
+
+
 def _accounts_by_member(accounts: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
     by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
     for account in accounts:
@@ -374,6 +441,22 @@ def _narrative(txn_type: str) -> str:
     return txn_type.replace("_", " ").title()
 
 
+def _realistic_amount(amount: float, txn_type: str, rail: str, rng: random.Random) -> float:
+    if txn_type in {"SALARY_IN", "CHECKOFF_DEPOSIT", "CHECKOFF_LOAN_RECOVERY", "LOAN_REPAYMENT", "LOAN_DISBURSEMENT", "PENALTY_POST"}:
+        return amount
+    if txn_type == "SCHOOL_FEES_PAYMENT_OUT" and rng.random() < 0.75:
+        return _round_to_nearest(amount, 500)
+    if rail in {"CASH_AGENT", "CASH_BRANCH"} and rng.random() < 0.55:
+        return _round_to_nearest(amount, rng.choice([50, 100]))
+    if txn_type == "BUSINESS_SETTLEMENT_IN" and rng.random() < 0.25:
+        return _round_to_nearest(amount, 100)
+    return amount
+
+
+def _round_to_nearest(amount: float, increment: int) -> float:
+    return round(max(increment, round(amount / increment) * increment), 2)
+
+
 def _bounded_timestamp(timestamp: datetime, config: WorldConfig) -> datetime:
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=EAT)
@@ -389,14 +472,33 @@ def _bounded_timestamp(timestamp: datetime, config: WorldConfig) -> datetime:
 
 
 def _recompute_balances(transactions: list[dict[str, object]], accounts: list[dict[str, object]]) -> None:
+    account_by_id = {str(account["account_id"]): account for account in accounts}
     balances = {str(account["account_id"]): float(account["opening_balance_kes"]) for account in accounts}
     for txn in transactions:
         amount = float(txn["amount_kes"])
         debit_id = str(txn["account_id_dr"])
         credit_id = str(txn["account_id_cr"])
-        balances[debit_id] -= amount
-        balances[credit_id] += amount
+        _apply_movement(balances, account_by_id, debit_id, "dr", amount)
+        _apply_movement(balances, account_by_id, credit_id, "cr", amount)
         txn["balance_after_dr_kes"] = round(balances[debit_id], 2)
         txn["balance_after_cr_kes"] = round(balances[credit_id], 2)
     for account in accounts:
         account["current_balance_kes"] = round(balances[str(account["account_id"])], 2)
+
+
+def _finalize_loan_statuses(loans: list[dict[str, object]], accounts: list[dict[str, object]]) -> None:
+    account_by_id = {str(account["account_id"]): account for account in accounts}
+    for loan in loans:
+        account = account_by_id[str(loan["loan_account_id"])]
+        if round(float(account["current_balance_kes"]), 2) <= 0.01:
+            loan["performing_status"] = "CLOSED"
+            loan["arrears_days"] = 0
+            loan["default_flag"] = False
+            account["status"] = "CLOSED"
+
+
+def _apply_movement(balances: dict[str, float], account_by_id: dict[str, dict[str, object]], account_id: str, side: str, amount: float) -> None:
+    if account_by_id[account_id]["account_type"] == "LOAN_ACCOUNT":
+        balances[account_id] += amount if side == "dr" else -amount
+    else:
+        balances[account_id] += -amount if side == "dr" else amount
