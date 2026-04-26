@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.core.id_factory import IdFactory
@@ -93,7 +94,8 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
 
 
 def _target_counts(config: WorldConfig) -> dict[str, int]:
-    total = max(0, round(config.member_count * config.suspicious_ratio))
+    target = Decimal(str(config.member_count)) * Decimal(str(config.suspicious_ratio))
+    total = max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
     structuring = total // 2
     rapid = total - structuring
     return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid}
@@ -502,6 +504,12 @@ def _alert_row(
 
 def _rule_section(rule_definition: str, rule_config: dict[str, object], candidates: dict[str, object], truth_alerts: list[dict[str, object]]) -> dict[str, object]:
     truth_member_ids = sorted({str(alert["member_id"]) for alert in truth_alerts})
+    detected = sorted(member_id for member_id in truth_member_ids if member_id in candidates)
+    missed = sorted(member_id for member_id in truth_member_ids if member_id not in candidates)
+    false_positives = sorted(member_id for member_id in candidates if member_id not in truth_member_ids)
+    precision = len(detected) / len(candidates) if candidates else 0.0
+    recall = len(detected) / len(truth_member_ids) if truth_member_ids else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return {
         "rule_definition": rule_definition,
         "rule_config": rule_config,
@@ -509,9 +517,15 @@ def _rule_section(rule_definition: str, rule_config: dict[str, object], candidat
         "candidate_member_ids": sorted(candidates),
         "truth_pattern_alert_ids": sorted(str(alert["alert_id"]) for alert in truth_alerts),
         "truth_member_ids": truth_member_ids,
-        "truth_members_detected": sorted(member_id for member_id in truth_member_ids if member_id in candidates),
-        "truth_members_missed": sorted(member_id for member_id in truth_member_ids if member_id not in candidates),
-        "false_positive_member_ids": sorted(member_id for member_id in candidates if member_id not in truth_member_ids),
+        "truth_members_detected": detected,
+        "truth_members_missed": missed,
+        "false_positive_member_ids": false_positives,
+        "true_positive_count": len(detected),
+        "false_positive_count": len(false_positives),
+        "false_negative_count": len(missed),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
     }
 
 
