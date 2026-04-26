@@ -11,7 +11,7 @@ from kenya_sacco_sim.validation.loan_validator import validate_credit_distributi
 from kenya_sacco_sim.validation.schema import validate_schema
 
 
-def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], config: WorldConfig) -> dict[str, object]:
+def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], config: WorldConfig, typology_runtime_metrics: dict[str, object] | None = None) -> dict[str, object]:
     findings: list[ValidationFinding] = []
     findings.extend(validate_schema(rows_by_file, config))
     findings.extend(validate_foreign_keys(rows_by_file))
@@ -40,6 +40,7 @@ def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], co
         "clean_baseline_aml_metrics": clean_baseline_metrics(rows_by_file),
         "distribution_validation": distribution_section,
         "typology_validation": typology_section,
+        "typology_runtime_metrics": typology_runtime_metrics or {"status": "not_applicable"},
         "errors": [_finding_to_dict(f) for f in findings if f.severity == "error"],
         "warnings": [_finding_to_dict(f) for f in findings if f.severity == "warning"],
         "info": [_finding_to_dict(f) for f in findings if f.severity == "info"],

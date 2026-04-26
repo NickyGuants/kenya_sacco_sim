@@ -57,11 +57,13 @@ def inject_typologies(
         next_pattern,
         targets["RAPID_PASS_THROUGH"],
     )
-    next_txn = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, max(2, targets["STRUCTURING"] // 5))
+    next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, max(2, targets["STRUCTURING"] // 5))
 
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
+    _reassign_transaction_ids(transactions, alerts)
     _recompute_balances(transactions, accounts)
     rule_results = build_rule_results(transactions, accounts, alerts)
+    rule_results["near_miss_disclosure"] = near_miss_stats
     return alerts, rule_results
 
 
@@ -288,13 +290,16 @@ def _inject_decoys(
     used_members: set[str],
     next_txn: int,
     target_count: int,
-) -> int:
+) -> tuple[int, dict[str, object]]:
     decoy_members = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
     rng.shuffle(decoy_members)
+    near_miss_member_ids: set[str] = set()
+    near_miss_txn_count = 0
     for index, member in enumerate(decoy_members[: target_count * 4], start=1):
         fosa = _first(account_by_member[str(member["member_id"])], {"FOSA_CURRENT", "FOSA_SAVINGS"})
         if not fosa:
             continue
+        before = next_txn
         if index % 4 == 1:
             next_txn = _inject_legitimate_structuring_like(rng, member, fosa, source_accounts, agents_by_branch, transactions, next_txn, index)
         elif index % 4 == 2:
@@ -303,7 +308,13 @@ def _inject_decoys(
             next_txn = _inject_legitimate_rapid_like(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         else:
             next_txn = _inject_near_rapid(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
-    return next_txn
+        if next_txn > before:
+            near_miss_member_ids.add(str(member["member_id"]))
+            near_miss_txn_count += next_txn - before
+    return next_txn, {
+        "near_miss_transaction_count": near_miss_txn_count,
+        "near_miss_member_count": len(near_miss_member_ids),
+    }
 
 
 def _inject_legitimate_structuring_like(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], agents_by_branch: dict[str, list[str]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
@@ -412,6 +423,45 @@ def _txn_row(
         "balance_after_cr_kes": 0.0,
         "is_reversal": False,
     }
+
+
+def _reassign_transaction_ids(transactions: list[dict[str, object]], alerts: list[dict[str, object]]) -> None:
+    id_map: dict[str, str] = {}
+    transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
+    for index, txn in enumerate(transactions, start=1):
+        old_txn_id = str(txn["txn_id"])
+        new_txn_id = _txn_id(index)
+        id_map[old_txn_id] = new_txn_id
+        txn["txn_id"] = new_txn_id
+
+    for txn in transactions:
+        txn["reference"] = _reference_for_transaction(txn)
+
+    for alert in alerts:
+        old_alert_txn_id = str(alert.get("txn_id") or "")
+        if old_alert_txn_id in id_map:
+            alert["txn_id"] = id_map[old_alert_txn_id]
+        old_entity_id = str(alert.get("entity_id") or "")
+        if alert.get("entity_type") == "TRANSACTION" and old_entity_id in id_map:
+            alert["entity_id"] = id_map[old_entity_id]
+
+
+def _reference_for_transaction(txn: dict[str, object]) -> str:
+    digest = IdFactory.hash_id(
+        "REF",
+        f"{txn['txn_id']}|{txn['timestamp']}|{txn['account_id_dr']}|{txn['account_id_cr']}|{txn['amount_kes']}|{txn['counterparty_id_hash']}",
+    ).split("_", 1)[1].upper()[:12]
+    rail = str(txn["rail"])
+    if rail == "MPESA":
+        return f"MPESA_{digest}"
+    if rail == "PESALINK" or str(txn["channel"]) == "BANK_TRANSFER":
+        return f"PSL_{digest}"
+    if rail in {"CASH_AGENT", "CASH_BRANCH"}:
+        branch = str(txn.get("branch_id") or "NA").replace("_", "")
+        return f"CASH_{branch}_{digest}"
+    if rail == "PAYROLL_CHECKOFF":
+        return f"PAY_{digest}"
+    return f"SACCO_{digest}"
 
 
 def _alert_row(

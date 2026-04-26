@@ -65,6 +65,13 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
     blend_metrics = _suspicious_blending_metrics(rows_by_file, suspicious_txn_ids_by_member)
     for member_id in blend_metrics["members_below_50pct_normal_share"]:
         findings.append(_error("label.suspicious_member_blending_low", "Suspicious member normal transaction share must be >= 0.50", member_id))
+    id_leakage_metrics = _txn_id_leakage_metrics(rows_by_file, suspicious_txn_ids)
+    threshold_rule = id_leakage_metrics["best_txn_id_threshold_rule"]
+    if threshold_rule["precision"] > 0.70 and threshold_rule["recall"] > 0.70:
+        findings.append(_error("label.txn_id_threshold_leakage", "Simple txn_id threshold recovers suspicious transactions above benchmark safety limit", threshold_rule["threshold_txn_id"]))
+    reference_metrics = _reference_leakage_metrics(rows_by_file)
+    if reference_metrics["mirrored_reference_count"]:
+        findings.append(_error("label.reference_mirrors_txn_id", "reference must not mirror txn_id with a REF prefix", None))
     typology_section = {
         "pattern_summary_count": pattern_summary_count,
         "labeled_suspicious_transaction_count": len(suspicious_txn_ids),
@@ -82,6 +89,8 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "suspicious_transaction_count": len(suspicious_txn_ids),
         "min_suspicious_member_normal_txn_share": blend_metrics["min_normal_txn_share"],
         "members_below_50pct_normal_share": blend_metrics["members_below_50pct_normal_share"],
+        "id_leakage_metrics": id_leakage_metrics,
+        "reference_leakage_metrics": reference_metrics,
         "error_count": sum(1 for finding in findings if finding.severity == "error" and finding.code.startswith("label")),
         "warning_count": sum(1 for finding in findings if finding.severity == "warning" and finding.code.startswith("label")),
     }
@@ -115,6 +124,113 @@ def _suspicious_blending_metrics(rows_by_file: dict[str, list[dict[str, object]]
         "min_normal_txn_share": round(min(shares.values()), 4) if shares else 1.0,
         "members_below_50pct_normal_share": sorted(below),
     }
+
+
+def _txn_id_leakage_metrics(rows_by_file: dict[str, list[dict[str, object]]], suspicious_txn_ids: set[str]) -> dict[str, object]:
+    numbered_rows: list[tuple[int, bool]] = []
+    suspicious_numbers: list[int] = []
+    for row in rows_by_file.get("transactions.csv", []):
+        txn_id = str(row["txn_id"])
+        number = _txn_number(txn_id)
+        if number is None:
+            continue
+        is_suspicious = txn_id in suspicious_txn_ids
+        numbered_rows.append((number, is_suspicious))
+        if is_suspicious:
+            suspicious_numbers.append(number)
+
+    if not numbered_rows or not suspicious_numbers:
+        return {
+            "min_suspicious_txn_id_percentile": None,
+            "max_suspicious_txn_id_percentile": None,
+            "best_txn_id_threshold_rule": _empty_threshold_rule(),
+        }
+
+    max_txn_number = max(number for number, _ in numbered_rows)
+    threshold_rule = _best_txn_id_threshold_rule(numbered_rows)
+    return {
+        "min_suspicious_txn_id_percentile": round(min(suspicious_numbers) / max_txn_number, 4),
+        "max_suspicious_txn_id_percentile": round(max(suspicious_numbers) / max_txn_number, 4),
+        "best_txn_id_threshold_rule": threshold_rule,
+    }
+
+
+def _best_txn_id_threshold_rule(numbered_rows: list[tuple[int, bool]]) -> dict[str, object]:
+    rows = sorted(numbered_rows)
+    total_suspicious = sum(1 for _, is_suspicious in rows if is_suspicious)
+    if not rows or not total_suspicious:
+        return _empty_threshold_rule()
+
+    best = _empty_threshold_rule()
+    prefix_suspicious = 0
+    total_rows = len(rows)
+    for index, (number, is_suspicious) in enumerate(rows):
+        if is_suspicious:
+            prefix_suspicious += 1
+
+        low_predicted = index + 1
+        low_rule = _threshold_rule("txn_id_lte", number, prefix_suspicious, low_predicted, total_suspicious)
+        best = _better_threshold_rule(best, low_rule)
+
+        high_predicted = total_rows - index
+        high_tp = total_suspicious - (prefix_suspicious - (1 if is_suspicious else 0))
+        high_rule = _threshold_rule("txn_id_gte", number, high_tp, high_predicted, total_suspicious)
+        best = _better_threshold_rule(best, high_rule)
+    return best
+
+
+def _threshold_rule(direction: str, threshold: int, true_positive: int, predicted_positive: int, total_suspicious: int) -> dict[str, object]:
+    precision = true_positive / predicted_positive if predicted_positive else 0.0
+    recall = true_positive / total_suspicious if total_suspicious else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return {
+        "direction": direction,
+        "threshold_txn_id": f"TXN{threshold:012d}",
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "true_positive": true_positive,
+        "predicted_positive": predicted_positive,
+    }
+
+
+def _better_threshold_rule(current: dict[str, object], candidate: dict[str, object]) -> dict[str, object]:
+    current_score = (min(float(current["precision"]), float(current["recall"])), float(current["f1"]))
+    candidate_score = (min(float(candidate["precision"]), float(candidate["recall"])), float(candidate["f1"]))
+    return candidate if candidate_score > current_score else current
+
+
+def _empty_threshold_rule() -> dict[str, object]:
+    return {
+        "direction": None,
+        "threshold_txn_id": None,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "true_positive": 0,
+        "predicted_positive": 0,
+    }
+
+
+def _reference_leakage_metrics(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    mirrored = [
+        str(row["txn_id"])
+        for row in rows_by_file.get("transactions.csv", [])
+        if str(row.get("reference") or "") == str(row["txn_id"]).replace("TXN", "REF", 1)
+    ]
+    return {
+        "mirrored_reference_count": len(mirrored),
+        "mirrored_reference_sample_txn_ids": mirrored[:10],
+    }
+
+
+def _txn_number(txn_id: str) -> int | None:
+    if len(txn_id) != 15 or not txn_id.startswith("TXN"):
+        return None
+    try:
+        return int(txn_id[3:])
+    except ValueError:
+        return None
 
 
 def _error(code: str, message: str, row_id: str | None = None) -> ValidationFinding:

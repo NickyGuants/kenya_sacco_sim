@@ -77,7 +77,7 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["guarantors.csv"] = guarantors
     if alerts_truth is not None:
         rows_by_file["alerts_truth.csv"] = alerts_truth
-    report = build_validation_report(rows_by_file, config)
+    report = build_validation_report(rows_by_file, config, rule_results.get("near_miss_disclosure") if rule_results else None)
 
     write_csvs(args.output, rows_by_file)
     if rule_results is not None:
