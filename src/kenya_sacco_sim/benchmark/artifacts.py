@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 
+from kenya_sacco_sim.benchmark.ml_baseline import build_ml_baseline_artifacts
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.labels import _reference_leakage_metrics, _txn_id_leakage_metrics
 from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
@@ -11,12 +12,15 @@ from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
 def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
     split_manifest = _build_split_manifest(rows_by_file, config)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest)
+    ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
     feature_docs = _build_feature_documentation()
     return {
         "split_manifest.json": split_manifest,
         "baseline_model_results.json": baseline_results,
+        "ml_baseline_results.json": ml_results,
+        "feature_importance.json": feature_importance,
         "feature_documentation.json": feature_docs,
-        "dataset_card.md": _dataset_card(split_manifest, baseline_results),
+        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results),
         "known_limitations.md": _known_limitations(),
     }
 
@@ -126,6 +130,7 @@ def _build_feature_documentation() -> dict[str, object]:
             "transactions.csv": ["is_suspicious", "typology", "pattern_id", "alert_id", "source_is_illicit", "synthetic_flag"],
             "members.csv": ["criminal_flag", "shell_flag", "suspicious_member", "injected_typology"],
             "accounts.csv": ["mule_account_flag", "laundering_account_flag"],
+            "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
         },
         "recommended_split_source": "split_manifest.json",
         "recommended_split_entity": "member",
@@ -145,16 +150,26 @@ def _build_feature_documentation() -> dict[str, object]:
     }
 
 
-def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object]) -> str:
+def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object], ml_results: dict[str, object]) -> str:
+    rule_summary = _rule_performance_summary(baseline_results)
+    ml_summary = _ml_performance_summary(ml_results)
     return f"""# KENYA_SACCO_SIM v0.2 Dataset Card
 
-## Purpose
+## Intended Use
 
-Synthetic Kenyan SACCO AML benchmark data for deterministic rule testing and early transaction-monitoring experiments.
+Synthetic Kenyan SACCO AML benchmark data for deterministic rule testing, member-level typology detection, leakage testing, and early transaction-monitoring model experiments.
+
+## Not Intended Use
+
+Do not use this dataset for real customer risk decisions, regulatory filings, production model claims, or institution-specific calibration without independent validation against real operational data.
 
 ## Scope
 
 The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` when v0.2 typologies are enabled.
+
+## Benchmark Task
+
+The primary benchmark task is member-level one-vs-rest typology detection. Labels are read only from `alerts_truth.csv`; feature construction uses exported feature files and excludes raw identifiers, references, pattern IDs, alert IDs, and typology fields.
 
 ## Splits
 
@@ -168,12 +183,96 @@ patterns: {split_manifest["counts"]["patterns"]}
 
 ## Baseline
 
-The included baseline is a deterministic rule baseline, not an ML model. Macro precision is `{baseline_results["macro_precision"]}` and macro recall is `{baseline_results["macro_recall"]}` for the latest generated artifact.
+The deterministic rule baseline macro precision is `{baseline_results["macro_precision"]}` and macro recall is `{baseline_results["macro_recall"]}` for the latest generated artifact.
+
+### Deterministic Rule Performance
+
+{rule_summary}
+
+### ML Baseline Performance
+
+The ML baseline is `{ml_results.get("baseline_name", "not_available")}`. It trains member-level LogisticRegression and RandomForestClassifier one-vs-rest models per typology when train labels are sufficient; split-level label scarcity is reported explicitly.
+
+{ml_summary}
 
 ## Leakage Controls
 
 Feature files exclude explicit suspicious labels. The validator checks transaction-ID threshold leakage and reference mirroring, and benchmark artifacts report those metrics.
+
+## Seed Stability
+
+Single generated packages are one-seed artifacts. Multi-seed stability is reported by the benchmark harness in `multi_seed_results.json`.
+
+## Known Biases and Failure Modes
+
+`FAKE_AFFORDABILITY_BEFORE_LOAN` intentionally has low rule precision because normal borrowers can receive legitimate large external inflows before loan applications. Small samples can distort positive-label availability and model metrics.
+
+## Minimum Valid Sample Size
+
+100-member runs are smoke tests only. Use 10,000-member runs for benchmark evaluation and multi-seed stability claims.
 """
+
+
+def _rule_performance_summary(baseline_results: dict[str, object]) -> str:
+    per_typology = baseline_results.get("per_typology", {})
+    if not isinstance(per_typology, dict) or not per_typology:
+        return "No deterministic rule metrics were emitted for this package."
+
+    lines = ["```text"]
+    for typology, metrics in sorted(per_typology.items()):
+        if not isinstance(metrics, dict):
+            continue
+        lines.append(
+            f"{typology}: precision {_metric(metrics.get('precision'))} / "
+            f"recall {_metric(metrics.get('recall'))} / "
+            f"truth {metrics.get('truth_member_count', 0)} / "
+            f"candidates {metrics.get('candidate_member_count', 0)}"
+        )
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def _ml_performance_summary(ml_results: dict[str, object]) -> str:
+    models = ml_results.get("models", {})
+    if not isinstance(models, dict) or not models:
+        return "No ML metrics were emitted for this package."
+
+    lines = ["```text"]
+    for model_name, typologies in sorted(models.items()):
+        if not isinstance(typologies, dict):
+            continue
+        for typology, result in sorted(typologies.items()):
+            if not isinstance(result, dict):
+                continue
+            if result.get("status") != "trained":
+                lines.append(f"{model_name} {typology}: {result.get('status', 'skipped')}")
+                continue
+            splits = result.get("splits", {})
+            if not isinstance(splits, dict):
+                continue
+            for split_name in ("train", "validation", "test"):
+                split = splits.get(split_name)
+                if not isinstance(split, dict):
+                    continue
+                if split.get("status") == "evaluated":
+                    lines.append(
+                        f"{model_name} {typology} {split_name}: "
+                        f"precision {_metric(split.get('precision'))} / "
+                        f"recall {_metric(split.get('recall'))} / "
+                        f"f1 {_metric(split.get('f1'))} / "
+                        f"positives {split.get('positive_count', 0)}"
+                    )
+                else:
+                    lines.append(
+                        f"{model_name} {typology} {split_name}: "
+                        f"{split.get('status', 'skipped')} / positives {split.get('positive_count', 0)}"
+                    )
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def _metric(value: object) -> str:
+    return f"{float(value):.4f}" if isinstance(value, (int, float)) else "n/a"
 
 
 def _known_limitations() -> str:
@@ -183,7 +282,7 @@ def _known_limitations() -> str:
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
 - Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
 - Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
-- Baseline results are deterministic rule results, not trained machine-learning model scores.
+- `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
 """
 

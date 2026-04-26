@@ -33,6 +33,7 @@ Implemented v0.2 foundation:
 - Device baseline population, `DEVICE` nodes, `USES_DEVICE` graph edges, and device validation metrics
 - New suspicious typology and baseline rule: `FAKE_AFFORDABILITY_BEFORE_LOAN`
 - Fake-affordability injection respects configured simulation date windows
+- Member-level ML benchmark baseline using scikit-learn Logistic Regression and Random Forest models
 
 Deferred to v1:
 
@@ -89,8 +90,9 @@ combined with `--with-loans`, v0.2 also injects
 `FAKE_AFFORDABILITY_BEFORE_LOAN`; without loans, typology generation falls back
 to the v0.1 structuring and rapid-pass-through set.
 
-`--with-benchmark` emits benchmark artifacts and requires
-`--with-typologies`.
+`--with-benchmark` emits benchmark artifacts, including deterministic rule
+results and member-level ML baseline results. It requires `--with-typologies`.
+The ML baseline uses `scikit-learn`, which is declared in `pyproject.toml`.
 
 `--config-dir` defaults to `./config`. Missing config files fall back to built-in
 defaults, and CLI arguments override loaded config values.
@@ -115,6 +117,8 @@ Depending on selected options, the generator writes:
 - `rule_results.json`
 - `split_manifest.json`
 - `baseline_model_results.json`
+- `ml_baseline_results.json`
+- `feature_importance.json`
 - `feature_documentation.json`
 - `dataset_card.md`
 - `known_limitations.md`
@@ -183,6 +187,20 @@ institution_split_max_institution_id
 institution_split_max_split
 institution_split_drift_warning
 ```
+
+Benchmark outputs also include:
+
+```text
+baseline_model_results.json   deterministic rule baseline metrics
+ml_baseline_results.json      member-level one-vs-rest ML metrics
+feature_importance.json       Logistic Regression coefficients and Random Forest importances
+```
+
+The ML baseline builds one feature row per member from exported feature files
+and uses labels only from `alerts_truth.csv` as targets. Raw identifiers and
+label-bearing fields such as `member_id`, `txn_id`, `reference`, `pattern_id`,
+`alert_id`, `account_id`, `device_id`, `node_id`, `edge_id`, and typology fields
+are excluded from model inputs.
 
 Latest verified v0.1 10,000-member Milestone 5 run:
 
@@ -302,6 +320,7 @@ Known v0.2 benchmark behavior:
 FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
 Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
+100-member runs are smoke tests only, not valid benchmark evaluations.
 ```
 
 ## Development Discipline

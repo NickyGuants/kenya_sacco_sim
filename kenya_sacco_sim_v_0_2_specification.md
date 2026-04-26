@@ -26,6 +26,8 @@ alerts_truth.csv
 rule_results.json
 split_manifest.json
 baseline_model_results.json
+ml_baseline_results.json
+feature_importance.json
 feature_documentation.json
 dataset_card.md
 known_limitations.md
@@ -412,8 +414,60 @@ v0.2 additions:
 1. split_manifest.json includes support file split guidance.
 2. feature_documentation.json documents support files and label roles.
 3. baseline_model_results.json includes FAKE_AFFORDABILITY_BEFORE_LOAN rule results.
-4. dataset_card.md documents v0.2 support files and known device limitations.
-5. known_limitations.md clearly defers v1 typologies.
+4. ml_baseline_results.json reports member-level one-vs-rest ML baseline metrics.
+5. feature_importance.json reports Logistic Regression coefficient rankings and Random Forest importances.
+6. dataset_card.md documents v0.2 support files, benchmark task definitions, rule baseline performance, ML baseline performance, known biases, and known device limitations.
+7. known_limitations.md clearly defers v1 typologies.
+```
+
+ML baseline contract:
+
+```text
+1. The ML baseline is a benchmark artifact only; it must not change generator core behavior.
+2. Labels come only from alerts_truth.csv and are used only as targets.
+3. Feature construction uses exported feature files and builds one row per member.
+4. Train/validation/test assignment uses split_manifest.json member_id splits.
+5. The first supported models are LogisticRegression(class_weight="balanced", max_iter=1000, random_state=seed) and RandomForestClassifier(n_estimators=200, class_weight="balanced", random_state=seed, n_jobs=1).
+6. If a typology has insufficient positive or negative examples in train or evaluation splits, the artifact records skipped_insufficient_labels instead of failing generation.
+```
+
+Minimum member-level ML features:
+
+```text
+transaction counts
+inbound/outbound counts
+total inflow/outflow
+inflow/outflow ratio
+cash share
+M-Pesa share
+PesaLink share
+device count
+shared-device flag
+digital device coverage proxy
+loan count
+has loan application
+days from latest activity to loan application
+external-credit share before loan
+graph degree
+account degree
+guarantor out-degree
+guarantor in-degree
+```
+
+Blocked model input fields:
+
+```text
+member_id
+txn_id
+reference
+pattern_id
+alert_id
+account_id
+device_id
+node_id
+edge_id
+typology
+label fields
 ```
 
 Leakage checks must cover:
@@ -520,6 +574,8 @@ Deliver:
 ```text
 updated split_manifest.json
 updated baseline_model_results.json
+ml_baseline_results.json
+feature_importance.json
 updated feature_documentation.json
 updated dataset_card.md
 updated known_limitations.md
@@ -536,6 +592,8 @@ institution_split_max_share is reported.
 warning if institution_split_max_share > 0.80.
 multi-seed harness runs configured seeds without validation errors.
 typology precision/recall ranges stay within 0.10 across accepted v0.2 seeds.
+ML baseline metrics are reported per typology and split, or explicitly skipped for insufficient labels.
+Feature importance rankings are emitted for both model families when training succeeds.
 ```
 
 Stability command:
