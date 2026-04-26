@@ -130,6 +130,11 @@ def _build_feature_documentation() -> dict[str, object]:
         "recommended_split_source": "split_manifest.json",
         "recommended_split_entity": "member",
         "recommended_split_key_by_file": {
+            "institutions.csv": "institution_id",
+            "branches.csv": "institution_id",
+            "agents.csv": "branch_id",
+            "employers.csv": "institution_id",
+            "devices.csv": "member_id",
             "members.csv": "member_id",
             "accounts.csv": "member_id",
             "transactions.csv": "member_id_primary",
@@ -141,7 +146,7 @@ def _build_feature_documentation() -> dict[str, object]:
 
 
 def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object]) -> str:
-    return f"""# KENYA_SACCO_SIM v0.1 Dataset Card
+    return f"""# KENYA_SACCO_SIM v0.2 Dataset Card
 
 ## Purpose
 
@@ -149,7 +154,7 @@ Synthetic Kenyan SACCO AML benchmark data for deterministic rule testing and ear
 
 ## Scope
 
-The v0.1 benchmark contains normal SACCO activity, loan lifecycle behavior, guarantor relationships, and two labeled suspicious typologies: `STRUCTURING` and `RAPID_PASS_THROUGH`.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` when v0.2 typologies are enabled.
 
 ## Splits
 
@@ -174,9 +179,9 @@ Feature files exclude explicit suspicious labels. The validator checks transacti
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v0.1 includes only `STRUCTURING` and `RAPID_PASS_THROUGH` suspicious typologies.
-- `FAKE_AFFORDABILITY_BEFORE_LOAN`, guarantor fraud rings, wallet funneling, and church/charity misuse are deferred to v0.2.
-- Device identifiers are structurally supported but not yet populated for device-sharing typologies.
+- v0.2 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` suspicious typologies.
+- Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
+- Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
 - Baseline results are deterministic rule results, not trained machine-learning model scores.
 - The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
 """
@@ -239,6 +244,11 @@ def _split_checks(
 
 def _split_key_for_file(filename: str) -> str | list[str] | None:
     return {
+        "institutions.csv": "institution_id",
+        "branches.csv": "institution_id",
+        "agents.csv": "branch_id",
+        "employers.csv": "institution_id",
+        "devices.csv": "member_id",
         "members.csv": "member_id",
         "accounts.csv": "member_id",
         "transactions.csv": "member_id_primary",

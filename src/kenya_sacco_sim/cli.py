@@ -3,12 +3,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
-from kenya_sacco_sim.core.config import WorldConfig, start_timestamp
+from kenya_sacco_sim.core.config import WorldConfig, load_world_config, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
+from kenya_sacco_sim.generators.devices import generate_devices
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
 from kenya_sacco_sim.generators.loans import generate_loans_and_guarantors
@@ -24,13 +26,14 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     generate = subparsers.add_parser("generate", help="Generate a KENYA_SACCO_SIM dataset")
-    generate.add_argument("--members", type=int, default=10_000)
-    generate.add_argument("--institutions", type=int, default=5)
-    generate.add_argument("--months", type=int, default=12)
-    generate.add_argument("--seed", type=int, default=42)
-    generate.add_argument("--output", type=Path, default=Path("./datasets/KENYA_SACCO_SIM_v0_1"))
-    generate.add_argument("--suspicious-ratio", type=float, default=0.01)
-    generate.add_argument("--difficulty", default="medium")
+    generate.add_argument("--members", type=int, default=None)
+    generate.add_argument("--institutions", type=int, default=None)
+    generate.add_argument("--months", type=int, default=None)
+    generate.add_argument("--seed", type=int, default=None)
+    generate.add_argument("--output", type=Path, default=Path("./datasets/KENYA_SACCO_SIM_v0_2"))
+    generate.add_argument("--suspicious-ratio", type=float, default=None)
+    generate.add_argument("--difficulty", default=None)
+    generate.add_argument("--config-dir", type=Path, default=Path("./config"))
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
     generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
@@ -42,7 +45,8 @@ def generate(args: argparse.Namespace) -> int:
     if args.with_benchmark and not args.with_typologies:
         raise SystemExit("--with-benchmark requires --with-typologies")
 
-    config = WorldConfig(
+    config = with_cli_overrides(
+        load_world_config(args.config_dir),
         member_count=args.members,
         institution_count=args.institutions,
         months=args.months,
@@ -53,6 +57,8 @@ def generate(args: argparse.Namespace) -> int:
 
     institution_world = generate_institution_world(config)
     members = generate_members(config, institution_world)
+    devices = generate_devices(config, members)
+    institution_world = replace(institution_world, devices=devices)
     accounts = generate_accounts(config, members, institution_world)
     loans: list[dict[str, object]] | None = None
     guarantors: list[dict[str, object]] | None = None
@@ -63,11 +69,16 @@ def generate(args: argparse.Namespace) -> int:
     rule_results: dict[str, object] | None = None
     if args.with_typologies:
         assert transactions is not None
-        alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world)
+        alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world, loans or [])
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors or [])
 
     rows_by_file = {
+        "institutions.csv": institution_world.institutions,
+        "branches.csv": institution_world.branches,
+        "agents.csv": institution_world.agents,
+        "employers.csv": institution_world.employers,
+        "devices.csv": institution_world.devices,
         "members.csv": members,
         "accounts.csv": accounts,
         "nodes.csv": nodes,
@@ -83,7 +94,7 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["alerts_truth.csv"] = alerts_truth
     benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config) if args.with_benchmark and rule_results is not None else {}
     benchmark_validation = benchmark_artifacts.get("baseline_model_results.json", {}).get("benchmark_checks") if benchmark_artifacts else None
-    report = build_validation_report(rows_by_file, config, rule_results.get("near_miss_disclosure") if rule_results else None, benchmark_validation)
+    report = build_validation_report(rows_by_file, config, rule_results if rule_results else None, benchmark_validation)
 
     write_csvs(args.output, rows_by_file)
     if rule_results is not None:
@@ -107,7 +118,7 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
     payload_files = list(rows_by_file) + extra_files + ["manifest.json", "validation_report.json"]
     return {
         "dataset_name": "KENYA_SACCO_SIM",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "seed": config.seed,
         "start_date": config.start_date,
         "end_date": config.end_date,
@@ -115,6 +126,8 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
         "institutions": config.institution_count,
         "suspicious_ratio": config.suspicious_ratio,
         "difficulty": config.difficulty,
+        "config_dir": config.config_dir,
+        "loaded_config_files": list(config.loaded_config_files),
         "created_at": start_timestamp(config),
         "files": payload_files,
         "file_hashes_md5": _file_hashes(output_dir, list(rows_by_file) + extra_files + ["validation_report.json"]),

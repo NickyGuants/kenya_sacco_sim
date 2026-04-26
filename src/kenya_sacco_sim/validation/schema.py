@@ -145,6 +145,21 @@ REQUIRED_COLUMNS = {
         "stage",
         "explanation_code",
     ],
+    "institutions.csv": [
+        "institution_id",
+        "name",
+        "archetype",
+        "county",
+        "urban_rural",
+        "digital_maturity",
+        "cash_intensity",
+        "loan_guarantor_intensity",
+        "created_at",
+    ],
+    "branches.csv": ["branch_id", "institution_id", "county", "urban_rural", "branch_type", "opening_date", "created_at"],
+    "agents.csv": ["agent_id", "institution_id", "branch_id", "provider", "county", "urban_rural", "location_type", "active_from", "active_to", "created_at"],
+    "employers.csv": ["employer_id", "institution_id", "employer_type", "sector", "public_private", "county", "urban_rural", "payroll_frequency", "checkoff_supported", "created_at"],
+    "devices.csv": ["device_id", "member_id", "institution_id", "first_seen", "last_seen", "os_family", "app_user_flag", "shared_device_group", "created_at"],
 }
 
 PRIMARY_KEYS = {
@@ -156,7 +171,14 @@ PRIMARY_KEYS = {
     "loans.csv": "loan_id",
     "guarantors.csv": "guarantee_id",
     "alerts_truth.csv": "alert_id",
+    "institutions.csv": "institution_id",
+    "branches.csv": "branch_id",
+    "agents.csv": "agent_id",
+    "employers.csv": "employer_id",
+    "devices.csv": "device_id",
 }
+
+OPTIONAL_FILES = {"transactions.csv", "loans.csv", "guarantors.csv", "alerts_truth.csv", "institutions.csv", "branches.csv", "agents.csv", "employers.csv", "devices.csv"}
 
 STRICT_ENUMS = {
     ("members.csv", "member_type"): MEMBER_TYPES,
@@ -185,7 +207,12 @@ STRICT_ENUMS = {
     ("alerts_truth.csv", "severity"): ALERT_SEVERITIES,
     ("alerts_truth.csv", "truth_label"): {True},
     ("alerts_truth.csv", "stage"): ALERT_STAGES,
-    ("alerts_truth.csv", "explanation_code"): {"STRUCTURED_SUB_THRESHOLD_DEPOSITS", "RAPID_IN_OUT_MOVEMENT", "HIGH_EXIT_RATIO", "MULTIPLE_OUTBOUND_COUNTERPARTIES", "SUSPICIOUS_PATTERN_SUMMARY"},
+    ("alerts_truth.csv", "explanation_code"): {"STRUCTURED_SUB_THRESHOLD_DEPOSITS", "RAPID_IN_OUT_MOVEMENT", "HIGH_EXIT_RATIO", "MULTIPLE_OUTBOUND_COUNTERPARTIES", "PRE_LOAN_AFFORDABILITY_BOOST", "SUSPICIOUS_PATTERN_SUMMARY"},
+    ("institutions.csv", "archetype"): {"TEACHER_PUBLIC_SECTOR", "UNIFORMED_SERVICES", "UTILITY_PRIVATE_SECTOR", "COMMUNITY_CHURCH", "FARMER_COOPERATIVE", "SME_BIASHARA", "DIASPORA_FACING"},
+    ("branches.csv", "branch_type"): {"HQ", "BRANCH", "AGENT_DESK"},
+    ("employers.csv", "public_private"): {"PUBLIC", "PRIVATE"},
+    ("employers.csv", "payroll_frequency"): {"MONTHLY", "BIWEEKLY", "WEEKLY"},
+    ("devices.csv", "os_family"): {"ANDROID", "IOS", "FEATURE_PHONE"},
 }
 
 RECOMMENDED_ENUMS = {
@@ -211,7 +238,7 @@ def validate_schema(rows_by_file: dict[str, list[dict[str, object]]], config: Wo
     for filename, columns in REQUIRED_COLUMNS.items():
         rows = rows_by_file.get(filename)
         if rows is None:
-            if filename in {"transactions.csv", "loans.csv", "guarantors.csv", "alerts_truth.csv"}:
+            if filename in OPTIONAL_FILES:
                 continue
             findings.append(_error("schema.missing_file", f"Missing required file {filename}", filename))
             continue
@@ -240,6 +267,11 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
         "loans.csv": re.compile(r"^LOAN\d{6}$"),
         "guarantors.csv": re.compile(r"^GUA\d{6}$"),
         "alerts_truth.csv": re.compile(r"^ALT\d{8}$"),
+        "institutions.csv": re.compile(r"^INST\d{4}$"),
+        "branches.csv": re.compile(r"^BRANCH\d{6}$"),
+        "agents.csv": re.compile(r"^AGENT\d{6}$"),
+        "employers.csv": re.compile(r"^EMPLOYER\d{6}$"),
+        "devices.csv": re.compile(r"^DEVICE\d{6}$"),
     }
     pattern = patterns.get(filename)
     seen: set[str] = set()
@@ -268,7 +300,26 @@ def _validate_enums(filename: str, rows: list[dict[str, object]], findings: list
 def _validate_dates(filename: str, rows: list[dict[str, object]], config: WorldConfig, findings: list[ValidationFinding]) -> None:
     start = date.fromisoformat(config.start_date)
     end = date.fromisoformat(config.end_date)
-    date_columns = [column for column in ("join_date", "open_date", "start_date", "end_date", "application_date", "approval_date", "disbursement_date", "pledge_date", "release_date") if rows and column in rows[0]]
+    date_columns = [
+        column
+        for column in (
+            "join_date",
+            "open_date",
+            "opening_date",
+            "active_from",
+            "active_to",
+            "first_seen",
+            "last_seen",
+            "start_date",
+            "end_date",
+            "application_date",
+            "approval_date",
+            "disbursement_date",
+            "pledge_date",
+            "release_date",
+        )
+        if rows and column in rows[0]
+    ]
     for row in rows:
         for column in date_columns:
             value = row.get(column)

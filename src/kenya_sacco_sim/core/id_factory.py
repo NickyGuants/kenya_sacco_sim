@@ -14,6 +14,10 @@ class IdFactory:
         "GUA": ("GUA", 6),
         "ALT": ("ALT", 8),
         "PAT": ("PAT", 8),
+        "BRANCH": ("BRANCH", 6),
+        "AGENT": ("AGENT", 6),
+        "EMPLOYER": ("EMPLOYER", 6),
+        "DEVICE": ("DEVICE", 6),
     }
 
     def __init__(self) -> None:

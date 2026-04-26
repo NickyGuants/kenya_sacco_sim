@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from kenya_sacco_sim.core.rules import RAPID_PASS_THROUGH_RULE_CONFIG, STRUCTURING_RULE_CONFIG
+from kenya_sacco_sim.core.rules import FAKE_AFFORDABILITY_RULE_CONFIG, RAPID_PASS_THROUGH_RULE_CONFIG, STRUCTURING_RULE_CONFIG
 
 
-def build_rule_results(transactions: list[dict[str, object]], accounts: list[dict[str, object]], alerts: list[dict[str, object]]) -> dict[str, object]:
+def build_rule_results(transactions: list[dict[str, object]], accounts: list[dict[str, object]], alerts: list[dict[str, object]], loans: list[dict[str, object]] | None = None) -> dict[str, object]:
     member_accounts = member_account_ids(accounts)
     structuring = structuring_candidates(transactions, member_accounts)
     rapid = rapid_pass_through_candidates(transactions, member_accounts)
+    fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -26,6 +27,12 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
             RAPID_PASS_THROUGH_RULE_CONFIG,
             rapid,
             truth_by_typology["RAPID_PASS_THROUGH"],
+        ),
+        "FAKE_AFFORDABILITY_BEFORE_LOAN": rule_section(
+            "Loan application preceded within 30 days by high non-salary external credit share and balance growth",
+            FAKE_AFFORDABILITY_RULE_CONFIG,
+            fake_affordability,
+            truth_by_typology["FAKE_AFFORDABILITY_BEFORE_LOAN"],
         ),
     }
 
@@ -65,6 +72,25 @@ def rapid_pass_through_candidates(transactions: list[dict[str, object]], member_
     for member_id, rows in by_member.items():
         rows.sort(key=lambda row: str(row["timestamp"]))
         if has_rapid_pass_through(rows, member_accounts[member_id]):
+            candidates[member_id] = True
+    return candidates
+
+
+def fake_affordability_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]], loans: list[dict[str, object]]) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    candidates: dict[str, object] = {}
+    eligible_products = set(FAKE_AFFORDABILITY_RULE_CONFIG["eligible_loan_products"])
+    for loan in loans:
+        member_id = str(loan["member_id"])
+        if str(loan["product_code"]) not in eligible_products:
+            continue
+        application_ts = datetime.fromisoformat(f"{loan['application_date']}T00:00:00+03:00")
+        rows = by_member.get(member_id, [])
+        if has_fake_affordability_window(rows, member_accounts[member_id], application_ts):
             candidates[member_id] = True
     return candidates
 
@@ -115,6 +141,32 @@ def has_rapid_pass_through(rows: list[dict[str, object]], accounts: set[str]) ->
     return False
 
 
+def has_fake_affordability_window(rows: list[dict[str, object]], accounts: set[str], application_ts: datetime) -> bool:
+    inbound_types = set(FAKE_AFFORDABILITY_RULE_CONFIG["inbound_txn_types"])
+    excluded_stable = set(FAKE_AFFORDABILITY_RULE_CONFIG["excluded_stable_income_types"])
+    start_ts = application_ts - timedelta(days=int(FAKE_AFFORDABILITY_RULE_CONFIG["lookback_days"]))
+    external_inbound = 0.0
+    total_inbound = 0.0
+    outbound = 0.0
+    for row in rows:
+        timestamp = datetime.fromisoformat(str(row["timestamp"]))
+        if timestamp < start_ts or timestamp >= application_ts:
+            continue
+        amount = float(row["amount_kes"])
+        txn_type = str(row["txn_type"])
+        if str(row["account_id_cr"]) in accounts:
+            total_inbound += amount
+            if txn_type in inbound_types and txn_type not in excluded_stable:
+                external_inbound += amount
+        if str(row["account_id_dr"]) in accounts:
+            outbound += amount
+    if total_inbound <= 0:
+        return False
+    external_share = external_inbound / total_inbound
+    balance_growth = external_inbound - outbound
+    return external_share >= float(FAKE_AFFORDABILITY_RULE_CONFIG["min_external_credit_share"]) and balance_growth >= float(FAKE_AFFORDABILITY_RULE_CONFIG["min_balance_growth_kes"])
+
+
 def rule_section(rule_definition: str, rule_config: dict[str, object], candidates: dict[str, object], truth_alerts: list[dict[str, object]]) -> dict[str, object]:
     truth_member_ids = sorted({str(alert["member_id"]) for alert in truth_alerts})
     detected = sorted(member_id for member_id in truth_member_ids if member_id in candidates)
@@ -145,8 +197,10 @@ def rule_section(rule_definition: str, rule_config: dict[str, object], candidate
 __all__ = [
     "build_rule_results",
     "has_rapid_pass_through",
+    "has_fake_affordability_window",
     "has_structuring_window",
     "member_account_ids",
+    "fake_affordability_candidates",
     "rapid_pass_through_candidates",
     "rule_section",
     "structuring_candidates",

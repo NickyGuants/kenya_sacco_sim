@@ -1,0 +1,7 @@
+calendar:
+  payday_days: [24, 25, 26, 27, 28, 29, 30, 31]
+  school_fee_months: [1, 5, 8]
+  harvest_months: [3, 4, 8, 9, 12]
+  december_spend_multiplier: 1.5
+  weekend_wallet_multiplier: 1.3
+  monday_sme_deposit_multiplier: 1.4

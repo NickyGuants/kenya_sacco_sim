@@ -1,0 +1,7 @@
+validation:
+  suspicious_ratio_tolerance: 0.002
+  allow_negative_balances_for_customer_accounts: false
+  allow_negative_balances_for_source_accounts: true
+  max_missing_foreign_key_count: 0
+  require_pattern_summary_for_suspicious_patterns: true
+  forbid_label_leakage: true

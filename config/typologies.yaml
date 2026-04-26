@@ -1,0 +1,21 @@
+typologies:
+  STRUCTURING:
+    candidate_personas: [SME_OWNER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED]
+    deposit_count_7d: [5, 12]
+    amount_each_kes: [70000, 99000]
+    window_days: [2, 7]
+    rails: [CASH_BRANCH, CASH_AGENT, MPESA]
+  RAPID_PASS_THROUGH:
+    candidate_personas: [DIASPORA_SUPPORTED, SME_OWNER, CHURCH_ORG]
+    inflow_amount_kes: [100000, 750000]
+    exit_ratio: [0.75, 0.98]
+    exit_delay_hours: [1, 48]
+    outflow_count: [2, 8]
+  FAKE_AFFORDABILITY_BEFORE_LOAN:
+    candidate_personas: [SME_OWNER, DIASPORA_SUPPORTED, COUNTY_WORKER, SALARIED_TEACHER]
+    lookback_days: 30
+    min_external_credit_share: 0.55
+    min_balance_growth_kes: 50000
+    credit_count: [2, 5]
+    credit_amount_kes: [25000, 150000]
+    eligible_loan_products: [DEVELOPMENT_LOAN, SCHOOL_FEES_LOAN, BIASHARA_LOAN]
