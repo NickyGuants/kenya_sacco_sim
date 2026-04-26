@@ -101,6 +101,9 @@ combined with `--with-loans`, the active set is `STRUCTURING`,
 `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and
 `DEVICE_SHARING_MULE_NETWORK`. Without loans, fake-affordability is skipped and
 the non-credit typologies remain active.
+Sub-1,000-member smoke runs do not request partial device-sharing mule groups;
+that typology is either generated in groups of at least three members or left
+at zero for the run.
 
 `--with-benchmark` emits benchmark artifacts, including deterministic rule
 results and member-level ML baseline results. It requires `--with-typologies`.

@@ -120,24 +120,38 @@ def inject_typologies(
 def _target_counts(config: WorldConfig, include_fake_affordability: bool = True) -> dict[str, int]:
     target = Decimal(str(config.member_count)) * Decimal(str(config.suspicious_ratio))
     total = max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
+    if total <= 0:
+        return {
+            "STRUCTURING": 0,
+            "RAPID_PASS_THROUGH": 0,
+            "FAKE_AFFORDABILITY_BEFORE_LOAN": 0,
+            "DEVICE_SHARING_MULE_NETWORK": 0,
+        }
     if total > 0 and config.member_count >= 100:
         total = max(total, 4 if include_fake_affordability else 3)
     if config.member_count >= 10_000:
         total = max(total, 30 * (4 if include_fake_affordability else 3))
+
+    base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
+    if include_fake_affordability:
+        base_typologies.append("FAKE_AFFORDABILITY_BEFORE_LOAN")
+    device_minimum_total = len(base_typologies) + 3
+    include_device_sharing = config.member_count >= 1_000 and total >= device_minimum_total
+
     if not include_fake_affordability:
-        counts = _balanced_target_counts(total, ["STRUCTURING", "RAPID_PASS_THROUGH", "DEVICE_SHARING_MULE_NETWORK"])
+        typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
+        if include_device_sharing:
+            typologies.append("DEVICE_SHARING_MULE_NETWORK")
+        counts = _balanced_target_counts(total, typologies)
         counts["FAKE_AFFORDABILITY_BEFORE_LOAN"] = 0
     else:
-        counts = _balanced_target_counts(total, ["STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK"])
-    if config.member_count >= 1_000 and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
-        shortfall = 3 - counts["DEVICE_SHARING_MULE_NETWORK"]
-        counts["DEVICE_SHARING_MULE_NETWORK"] = 3
-        for name in ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN"):
-            reduction = min(shortfall, max(0, counts.get(name, 0) - 1))
-            counts[name] -= reduction
-            shortfall -= reduction
-            if shortfall == 0:
-                break
+        typologies = list(base_typologies)
+        if include_device_sharing:
+            typologies.append("DEVICE_SHARING_MULE_NETWORK")
+        counts = _balanced_target_counts(total, typologies)
+    counts.setdefault("DEVICE_SHARING_MULE_NETWORK", 0)
+    if include_device_sharing and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
+        _raise_count_floor(counts, "DEVICE_SHARING_MULE_NETWORK", 3, base_typologies)
     return counts
 
 
@@ -147,6 +161,17 @@ def _balanced_target_counts(total: int, typologies: list[str]) -> dict[str, int]
     base = total // len(typologies)
     remainder = total % len(typologies)
     return {typology: base + (1 if index < remainder else 0) for index, typology in enumerate(typologies)}
+
+
+def _raise_count_floor(counts: dict[str, int], target_name: str, floor: int, donor_names: list[str]) -> None:
+    needed = max(0, floor - counts.get(target_name, 0))
+    counts[target_name] = max(counts.get(target_name, 0), floor)
+    while needed > 0:
+        donor = max(donor_names, key=lambda name: counts.get(name, 0))
+        if counts.get(donor, 0) <= 0:
+            break
+        counts[donor] -= 1
+        needed -= 1
 
 
 def _inject_structuring(
