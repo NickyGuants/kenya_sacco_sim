@@ -33,7 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--difficulty", default="medium")
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
-    generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json")
+    generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
     return parser
 
 
@@ -52,7 +52,7 @@ def generate(args: argparse.Namespace) -> int:
     accounts = generate_accounts(config, members, institution_world)
     loans: list[dict[str, object]] | None = None
     guarantors: list[dict[str, object]] | None = None
-    if args.with_loans or args.with_typologies:
+    if args.with_loans:
         loans, guarantors = generate_loans_and_guarantors(config, members, accounts, institution_world)
     transactions = generate_transactions(config, members, accounts, institution_world, loans or []) if args.with_transactions or args.with_loans or args.with_typologies else None
     alerts_truth: list[dict[str, object]] | None = None

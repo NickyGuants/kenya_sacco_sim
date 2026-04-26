@@ -68,10 +68,10 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
     id_leakage_metrics = _txn_id_leakage_metrics(rows_by_file, suspicious_txn_ids)
     threshold_rule = id_leakage_metrics["best_txn_id_threshold_rule"]
     if threshold_rule["precision"] > 0.70 and threshold_rule["recall"] > 0.70:
-        findings.append(_error("label.txn_id_threshold_leakage", "Simple txn_id threshold recovers suspicious transactions above benchmark safety limit", threshold_rule["threshold_txn_id"]))
+        findings.append(_error("label.txn_id_threshold_leakage", "Simple txn_id threshold recovers suspicious transactions above benchmark safety limit", threshold_rule["threshold_txn_id"], file="transactions.csv"))
     reference_metrics = _reference_leakage_metrics(rows_by_file)
     if reference_metrics["mirrored_reference_count"]:
-        findings.append(_error("label.reference_mirrors_txn_id", "reference must not mirror txn_id with a REF prefix", None))
+        findings.append(_error("label.reference_mirrors_txn_id", "reference must not mirror txn_id with a REF prefix", None, file="transactions.csv"))
     typology_section = {
         "pattern_summary_count": pattern_summary_count,
         "labeled_suspicious_transaction_count": len(suspicious_txn_ids),
@@ -105,7 +105,7 @@ def _label_leakage_findings(rows_by_file: dict[str, list[dict[str, object]]]) ->
             continue
         leaked = forbidden_columns.intersection(rows[0].keys())
         for column in sorted(leaked):
-            findings.append(_error("label.leakage", f"{column} is only allowed in label files", filename))
+            findings.append(_error("label.leakage", f"{column} is only allowed in label files", filename, file=filename))
     return findings
 
 
@@ -233,5 +233,5 @@ def _txn_number(txn_id: str) -> int | None:
         return None
 
 
-def _error(code: str, message: str, row_id: str | None = None) -> ValidationFinding:
-    return ValidationFinding("error", code, message, "alerts_truth.csv", row_id)
+def _error(code: str, message: str, row_id: str | None = None, file: str = "alerts_truth.csv") -> ValidationFinding:
+    return ValidationFinding("error", code, message, file, row_id)

@@ -19,7 +19,6 @@ RAPID_PASS_THROUGH_RULE_CONFIG = {
     "excluded_txn_types": ["LOAN_REPAYMENT", "CHECKOFF_LOAN_RECOVERY", "HOUSEHOLD_SPEND_OUT", "BOSA_DEP_TOPUP", "MPESA_WALLET_TOPUP"],
     "window_hours": 48,
     "min_inbound": 100_000,
-    "min_inbound_kes": 100_000,
     "min_exit_ratio": 0.75,
     "max_retained_balance_ratio": 0.25,
     "min_counterparties": 2,

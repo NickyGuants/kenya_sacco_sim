@@ -48,10 +48,14 @@ python3 -m kenya_sacco_sim generate --members 1000 --with-loans
 Generate the full Milestone 4 package:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-typologies --output ./datasets/KENYA_SACCO_SIM_m4_10k
+python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_m4_10k
 ```
 
 If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
+
+`--with-typologies` injects the v0.1 suspicious labels into the transaction world.
+It does not imply `--with-loans`; pass both flags when you need credit outputs in
+the same dataset.
 
 ## Outputs
 
@@ -86,7 +90,7 @@ python3 -m compileall src
 Representative full-package validation:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-typologies --output ./datasets/KENYA_SACCO_SIM_m4_10k
+python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_m4_10k
 ```
 
 Latest verified 10,000-member Milestone 4 run:

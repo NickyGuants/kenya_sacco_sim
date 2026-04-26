@@ -57,7 +57,8 @@ def inject_typologies(
         next_pattern,
         targets["RAPID_PASS_THROUGH"],
     )
-    next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, max(2, targets["STRUCTURING"] // 5))
+    decoy_target = max(2, targets["STRUCTURING"] // 5) if sum(targets.values()) else 0
+    next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, decoy_target)
 
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
@@ -92,7 +93,7 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
 
 
 def _target_counts(config: WorldConfig) -> dict[str, int]:
-    total = max(2, round(config.member_count * config.suspicious_ratio))
+    total = max(0, round(config.member_count * config.suspicious_ratio))
     structuring = total // 2
     rapid = total - structuring
     return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid}
@@ -561,7 +562,7 @@ def _has_rapid_pass_through(rows: list[dict[str, object]], accounts: set[str]) -
     for inbound in rows:
         inbound_amount = float(inbound["amount_kes"])
         inbound_account = str(inbound["account_id_cr"])
-        if inbound_amount < float(RAPID_PASS_THROUGH_RULE_CONFIG["min_inbound_kes"]) or inbound_account not in accounts or str(inbound["txn_type"]) not in inbound_types:
+        if inbound_amount < float(RAPID_PASS_THROUGH_RULE_CONFIG["min_inbound"]) or inbound_account not in accounts or str(inbound["txn_type"]) not in inbound_types:
             continue
         inbound_ts = datetime.fromisoformat(str(inbound["timestamp"]))
         cutoff = inbound_ts + timedelta(hours=int(RAPID_PASS_THROUGH_RULE_CONFIG["window_hours"]))
@@ -709,7 +710,8 @@ def _first(accounts: list[dict[str, object]], account_types: set[str]) -> dict[s
 
 
 def _next_txn_index(transactions: list[dict[str, object]]) -> int:
-    return max(int(str(txn["txn_id"])[3:]) for txn in transactions if str(txn["txn_id"]).startswith("TXN")) + 1
+    indices = [int(str(txn["txn_id"])[3:]) for txn in transactions if str(txn["txn_id"]).startswith("TXN")]
+    return max(indices, default=0) + 1
 
 
 def _txn_id(index: int) -> str:
