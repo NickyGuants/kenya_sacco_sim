@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from statistics import mean
 from typing import Any
 
 from kenya_sacco_sim.core.config import WorldConfig
@@ -23,6 +24,7 @@ def build_ml_baseline_artifacts(rows_by_file: dict[str, list[dict[str, object]]]
 
 def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
     members = rows_by_file.get("members.csv", [])
+    persona_by_member = {str(member["member_id"]): str(member.get("persona_type") or "UNKNOWN") for member in members}
     accounts_by_member: dict[str, set[str]] = defaultdict(set)
     account_owner_by_id: dict[str, str] = {}
     for account in rows_by_file.get("accounts.csv", []):
@@ -39,6 +41,7 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         "total_inflow_kes",
         "total_outflow_kes",
         "inflow_outflow_ratio",
+        "net_flow_kes",
         "cash_share",
         "mpesa_share",
         "pesalink_share",
@@ -46,20 +49,52 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         "digital_device_coverage",
         "device_count",
         "shared_device_flag",
+        "distinct_counterparty_count",
+        "counterparty_diversity_ratio",
+        "counterparty_concentration",
+        "max_txns_24h",
+        "max_txns_7d",
+        "avg_hours_between_txns",
+        "max_inflow_7d_kes",
+        "max_outflow_7d_kes",
+        "max_48h_exit_ratio",
+        "min_inbound_to_outbound_hours",
+        "max_outbound_counterparties_48h",
+        "cash_deposit_count",
+        "cash_withdrawal_count",
+        "sub_100k_inbound_deposit_count",
+        "max_sub_100k_deposits_7d",
+        "external_credit_share",
+        "salary_income_share",
+        "income_to_outflow_ratio",
+        "round_amount_share",
         "loan_count",
         "has_loan_application",
         "days_from_latest_activity_to_loan_application",
         "external_credit_share_before_loan",
+        "external_credit_30d_before_loan_kes",
+        "balance_growth_30d_before_loan_kes",
+        "loan_to_income_ratio_proxy",
         "graph_degree",
         "account_degree",
         "guarantor_out_degree",
         "guarantor_in_degree",
+        "persona_txn_count_ratio",
+        "persona_inflow_ratio",
+        "persona_outflow_ratio",
+        "persona_cash_share_delta",
     ]
     _assert_no_blocked_features(feature_names)
     raw: dict[str, dict[str, float]] = {str(member["member_id"]): {name: 0.0 for name in feature_names} for member in members}
     txn_timestamps_by_member: dict[str, list[datetime]] = defaultdict(list)
+    txn_events_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    counterparties_by_member: dict[str, Counter[str]] = defaultdict(Counter)
     preloan_credit_totals: dict[str, float] = defaultdict(float)
+    preloan_balance_growth: dict[str, float] = defaultdict(float)
     preloan_external_credit_totals: dict[str, float] = defaultdict(float)
+    salary_income_totals: dict[str, float] = defaultdict(float)
+    external_credit_totals: dict[str, float] = defaultdict(float)
+    round_amount_counts: Counter[str] = Counter()
 
     for txn in rows_by_file.get("transactions.csv", []):
         member_id = str(txn.get("member_id_primary") or "")
@@ -74,9 +109,19 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         if credit_owned:
             features["inbound_count"] += 1.0
             features["total_inflow_kes"] += amount
+            if str(txn.get("txn_type") or "") in {"SALARY_IN", "CHECKOFF_DEPOSIT"}:
+                salary_income_totals[member_id] += amount
+            if str(txn.get("txn_type") or "") in EXTERNAL_CREDIT_TYPES:
+                external_credit_totals[member_id] += amount
+            if _is_counted_deposit(txn) and amount < 100_000:
+                features["sub_100k_inbound_deposit_count"] += 1.0
         if debit_owned:
             features["outbound_count"] += 1.0
             features["total_outflow_kes"] += amount
+        if str(txn.get("txn_type") or "") == "FOSA_CASH_DEPOSIT":
+            features["cash_deposit_count"] += 1.0
+        if str(txn.get("txn_type") or "") == "FOSA_CASH_WITHDRAWAL":
+            features["cash_withdrawal_count"] += 1.0
         if str(txn.get("rail") or "") in {"CASH_AGENT", "CASH_BRANCH"}:
             features["cash_share"] += 1.0
         if str(txn.get("rail") or "") == "MPESA":
@@ -87,8 +132,25 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
             features["digital_txn_count"] += 1.0
             if txn.get("device_id"):
                 features["digital_device_coverage"] += 1.0
+        if _is_round_100(amount):
+            round_amount_counts[member_id] += 1
+        counterparty = str(txn.get("counterparty_id_hash") or "")
+        if counterparty:
+            counterparties_by_member[member_id][counterparty] += 1
         try:
-            txn_timestamps_by_member[member_id].append(datetime.fromisoformat(str(txn["timestamp"])))
+            timestamp = datetime.fromisoformat(str(txn["timestamp"]))
+            txn_timestamps_by_member[member_id].append(timestamp)
+            txn_events_by_member[member_id].append(
+                {
+                    "timestamp": timestamp,
+                    "amount": amount,
+                    "txn_type": str(txn.get("txn_type") or ""),
+                    "counterparty": counterparty,
+                    "credit_owned": credit_owned,
+                    "debit_owned": debit_owned,
+                    "counted_deposit": credit_owned and _is_counted_deposit(txn) and amount < 100_000,
+                }
+            )
         except ValueError:
             pass
 
@@ -129,8 +191,21 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
             continue
         amount = float(txn["amount_kes"])
         preloan_credit_totals[member_id] += amount
+        preloan_balance_growth[member_id] += amount if str(txn.get("account_id_cr") or "") in accounts_by_member.get(member_id, set()) else 0.0
         if str(txn.get("txn_type") or "") in EXTERNAL_CREDIT_TYPES:
             preloan_external_credit_totals[member_id] += amount
+    for txn in rows_by_file.get("transactions.csv", []):
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id not in loan_windows_by_member:
+            continue
+        try:
+            timestamp = datetime.fromisoformat(str(txn["timestamp"]))
+        except ValueError:
+            continue
+        if not any(start <= timestamp < end for start, end in loan_windows_by_member[member_id]):
+            continue
+        if str(txn.get("account_id_dr") or "") in accounts_by_member.get(member_id, set()):
+            preloan_balance_growth[member_id] -= float(txn["amount_kes"])
 
     node_by_entity = {str(node["entity_id"]): str(node["node_id"]) for node in rows_by_file.get("nodes.csv", [])}
     edge_degree = Counter()
@@ -150,18 +225,47 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         if borrower in raw:
             raw[borrower]["guarantor_in_degree"] += 1.0
 
+    for member_id, events in txn_events_by_member.items():
+        if member_id not in raw:
+            continue
+        events.sort(key=lambda event: event["timestamp"])
+        raw[member_id].update(_temporal_features(events))
+
+    finalized: dict[str, dict[str, float]] = {}
     rows: list[dict[str, object]] = []
     matrix: list[list[float]] = []
     member_ids = sorted(raw)
     for member_id in member_ids:
         features = raw[member_id]
         txn_count = features["txn_count"]
+        counterparty_counts = counterparties_by_member[member_id]
         features["inflow_outflow_ratio"] = _safe_ratio(features["total_inflow_kes"], features["total_outflow_kes"])
+        features["net_flow_kes"] = features["total_inflow_kes"] - features["total_outflow_kes"]
         features["cash_share"] = _safe_ratio(features["cash_share"], txn_count)
         features["mpesa_share"] = _safe_ratio(features["mpesa_share"], txn_count)
         features["pesalink_share"] = _safe_ratio(features["pesalink_share"], txn_count)
         features["digital_device_coverage"] = _safe_ratio(features["digital_device_coverage"], features["digital_txn_count"])
+        features["distinct_counterparty_count"] = float(len(counterparty_counts))
+        features["counterparty_diversity_ratio"] = _safe_ratio(float(len(counterparty_counts)), txn_count)
+        features["counterparty_concentration"] = _safe_ratio(float(max(counterparty_counts.values())) if counterparty_counts else 0.0, txn_count)
+        features["external_credit_share"] = _safe_ratio(external_credit_totals[member_id], features["total_inflow_kes"])
+        features["salary_income_share"] = _safe_ratio(salary_income_totals[member_id], features["total_inflow_kes"])
+        features["income_to_outflow_ratio"] = _safe_ratio(salary_income_totals[member_id], features["total_outflow_kes"])
+        features["round_amount_share"] = _safe_ratio(float(round_amount_counts[member_id]), txn_count)
         features["external_credit_share_before_loan"] = _safe_ratio(preloan_external_credit_totals[member_id], preloan_credit_totals[member_id])
+        features["external_credit_30d_before_loan_kes"] = preloan_external_credit_totals[member_id]
+        features["balance_growth_30d_before_loan_kes"] = preloan_balance_growth[member_id]
+        features["loan_to_income_ratio_proxy"] = _safe_ratio(features["loan_count"] * 50_000.0, salary_income_totals[member_id] / 12.0)
+        finalized[member_id] = features
+
+    persona_baselines = _persona_baselines(finalized, persona_by_member)
+    for member_id in member_ids:
+        features = finalized[member_id]
+        baseline = persona_baselines.get(persona_by_member.get(member_id, "UNKNOWN"), {})
+        features["persona_txn_count_ratio"] = _safe_ratio(features["txn_count"], baseline.get("txn_count", 0.0))
+        features["persona_inflow_ratio"] = _safe_ratio(features["total_inflow_kes"], baseline.get("total_inflow_kes", 0.0))
+        features["persona_outflow_ratio"] = _safe_ratio(features["total_outflow_kes"], baseline.get("total_outflow_kes", 0.0))
+        features["persona_cash_share_delta"] = features["cash_share"] - baseline.get("cash_share", 0.0)
         row = {"member_id": member_id, **{name: round(float(features[name]), 6) for name in feature_names}}
         rows.append(row)
         matrix.append([float(row[name]) for name in feature_names])
@@ -176,6 +280,124 @@ def member_labels_by_typology(alerts_truth: list[dict[str, object]]) -> dict[str
         if typology in labels and member_id:
             labels[typology].add(member_id)
     return labels
+
+
+def _temporal_features(events: list[dict[str, object]]) -> dict[str, float]:
+    return {
+        "max_txns_24h": float(_max_event_count(events, timedelta(hours=24))),
+        "max_txns_7d": float(_max_event_count(events, timedelta(days=7))),
+        "avg_hours_between_txns": _avg_hours_between(events),
+        "max_inflow_7d_kes": _max_amount_window(events, timedelta(days=7), "credit_owned"),
+        "max_outflow_7d_kes": _max_amount_window(events, timedelta(days=7), "debit_owned"),
+        "max_48h_exit_ratio": _max_exit_ratio(events, timedelta(hours=48)),
+        "min_inbound_to_outbound_hours": _min_inbound_to_outbound_hours(events),
+        "max_outbound_counterparties_48h": float(_max_outbound_counterparties(events, timedelta(hours=48))),
+        "max_sub_100k_deposits_7d": float(_max_flagged_count_window(events, timedelta(days=7), "counted_deposit")),
+    }
+
+
+def _max_event_count(events: list[dict[str, object]], window: timedelta) -> int:
+    timestamps = [event["timestamp"] for event in events]
+    max_count = 0
+    left = 0
+    for right, timestamp in enumerate(timestamps):
+        while timestamp - timestamps[left] > window:
+            left += 1
+        max_count = max(max_count, right - left + 1)
+    return max_count
+
+
+def _avg_hours_between(events: list[dict[str, object]]) -> float:
+    if len(events) < 2:
+        return -1.0
+    deltas = [
+        (events[index]["timestamp"] - events[index - 1]["timestamp"]).total_seconds() / 3600.0
+        for index in range(1, len(events))
+    ]
+    return mean(deltas)
+
+
+def _max_amount_window(events: list[dict[str, object]], window: timedelta, direction_key: str) -> float:
+    max_amount = 0.0
+    for start_index, start_event in enumerate(events):
+        total = 0.0
+        for event in events[start_index:]:
+            if event["timestamp"] - start_event["timestamp"] > window:
+                break
+            if event.get(direction_key):
+                total += float(event["amount"])
+        max_amount = max(max_amount, total)
+    return max_amount
+
+
+def _max_flagged_count_window(events: list[dict[str, object]], window: timedelta, flag_key: str) -> int:
+    max_count = 0
+    for start_index, start_event in enumerate(events):
+        count = 0
+        for event in events[start_index:]:
+            if event["timestamp"] - start_event["timestamp"] > window:
+                break
+            if event.get(flag_key):
+                count += 1
+        max_count = max(max_count, count)
+    return max_count
+
+
+def _max_exit_ratio(events: list[dict[str, object]], window: timedelta) -> float:
+    max_ratio = 0.0
+    for event in events:
+        if not event.get("credit_owned") or float(event["amount"]) <= 0:
+            continue
+        outbound_total = sum(
+            float(candidate["amount"])
+            for candidate in events
+            if candidate.get("debit_owned")
+            and event["timestamp"] <= candidate["timestamp"] <= event["timestamp"] + window
+        )
+        max_ratio = max(max_ratio, outbound_total / float(event["amount"]))
+    return max_ratio
+
+
+def _min_inbound_to_outbound_hours(events: list[dict[str, object]]) -> float:
+    best: float | None = None
+    for event in events:
+        if not event.get("credit_owned"):
+            continue
+        for candidate in events:
+            if not candidate.get("debit_owned") or candidate["timestamp"] < event["timestamp"]:
+                continue
+            hours = (candidate["timestamp"] - event["timestamp"]).total_seconds() / 3600.0
+            best = hours if best is None else min(best, hours)
+            break
+    return best if best is not None else -1.0
+
+
+def _max_outbound_counterparties(events: list[dict[str, object]], window: timedelta) -> int:
+    max_count = 0
+    for event in events:
+        if not event.get("credit_owned"):
+            continue
+        counterparties = {
+            str(candidate.get("counterparty") or "")
+            for candidate in events
+            if candidate.get("debit_owned")
+            and event["timestamp"] <= candidate["timestamp"] <= event["timestamp"] + window
+            and candidate.get("counterparty")
+        }
+        max_count = max(max_count, len(counterparties))
+    return max_count
+
+
+def _persona_baselines(features_by_member: dict[str, dict[str, float]], persona_by_member: dict[str, str]) -> dict[str, dict[str, float]]:
+    buckets: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for member_id, features in features_by_member.items():
+        persona = persona_by_member.get(member_id, "UNKNOWN")
+        for feature_name in ("txn_count", "total_inflow_kes", "total_outflow_kes", "cash_share"):
+            buckets[persona][feature_name].append(float(features[feature_name]))
+    return {
+        persona: {feature_name: mean(values) if values else 0.0 for feature_name, values in feature_values.items()}
+        for persona, feature_values in buckets.items()
+    }
 
 
 def _train_models(feature_table: dict[str, object], labels_by_typology: dict[str, set[str]], member_split: dict[str, str], config: WorldConfig) -> tuple[dict[str, object], dict[str, object]]:
@@ -328,6 +550,14 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
     if denominator <= 0:
         return 0.0
     return numerator / denominator
+
+
+def _is_counted_deposit(txn: dict[str, object]) -> bool:
+    return str(txn.get("txn_type") or "") in {"FOSA_CASH_DEPOSIT", "BUSINESS_SETTLEMENT_IN", "MPESA_PAYBILL_IN", "PESALINK_IN"}
+
+
+def _is_round_100(amount: float) -> bool:
+    return abs(amount % 100.0) < 0.0001 or abs((amount % 100.0) - 100.0) < 0.0001
 
 
 def _assert_no_blocked_features(feature_names: list[str]) -> None:

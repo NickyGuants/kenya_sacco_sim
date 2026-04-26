@@ -142,6 +142,7 @@ def _seed_summary(
             "macro_recall": baseline_results.get("macro_recall"),
             "per_typology": typologies,
         },
+        "evaluation_validity": baseline_results.get("benchmark_checks", {}).get("evaluation_validity", {}),
     }
 
 

@@ -3,30 +3,43 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 
-from kenya_sacco_sim.benchmark.ml_baseline import build_ml_baseline_artifacts
+from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, member_labels_by_typology
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.labels import _reference_leakage_metrics, _txn_id_leakage_metrics
 from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
+
+
+SPLITS = ("train", "validation", "test")
+MIN_VALID_BENCHMARK_MEMBERS = 10_000
+MIN_VALID_SUSPICIOUS_MEMBERS = 100
+MIN_VALID_TYPOLOGY_MEMBERS = 30
+MIN_VALID_POSITIVES_PER_SPLIT = 5
+MIN_VALID_PATTERNS_PER_SPLIT = 5
+MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT = 10
 
 
 def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
     split_manifest = _build_split_manifest(rows_by_file, config)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest)
     ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
+    comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results)
     feature_docs = _build_feature_documentation()
     return {
         "split_manifest.json": split_manifest,
         "baseline_model_results.json": baseline_results,
         "ml_baseline_results.json": ml_results,
         "feature_importance.json": feature_importance,
+        "rule_vs_ml_comparison.json": comparison,
         "feature_documentation.json": feature_docs,
-        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results),
+        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, comparison),
         "known_limitations.md": _known_limitations(),
     }
 
 
 def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], config: WorldConfig) -> dict[str, object]:
     member_split = {str(member["member_id"]): _split_for_key(str(member["member_id"]), config.seed) for member in rows_by_file.get("members.csv", [])}
+    labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
+    member_split = _stratified_member_split(member_split, labels_by_typology, config.seed)
     pattern_split: dict[str, str] = {}
     pattern_members: dict[str, set[str]] = defaultdict(set)
     pattern_member_splits: dict[str, set[str]] = defaultdict(set)
@@ -42,9 +55,9 @@ def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], conf
 
     transaction_splits = [_row_split(row, member_split, config.seed) for row in rows_by_file.get("transactions.csv", [])]
     alert_splits = [pattern_split.get(str(row["pattern_id"]), member_split.get(str(row.get("member_id") or ""), "unassigned")) for row in rows_by_file.get("alerts_truth.csv", [])]
-    checks = _split_checks(rows_by_file, member_split, pattern_split, pattern_member_splits, transaction_splits, alert_splits)
+    checks = _split_checks(rows_by_file, member_split, pattern_split, pattern_member_splits, transaction_splits, alert_splits, config)
     return {
-        "split_strategy": "member_hash_70_15_15",
+        "split_strategy": "label_stratified_member_hash_70_15_15",
         "seed": config.seed,
         "splits": {"train": 0.70, "validation": 0.15, "test": 0.15},
         "member_id_to_split": member_split,
@@ -101,6 +114,71 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
     }
 
 
+def _build_rule_vs_ml_comparison(baseline_results: dict[str, object], ml_results: dict[str, object]) -> dict[str, object]:
+    per_typology: dict[str, object] = {}
+    ml_outperforms: list[dict[str, object]] = []
+    rules_dominate: list[dict[str, object]] = []
+    rule_metrics = baseline_results.get("per_typology", {})
+    models = ml_results.get("models", {})
+    if not isinstance(rule_metrics, dict) or not isinstance(models, dict):
+        return {"status": "not_available", "per_typology": {}, "ml_outperforms_rules": [], "rules_dominate": []}
+
+    for typology in TYPOLOGY_NAMES:
+        rule = rule_metrics.get(typology, {})
+        if not isinstance(rule, dict):
+            continue
+        rule_precision = float(rule.get("precision") or 0.0)
+        rule_recall = float(rule.get("recall") or 0.0)
+        rule_f1 = _f1(rule_precision, rule_recall)
+        comparisons: dict[str, object] = {}
+        for model_name, typologies in sorted(models.items()):
+            if not isinstance(typologies, dict):
+                continue
+            model_result = typologies.get(typology, {})
+            if not isinstance(model_result, dict) or model_result.get("status") != "trained":
+                comparisons[model_name] = {"status": model_result.get("status", "skipped") if isinstance(model_result, dict) else "skipped"}
+                continue
+            split_comparisons = {}
+            for split_name, split in dict(model_result.get("splits", {})).items():
+                if not isinstance(split, dict) or split.get("status") != "evaluated":
+                    split_comparisons[split_name] = {"status": split.get("status", "skipped") if isinstance(split, dict) else "skipped"}
+                    continue
+                ml_precision = float(split.get("precision") or 0.0)
+                ml_recall = float(split.get("recall") or 0.0)
+                ml_f1 = float(split.get("f1") or 0.0)
+                row = {
+                    "status": "evaluated",
+                    "rule_precision": round(rule_precision, 4),
+                    "ml_precision": round(ml_precision, 4),
+                    "precision_delta": round(ml_precision - rule_precision, 4),
+                    "rule_recall": round(rule_recall, 4),
+                    "ml_recall": round(ml_recall, 4),
+                    "recall_delta": round(ml_recall - rule_recall, 4),
+                    "rule_f1": round(rule_f1, 4),
+                    "ml_f1": round(ml_f1, 4),
+                    "f1_delta": round(ml_f1 - rule_f1, 4),
+                    "positive_count": split.get("positive_count", 0),
+                }
+                split_comparisons[split_name] = row
+                summary = {"typology": typology, "model": model_name, "split": split_name, "f1_delta": row["f1_delta"]}
+                if ml_f1 > rule_f1:
+                    ml_outperforms.append(summary)
+                elif rule_f1 > ml_f1:
+                    rules_dominate.append(summary)
+            comparisons[model_name] = split_comparisons
+        per_typology[typology] = {
+            "rule": {"precision": round(rule_precision, 4), "recall": round(rule_recall, 4), "f1": round(rule_f1, 4)},
+            "models": comparisons,
+        }
+    return {
+        "status": "available",
+        "comparison_basis": "deterministic rule metrics compared with member-level ML split metrics",
+        "per_typology": per_typology,
+        "ml_outperforms_rules": sorted(ml_outperforms, key=lambda row: float(row["f1_delta"]), reverse=True),
+        "rules_dominate": sorted(rules_dominate, key=lambda row: float(row["f1_delta"])),
+    }
+
+
 def _build_feature_documentation() -> dict[str, object]:
     return {
         "files": {
@@ -132,6 +210,11 @@ def _build_feature_documentation() -> dict[str, object]:
             "accounts.csv": ["mule_account_flag", "laundering_account_flag"],
             "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
         },
+        "derived_ml_features": {
+            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio"],
+            "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count"],
+            "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes"],
+        },
         "recommended_split_source": "split_manifest.json",
         "recommended_split_entity": "member",
         "recommended_split_key_by_file": {
@@ -150,9 +233,11 @@ def _build_feature_documentation() -> dict[str, object]:
     }
 
 
-def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object], ml_results: dict[str, object]) -> str:
+def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object], ml_results: dict[str, object], comparison: dict[str, object]) -> str:
     rule_summary = _rule_performance_summary(baseline_results)
     ml_summary = _ml_performance_summary(ml_results)
+    comparison_summary = _comparison_summary(comparison)
+    validity = split_manifest.get("checks", {}).get("evaluation_validity", {})
     return f"""# KENYA_SACCO_SIM v0.2 Dataset Card
 
 ## Intended Use
@@ -179,6 +264,7 @@ Splits are assigned by deterministic member hash using a 70/15/15 train/validati
 members: {split_manifest["counts"]["members"]}
 transactions: {split_manifest["counts"]["transactions"]}
 patterns: {split_manifest["counts"]["patterns"]}
+evaluation status: {validity.get("status", "not_reported")}
 ```
 
 ## Baseline
@@ -194,6 +280,10 @@ The deterministic rule baseline macro precision is `{baseline_results["macro_pre
 The ML baseline is `{ml_results.get("baseline_name", "not_available")}`. It trains member-level LogisticRegression and RandomForestClassifier one-vs-rest models per typology when train labels are sufficient; split-level label scarcity is reported explicitly.
 
 {ml_summary}
+
+### Rule vs ML Comparison
+
+{comparison_summary}
 
 ## Leakage Controls
 
@@ -271,6 +361,20 @@ def _ml_performance_summary(ml_results: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def _comparison_summary(comparison: dict[str, object]) -> str:
+    if comparison.get("status") != "available":
+        return "Rule-vs-ML comparison was not emitted for this package."
+    ml_wins = comparison.get("ml_outperforms_rules", [])
+    rule_wins = comparison.get("rules_dominate", [])
+    return (
+        "```text\n"
+        f"ml_outperforms_rule_cases: {len(ml_wins) if isinstance(ml_wins, list) else 0}\n"
+        f"rule_dominates_cases: {len(rule_wins) if isinstance(rule_wins, list) else 0}\n"
+        "Interpret split-level ML scores carefully when positive labels are sparse.\n"
+        "```"
+    )
+
+
 def _metric(value: object) -> str:
     return f"{float(value):.4f}" if isinstance(value, (int, float)) else "n/a"
 
@@ -283,8 +387,39 @@ def _known_limitations() -> str:
 - Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
 - Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
+- `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that either approach is production-ready.
 - The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
 """
+
+
+def _stratified_member_split(member_split: dict[str, str], labels_by_typology: dict[str, set[str]], seed: int) -> dict[str, str]:
+    adjusted = dict(member_split)
+    for typology in TYPOLOGY_NAMES:
+        members = sorted(
+            (member_id for member_id in labels_by_typology.get(typology, set()) if member_id in adjusted),
+            key=lambda member_id: hashlib.sha256(f"{seed}:{typology}:{member_id}".encode("utf-8")).hexdigest(),
+        )
+        desired_counts = _desired_label_split_counts(len(members))
+        target_splits = [
+            *["train"] * desired_counts["train"],
+            *["validation"] * desired_counts["validation"],
+            *["test"] * desired_counts["test"],
+        ]
+        for member_id, split in zip(members, target_splits):
+            adjusted[member_id] = split
+    return adjusted
+
+
+def _desired_label_split_counts(total: int) -> dict[str, int]:
+    if total <= 0:
+        return {"train": 0, "validation": 0, "test": 0}
+    if total >= MIN_VALID_TYPOLOGY_MEMBERS:
+        validation = MIN_VALID_POSITIVES_PER_SPLIT
+        test = MIN_VALID_POSITIVES_PER_SPLIT
+        return {"train": total - validation - test, "validation": validation, "test": test}
+    test = 1 if total >= 3 else 0
+    validation = 1 if total >= 2 else 0
+    return {"train": total - validation - test, "validation": validation, "test": test}
 
 
 def _row_split(row: dict[str, object], member_split: dict[str, str], seed: int) -> str:
@@ -301,6 +436,7 @@ def _split_checks(
     pattern_member_splits: dict[str, set[str]],
     transaction_splits: list[str],
     alert_splits: list[str],
+    config: WorldConfig,
 ) -> dict[str, object]:
     member_observed_splits: dict[str, set[str]] = defaultdict(set)
     unknown_member_ids: set[str] = set()
@@ -329,6 +465,7 @@ def _split_checks(
     )
     unknown_pattern_ids = sorted(pattern_id for pattern_id, split in pattern_split.items() if split == "unassigned")
     institution_split_drift = _institution_split_drift_metrics(rows_by_file, member_split)
+    evaluation_validity = _evaluation_validity_metrics(rows_by_file, member_split, pattern_split, config)
     return {
         "no_member_id_split_leakage": not member_leaks and not unknown_member_ids,
         "no_pattern_id_split_leakage": not pattern_leaks and not unknown_pattern_ids,
@@ -340,6 +477,7 @@ def _split_checks(
         "pattern_ids_with_split_leakage_sample": pattern_leaks[:20],
         "unassigned_member_id_sample": sorted(unknown_member_ids)[:20],
         "unassigned_pattern_id_sample": unknown_pattern_ids[:20],
+        "evaluation_validity": evaluation_validity,
         **institution_split_drift,
     }
 
@@ -379,6 +517,90 @@ def _institution_split_drift_metrics(rows_by_file: dict[str, list[dict[str, obje
     }
 
 
+def _evaluation_validity_metrics(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    member_split: dict[str, str],
+    pattern_split: dict[str, str],
+    config: WorldConfig,
+) -> dict[str, object]:
+    labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
+    suspicious_members = sorted({member_id for members in labels_by_typology.values() for member_id in members})
+    positive_counts: dict[str, dict[str, int]] = {}
+    pattern_counts: dict[str, dict[str, int]] = {}
+    txn_counts: dict[str, dict[str, int]] = {}
+
+    for typology in TYPOLOGY_NAMES:
+        counts = Counter(member_split.get(member_id, "unassigned") for member_id in labels_by_typology.get(typology, set()))
+        positive_counts[typology] = {split: int(counts.get(split, 0)) for split in SPLITS}
+        positive_counts[typology]["total"] = int(sum(counts.values()))
+
+    pattern_ids_by_typology_split: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    txn_counts_by_typology_split: dict[str, Counter[str]] = defaultdict(Counter)
+    for alert in rows_by_file.get("alerts_truth.csv", []):
+        typology = str(alert.get("typology") or "")
+        if typology not in TYPOLOGY_NAMES:
+            continue
+        pattern_id = str(alert.get("pattern_id") or "")
+        split = pattern_split.get(pattern_id, member_split.get(str(alert.get("member_id") or ""), "unassigned"))
+        if pattern_id:
+            pattern_ids_by_typology_split[typology][split].add(pattern_id)
+        if alert.get("txn_id"):
+            txn_counts_by_typology_split[typology][split] += 1
+
+    for typology in TYPOLOGY_NAMES:
+        pattern_counts[typology] = {split: len(pattern_ids_by_typology_split[typology].get(split, set())) for split in SPLITS}
+        pattern_counts[typology]["total"] = len({pattern_id for split_ids in pattern_ids_by_typology_split[typology].values() for pattern_id in split_ids})
+        txn_counts[typology] = {split: int(txn_counts_by_typology_split[typology].get(split, 0)) for split in SPLITS}
+        txn_counts[typology]["total"] = int(sum(txn_counts_by_typology_split[typology].values()))
+
+    active_typologies = [typology for typology in TYPOLOGY_NAMES if positive_counts.get(typology, {}).get("total", 0) > 0]
+    min_positive = _min_metric(positive_counts, active_typologies)
+    min_patterns = _min_metric(pattern_counts, active_typologies)
+    min_txns = _min_metric(txn_counts, active_typologies)
+    typology_member_minimum_met = all(positive_counts[typology]["total"] >= MIN_VALID_TYPOLOGY_MEMBERS for typology in active_typologies)
+    member_count = len(rows_by_file.get("members.csv", []))
+    smoke_only = member_count < MIN_VALID_BENCHMARK_MEMBERS or len(suspicious_members) < MIN_VALID_SUSPICIOUS_MEMBERS
+    split_minimums_met = (
+        min_positive >= MIN_VALID_POSITIVES_PER_SPLIT
+        and min_patterns >= MIN_VALID_PATTERNS_PER_SPLIT
+        and min_txns >= MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT
+    )
+    valid = bool(active_typologies) and not smoke_only and typology_member_minimum_met and split_minimums_met
+    if valid:
+        status = "valid"
+    elif smoke_only:
+        status = "smoke_only"
+    else:
+        status = "invalid"
+
+    return {
+        "status": status,
+        "valid_for_ml_evaluation": valid,
+        "smoke_only": smoke_only,
+        "member_count": member_count,
+        "suspicious_member_count": len(suspicious_members),
+        "required_member_count": MIN_VALID_BENCHMARK_MEMBERS,
+        "required_suspicious_member_count": MIN_VALID_SUSPICIOUS_MEMBERS,
+        "required_typology_member_count": MIN_VALID_TYPOLOGY_MEMBERS,
+        "required_positive_labels_per_split": MIN_VALID_POSITIVES_PER_SPLIT,
+        "required_patterns_per_split": MIN_VALID_PATTERNS_PER_SPLIT,
+        "required_txns_per_typology_per_split": MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT,
+        "typology_member_minimum_met": typology_member_minimum_met,
+        "split_minimums_met": split_minimums_met,
+        "min_positive_labels_per_split": min_positive,
+        "min_patterns_per_split": min_patterns,
+        "min_txns_per_typology_per_split": min_txns,
+        "positive_member_counts_by_typology_split": positive_counts,
+        "pattern_counts_by_typology_split": pattern_counts,
+        "txn_label_counts_by_typology_split": txn_counts,
+    }
+
+
+def _min_metric(metrics: dict[str, dict[str, int]], typologies: list[str]) -> int:
+    values = [int(metrics[typology].get(split, 0)) for typology in typologies for split in SPLITS]
+    return min(values) if values else 0
+
+
 def _split_key_for_file(filename: str) -> str | list[str] | None:
     return {
         "institutions.csv": "institution_id",
@@ -402,3 +624,7 @@ def _split_for_key(key: str, seed: int) -> str:
     if bucket < 8_500:
         return "validation"
     return "test"
+
+
+def _f1(precision: float, recall: float) -> float:
+    return 0.0 if precision + recall <= 0 else 2 * precision * recall / (precision + recall)

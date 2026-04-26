@@ -119,6 +119,7 @@ Depending on selected options, the generator writes:
 - `baseline_model_results.json`
 - `ml_baseline_results.json`
 - `feature_importance.json`
+- `rule_vs_ml_comparison.json`
 - `feature_documentation.json`
 - `dataset_card.md`
 - `known_limitations.md`
@@ -194,6 +195,7 @@ Benchmark outputs also include:
 baseline_model_results.json   deterministic rule baseline metrics
 ml_baseline_results.json      member-level one-vs-rest ML metrics
 feature_importance.json       Logistic Regression coefficients and Random Forest importances
+rule_vs_ml_comparison.json    split-level rule-vs-ML precision/recall/F1 deltas
 ```
 
 The ML baseline builds one feature row per member from exported feature files
@@ -201,6 +203,33 @@ and uses labels only from `alerts_truth.csv` as targets. Raw identifiers and
 label-bearing fields such as `member_id`, `txn_id`, `reference`, `pattern_id`,
 `alert_id`, `account_id`, `device_id`, `node_id`, `edge_id`, and typology fields
 are excluded from model inputs.
+
+The ML feature layer includes temporal, graph, and behavioral aggregates:
+
+```text
+temporal bursts and rolling 24h/7d windows
+48h inflow-to-outflow exit ratios
+counterparty diversity and concentration
+device-sharing and digital-device coverage proxies
+loan-application proximity and pre-loan external credit share
+persona-relative transaction, inflow, outflow, and cash behavior
+graph/account/guarantor degree features
+```
+
+Benchmark validity is explicit in `split_manifest.json` under
+`checks.evaluation_validity`. A valid v0.2 benchmark evaluation requires:
+
+```text
+member_count >= 10,000
+suspicious_member_count >= 100
+typology_member_count >= 30 for each active typology
+positive labels per split >= 5 for each active typology
+patterns per split >= 5 for each active typology
+labeled transactions per typology split >= 10
+```
+
+Smaller runs are marked `smoke_only`; full-size runs that miss these thresholds
+fail benchmark validation.
 
 Latest verified v0.1 10,000-member Milestone 5 run:
 
@@ -294,6 +323,12 @@ max members/device:  2
 institution split max share: 71.12%
 fake affordability:  precision 0.2409 / recall 0.9706
 macro rule baseline: precision 0.6008 / recall 0.9296
+evaluation validity: valid
+min positive labels per split: 5
+min patterns per split: 5
+min labeled txns per typology split: 15
+ML feature count: 48
+rule-vs-ML comparison: available
 ```
 
 Latest v0.2 multi-seed stability gate:
@@ -302,6 +337,8 @@ Latest v0.2 multi-seed stability gate:
 command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
+evaluation validity: valid for all seeds
+min positive labels per split: 5 for all seeds
 STRUCTURING precision range: 0.0576
 STRUCTURING recall range:    0.0000
 RAPID precision range:       0.0241

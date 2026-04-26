@@ -13,6 +13,10 @@ class MlBaselineTests(unittest.TestCase):
         for feature_name in feature_table["feature_names"]:
             lowered = feature_name.lower()
             self.assertFalse(any(token in lowered for token in BLOCKED_FEATURE_TOKENS), feature_name)
+        self.assertIn("max_txns_24h", feature_table["feature_names"])
+        self.assertIn("max_48h_exit_ratio", feature_table["feature_names"])
+        self.assertIn("distinct_counterparty_count", feature_table["feature_names"])
+        self.assertIn("persona_txn_count_ratio", feature_table["feature_names"])
 
     def test_member_labels_are_derived_from_alerts_truth(self) -> None:
         labels = member_labels_by_typology(_ml_rows()["alerts_truth.csv"])
