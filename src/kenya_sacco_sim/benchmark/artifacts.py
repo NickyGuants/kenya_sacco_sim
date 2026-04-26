@@ -153,7 +153,7 @@ The v0.1 benchmark contains normal SACCO activity, loan lifecycle behavior, guar
 
 ## Splits
 
-Splits are assigned by deterministic member hash using a 70/15/15 train/validation/test allocation. Pattern labels are assigned to the same split as their labeled member, preventing member and pattern leakage across splits.
+Splits are assigned by deterministic member hash using a 70/15/15 train/validation/test allocation. Pattern labels are assigned to the same split as their labeled member, and `split_manifest.json` reports member and pattern leakage checks that must pass before using the release for benchmarking.
 
 ```text
 members: {split_manifest["counts"]["members"]}
