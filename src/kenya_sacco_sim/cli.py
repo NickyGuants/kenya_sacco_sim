@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
+from kenya_sacco_sim.benchmark.multi_seed import run_multi_seed_benchmark
 from kenya_sacco_sim.core.config import WorldConfig, load_world_config, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
@@ -38,6 +39,16 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
     generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
     generate.add_argument("--with-benchmark", action="store_true", help="Emit Milestone 5 split manifest, baseline results, feature docs, dataset card, and known limitations")
+    benchmark = subparsers.add_parser("benchmark", help="Run v0.2 benchmark stability checks across multiple seeds")
+    benchmark.add_argument("--members", type=int, default=None)
+    benchmark.add_argument("--institutions", type=int, default=None)
+    benchmark.add_argument("--months", type=int, default=None)
+    benchmark.add_argument("--seeds", type=int, nargs="+", required=True)
+    benchmark.add_argument("--output", type=Path, default=Path("./benchmarks/v02_multi_seed"))
+    benchmark.add_argument("--suspicious-ratio", type=float, default=None)
+    benchmark.add_argument("--difficulty", default=None)
+    benchmark.add_argument("--config-dir", type=Path, default=Path("./config"))
+    benchmark.add_argument("--write-seed-datasets", action="store_true", help="Also write each seed's full generated package under the benchmark output directory")
     return parser
 
 
@@ -152,5 +163,35 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "generate":
         return generate(args)
+    if args.command == "benchmark":
+        return benchmark(args)
     parser.error(f"Unsupported command: {args.command}")
     return 2
+
+
+def benchmark(args: argparse.Namespace) -> int:
+    config = with_cli_overrides(
+        load_world_config(args.config_dir),
+        member_count=args.members,
+        institution_count=args.institutions,
+        months=args.months,
+        suspicious_ratio=args.suspicious_ratio,
+        difficulty=args.difficulty,
+    )
+    try:
+        result = run_multi_seed_benchmark(config, args.seeds, args.output, write_seed_datasets=args.write_seed_datasets)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    failed = not result["acceptance"]["validation_error_free"] or not result["acceptance"]["precision_recall_variance_within_threshold"]
+    print(
+        json.dumps(
+            {
+                "output": str(args.output),
+                "seeds": args.seeds,
+                "validation_error_free": result["acceptance"]["validation_error_free"],
+                "precision_recall_variance_within_threshold": result["acceptance"]["precision_recall_variance_within_threshold"],
+            },
+            indent=2,
+        )
+    )
+    return 1 if failed else 0
