@@ -36,8 +36,21 @@ FAKE_AFFORDABILITY_RULE_CONFIG = {
     "eligible_loan_products": ["DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "BIASHARA_LOAN"],
 }
 
+DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG = {
+    "window_days": 30,
+    "min_members_per_device": 3,
+    "min_device_txn_count": 6,
+    "min_total_value_kes": 450_000,
+    "min_outbound_share": 0.45,
+    "digital_channels": ["MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"],
+    "inbound_txn_types": ["PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN"],
+    "outbound_txn_types": ["PESALINK_OUT", "SUPPLIER_PAYMENT_OUT", "MPESA_WALLET_TOPUP"],
+    "normal_shared_device_member_ceiling": 2,
+}
+
 RULE_CONFIGS = {
     "STRUCTURING": STRUCTURING_RULE_CONFIG,
     "RAPID_PASS_THROUGH": RAPID_PASS_THROUGH_RULE_CONFIG,
     "FAKE_AFFORDABILITY_BEFORE_LOAN": FAKE_AFFORDABILITY_RULE_CONFIG,
+    "DEVICE_SHARING_MULE_NETWORK": DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
 }

@@ -37,14 +37,14 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--config-dir", type=Path, default=Path("./config"))
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
-    generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
-    generate.add_argument("--with-benchmark", action="store_true", help="Emit Milestone 5 split manifest, baseline results, feature docs, dataset card, and known limitations")
-    benchmark = subparsers.add_parser("benchmark", help="Run v0.2 benchmark stability checks across multiple seeds")
+    generate.add_argument("--with-typologies", action="store_true", help="Inject suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
+    generate.add_argument("--with-benchmark", action="store_true", help="Emit split manifest, baseline results, feature docs, dataset card, and known limitations")
+    benchmark = subparsers.add_parser("benchmark", help="Run benchmark stability checks across multiple seeds")
     benchmark.add_argument("--members", type=int, default=None)
     benchmark.add_argument("--institutions", type=int, default=None)
     benchmark.add_argument("--months", type=int, default=None)
     benchmark.add_argument("--seeds", type=int, nargs="+", required=True)
-    benchmark.add_argument("--output", type=Path, default=Path("./benchmarks/v02_multi_seed"))
+    benchmark.add_argument("--output", type=Path, default=Path("./benchmarks/v1_multi_seed"))
     benchmark.add_argument("--suspicious-ratio", type=float, default=None)
     benchmark.add_argument("--difficulty", default=None)
     benchmark.add_argument("--config-dir", type=Path, default=Path("./config"))
@@ -129,7 +129,7 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
     payload_files = list(rows_by_file) + extra_files + ["manifest.json", "validation_report.json"]
     return {
         "dataset_name": "KENYA_SACCO_SIM",
-        "version": "0.2.0",
+        "version": "1.0.0-dev",
         "seed": config.seed,
         "start_date": config.start_date,
         "end_date": config.end_date,

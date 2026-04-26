@@ -103,8 +103,8 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
         }
 
     return {
-        "baseline_name": "deterministic_v0_2_rules",
-        "description": "Rule baseline using exported structuring, rapid-pass-through, and fake-affordability definitions.",
+        "baseline_name": "deterministic_v1_rules",
+        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, and device-sharing mule definitions.",
         "per_typology": per_typology,
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
         "macro_recall": round(sum(recall_values) / len(recall_values), 4) if recall_values else 0,
@@ -214,7 +214,8 @@ def _build_feature_documentation() -> dict[str, object]:
         },
         "derived_ml_features": {
             "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio"],
-            "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count"],
+            "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count", "device_peer_member_count"],
+            "device": ["transaction_device_count", "shared_device_txn_share", "max_members_per_used_device", "device_network_value_kes"],
             "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes"],
         },
         "ml_leakage_ablation": {
@@ -244,7 +245,7 @@ def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str,
     ml_summary = _ml_performance_summary(ml_results)
     comparison_summary = _comparison_summary(comparison)
     validity = split_manifest.get("checks", {}).get("evaluation_validity", {})
-    return f"""# KENYA_SACCO_SIM v0.2 Dataset Card
+    return f"""# KENYA_SACCO_SIM v1 Dataset Card
 
 ## Intended Use
 
@@ -256,7 +257,7 @@ Do not use this dataset for real customer risk decisions, regulatory filings, pr
 
 ## Scope
 
-The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` when v0.2 typologies are enabled.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and `DEVICE_SHARING_MULE_NETWORK` when v1 typologies are enabled.
 
 ## Benchmark Task
 
@@ -388,10 +389,10 @@ def _metric(value: object) -> str:
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v0.2 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` suspicious typologies.
+- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and `DEVICE_SHARING_MULE_NETWORK` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
-- Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
-- Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
+- Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
+- Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
 - `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that either approach is production-ready.

@@ -23,12 +23,15 @@ class MlBaselineTests(unittest.TestCase):
         self.assertIn("max_48h_exit_ratio", feature_table["feature_names"])
         self.assertIn("distinct_counterparty_count", feature_table["feature_names"])
         self.assertIn("persona_txn_count_ratio", feature_table["feature_names"])
+        self.assertIn("shared_device_txn_share", feature_table["feature_names"])
+        self.assertIn("max_members_per_used_device", feature_table["feature_names"])
 
     def test_member_labels_are_derived_from_alerts_truth(self) -> None:
         labels = member_labels_by_typology(_ml_rows()["alerts_truth.csv"])
 
         self.assertEqual(labels["STRUCTURING"], {"MEM0000001", "MEM0000002"})
         self.assertEqual(labels["RAPID_PASS_THROUGH"], set())
+        self.assertEqual(labels["DEVICE_SHARING_MULE_NETWORK"], {"MEM0000003"})
 
     def test_ml_baseline_trains_with_member_split_and_exports_importance(self) -> None:
         results, importance = build_ml_baseline_artifacts(_ml_rows(), _split_manifest(), WorldConfig(seed=42))
@@ -64,6 +67,7 @@ class MlBaselineTests(unittest.TestCase):
         self.assertEqual(section["status"], "evaluated")
         self.assertEqual(section["ablation"], "without_typology_rule_proxy_features")
         self.assertIn("max_sub_100k_deposits_7d", ablation["rule_proxy_features_by_typology"]["STRUCTURING"])
+        self.assertIn("shared_device_txn_share", ablation["rule_proxy_features_by_typology"]["DEVICE_SHARING_MULE_NETWORK"])
         self.assertIn("risk_summary", ablation)
 
 
@@ -105,6 +109,7 @@ def _ml_rows() -> dict[str, list[dict[str, object]]]:
         "devices.csv": [
             {"device_id": "DEVICE000001", "member_id": "MEM0000001", "shared_device_group": "SHARED_DEVICE_GROUP_00001"},
             {"device_id": "DEVICE000002", "member_id": "MEM0000002", "shared_device_group": None},
+            {"device_id": "DEVICE000003", "member_id": "MEM0000003", "shared_device_group": "SHARED_DEVICE_GROUP_00001"},
         ],
         "loans.csv": [
             {"loan_id": "LOAN000001", "member_id": "MEM0000001", "application_date": "2024-06-15"},
@@ -122,6 +127,7 @@ def _ml_rows() -> dict[str, list[dict[str, object]]]:
         "alerts_truth.csv": [
             {"typology": "STRUCTURING", "member_id": "MEM0000001", "entity_type": "PATTERN"},
             {"typology": "STRUCTURING", "member_id": "MEM0000002", "entity_type": "PATTERN"},
+            {"typology": "DEVICE_SHARING_MULE_NETWORK", "member_id": "MEM0000003", "entity_type": "PATTERN"},
         ],
     }
 

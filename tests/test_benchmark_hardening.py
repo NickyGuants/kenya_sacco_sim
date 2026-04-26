@@ -53,9 +53,10 @@ class BenchmarkHardeningTests(unittest.TestCase):
         alert_index = 1
         member_number = 1
         for typology, typology_count in [
-            ("STRUCTURING", 34),
-            ("RAPID_PASS_THROUGH", 33),
-            ("FAKE_AFFORDABILITY_BEFORE_LOAN", 33),
+            ("STRUCTURING", 30),
+            ("RAPID_PASS_THROUGH", 30),
+            ("FAKE_AFFORDABILITY_BEFORE_LOAN", 30),
+            ("DEVICE_SHARING_MULE_NETWORK", 30),
         ]:
             for _ in range(typology_count):
                 member_id = f"MEM{member_number:07d}"

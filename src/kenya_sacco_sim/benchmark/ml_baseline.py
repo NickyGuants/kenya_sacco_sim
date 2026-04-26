@@ -10,7 +10,7 @@ from kenya_sacco_sim.core.config import WorldConfig
 
 DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
-TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN")
+TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK")
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
@@ -33,6 +33,14 @@ RULE_PROXY_FEATURES_BY_TYPOLOGY = {
         "days_from_latest_activity_to_loan_application",
         "has_loan_application",
         "loan_count",
+    },
+    "DEVICE_SHARING_MULE_NETWORK": {
+        "shared_device_flag",
+        "transaction_device_count",
+        "shared_device_txn_share",
+        "max_members_per_used_device",
+        "device_peer_member_count",
+        "device_network_value_kes",
     },
 }
 
@@ -84,6 +92,11 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         "digital_device_coverage",
         "device_count",
         "shared_device_flag",
+        "transaction_device_count",
+        "shared_device_txn_share",
+        "max_members_per_used_device",
+        "device_peer_member_count",
+        "device_network_value_kes",
         "distinct_counterparty_count",
         "counterparty_diversity_ratio",
         "counterparty_concentration",
@@ -130,6 +143,9 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
     salary_income_totals: dict[str, float] = defaultdict(float)
     external_credit_totals: dict[str, float] = defaultdict(float)
     round_amount_counts: Counter[str] = Counter()
+    devices_used_by_member: dict[str, set[str]] = defaultdict(set)
+    users_by_device: dict[str, set[str]] = defaultdict(set)
+    device_events_by_member: dict[str, list[tuple[str, float]]] = defaultdict(list)
 
     for txn in rows_by_file.get("transactions.csv", []):
         member_id = str(txn.get("member_id_primary") or "")
@@ -167,6 +183,11 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
             features["digital_txn_count"] += 1.0
             if txn.get("device_id"):
                 features["digital_device_coverage"] += 1.0
+        device_id = str(txn.get("device_id") or "")
+        if device_id:
+            devices_used_by_member[member_id].add(device_id)
+            users_by_device[device_id].add(member_id)
+            device_events_by_member[member_id].append((device_id, amount))
         if _is_round_100(amount):
             round_amount_counts[member_id] += 1
         counterparty = str(txn.get("counterparty_id_hash") or "")
@@ -195,6 +216,23 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         if member_id in raw:
             raw[member_id]["device_count"] = float(count)
             raw[member_id]["shared_device_flag"] = 1.0 if member_id in shared_device_members else 0.0
+    shared_transaction_devices = {device_id for device_id, users in users_by_device.items() if len(users) > 1}
+    for member_id, device_ids in devices_used_by_member.items():
+        if member_id not in raw:
+            continue
+        raw[member_id]["transaction_device_count"] = float(len(device_ids))
+        raw[member_id]["max_members_per_used_device"] = float(max((len(users_by_device[device_id]) for device_id in device_ids), default=0))
+        peer_members = {
+            peer_member_id
+            for device_id in device_ids
+            for peer_member_id in users_by_device[device_id]
+            if peer_member_id != member_id
+        }
+        raw[member_id]["device_peer_member_count"] = float(len(peer_members))
+        member_device_events = device_events_by_member.get(member_id, [])
+        shared_events = [(device_id, amount) for device_id, amount in member_device_events if device_id in shared_transaction_devices]
+        raw[member_id]["shared_device_txn_share"] = _safe_ratio(float(len(shared_events)), float(len(member_device_events)))
+        raw[member_id]["device_network_value_kes"] = sum(amount for _, amount in shared_events)
 
     loans_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
     for loan in rows_by_file.get("loans.csv", []):
@@ -441,13 +479,13 @@ def _train_models(feature_table: dict[str, object], labels_by_typology: dict[str
     member_ids = list(feature_table["member_ids"])
     matrix = list(feature_table["matrix"])
     results: dict[str, object] = {
-        "baseline_name": "member_level_ml_v0_2",
+        "baseline_name": "member_level_ml_v1",
         "task": "member_level_one_vs_rest_typology_detection",
         "split_key": "member_id",
         "models": {},
     }
     importances: dict[str, object] = {
-        "baseline_name": "member_level_ml_v0_2",
+        "baseline_name": "member_level_ml_v1",
         "feature_names": feature_names,
         "rankings": {},
     }
@@ -580,7 +618,7 @@ def _rule_proxy_ablation(
             }
 
     return {
-        "baseline_name": "ml_rule_proxy_ablation_v0_2",
+        "baseline_name": "ml_rule_proxy_ablation_v1",
         "purpose": "Estimate whether ML performance depends on direct typology rule-proxy features.",
         "interpretation": "Large validation/test F1 drops after removing rule-proxy features indicate possible overreliance on injected-rule proxies.",
         "rule_proxy_features_by_typology": {typology: sorted(features) for typology, features in RULE_PROXY_FEATURES_BY_TYPOLOGY.items()},

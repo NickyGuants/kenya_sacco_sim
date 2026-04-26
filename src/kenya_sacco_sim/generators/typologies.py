@@ -77,8 +77,36 @@ def inject_typologies(
         next_pattern,
         targets["FAKE_AFFORDABILITY_BEFORE_LOAN"],
     )
+    next_txn, next_pattern = _inject_device_sharing_mule_network(
+        rng,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        world,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        next_txn,
+        next_pattern,
+        targets["DEVICE_SHARING_MULE_NETWORK"],
+    )
+    next_txn, device_near_miss_stats = _inject_device_sharing_decoys(
+        rng,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        world,
+        transactions,
+        used_members,
+        next_txn,
+        max(1, targets["DEVICE_SHARING_MULE_NETWORK"] // 6) if targets["DEVICE_SHARING_MULE_NETWORK"] else 0,
+    )
     decoy_target = max(2, targets["STRUCTURING"] // 5) if sum(targets.values()) else 0
     next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, decoy_target)
+    near_miss_stats.update(device_near_miss_stats)
 
     _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
@@ -92,14 +120,33 @@ def inject_typologies(
 def _target_counts(config: WorldConfig, include_fake_affordability: bool = True) -> dict[str, int]:
     target = Decimal(str(config.member_count)) * Decimal(str(config.suspicious_ratio))
     total = max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
+    if total > 0 and config.member_count >= 100:
+        total = max(total, 4 if include_fake_affordability else 3)
+    if config.member_count >= 10_000:
+        total = max(total, 30 * (4 if include_fake_affordability else 3))
     if not include_fake_affordability:
-        structuring = total // 2
-        rapid = total - structuring
-        return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid, "FAKE_AFFORDABILITY_BEFORE_LOAN": 0}
-    structuring = total // 3
-    rapid = total // 3
-    fake = total - structuring - rapid
-    return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid, "FAKE_AFFORDABILITY_BEFORE_LOAN": fake}
+        counts = _balanced_target_counts(total, ["STRUCTURING", "RAPID_PASS_THROUGH", "DEVICE_SHARING_MULE_NETWORK"])
+        counts["FAKE_AFFORDABILITY_BEFORE_LOAN"] = 0
+    else:
+        counts = _balanced_target_counts(total, ["STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK"])
+    if config.member_count >= 1_000 and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
+        shortfall = 3 - counts["DEVICE_SHARING_MULE_NETWORK"]
+        counts["DEVICE_SHARING_MULE_NETWORK"] = 3
+        for name in ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN"):
+            reduction = min(shortfall, max(0, counts.get(name, 0) - 1))
+            counts[name] -= reduction
+            shortfall -= reduction
+            if shortfall == 0:
+                break
+    return counts
+
+
+def _balanced_target_counts(total: int, typologies: list[str]) -> dict[str, int]:
+    if total <= 0:
+        return {typology: 0 for typology in typologies}
+    base = total // len(typologies)
+    remainder = total % len(typologies)
+    return {typology: base + (1 if index < remainder else 0) for index, typology in enumerate(typologies)}
 
 
 def _inject_structuring(
@@ -369,6 +416,214 @@ def _inject_fake_affordability(
     return next_txn, next_pattern
 
 
+def _inject_device_sharing_mule_network(
+    rng: random.Random,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    world: InstitutionWorld | None,
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    if not world or not world.devices or target_count <= 0:
+        return next_txn, next_pattern
+    available_device_members = _members_without_shared_devices(world)
+    candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = [member for member in candidates if str(member["member_id"]) in available_device_members and normal_txn_counts[str(member["member_id"])] >= 4]
+    rng.shuffle(candidates)
+    inserted = 0
+    group_index = 1
+    cursor = 0
+    while inserted < target_count and cursor < len(candidates):
+        remaining = target_count - inserted
+        if remaining <= 5:
+            group_size = remaining
+        else:
+            group_size = rng.randint(3, 5)
+            if remaining - group_size in {1, 2}:
+                group_size = 3 if remaining - 3 not in {1, 2} else 4
+        if group_size < 3:
+            break
+        group = candidates[cursor : cursor + group_size]
+        cursor += group_size
+        if len(group) < group_size:
+            break
+        group_member_ids = [str(member["member_id"]) for member in group]
+        if any(member_id in used_members for member_id in group_member_ids):
+            continue
+        device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_{group_index:05d}")
+        if not device_id:
+            continue
+        group_index += 1
+        start = datetime(2024, 8, 5, 8, 0, tzinfo=EAT) + timedelta(days=group_index * 3)
+        for member_offset, member in enumerate(group):
+            if inserted >= target_count:
+                break
+            member_id = str(member["member_id"])
+            fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+            if not fosa:
+                continue
+            used_members.add(member_id)
+            pattern_id = _pattern_id(next_pattern)
+            next_pattern += 1
+            inserted += 1
+            inbound_count = rng.randint(1, 2)
+            outbound_count = rng.randint(1, 2)
+            member_start = start + timedelta(hours=member_offset * 3)
+            inbound_total = 0.0
+            txn_times: list[str] = []
+            member_txn_ids: list[str] = []
+            for offset in range(inbound_count):
+                amount = float(rng.randrange(100_000, 165_000, 5_000))
+                inbound_total += amount
+                txn_id = _txn_id(next_txn)
+                next_txn += 1
+                txn_type, rail, channel, provider, counterparty_type = _device_mule_inbound_shape(offset)
+                tx = _txn_row(
+                    txn_id,
+                    member_start + timedelta(hours=offset * rng.randint(4, 9)),
+                    rng.choice(source_accounts),
+                    fosa,
+                    member,
+                    txn_type,
+                    rail,
+                    channel,
+                    amount,
+                    provider,
+                    counterparty_type,
+                    fosa.get("branch_id"),
+                    f"DEVICE_MULE_IN:{device_id}:{member_id}:{offset}",
+                )
+                tx["device_id"] = device_id
+                transactions.append(tx)
+                txn_times.append(str(tx["timestamp"]))
+                member_txn_ids.append(txn_id)
+                alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DEVICE_SHARING_MULE_NETWORK", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "SHARED_DEVICE_MULE_ACTIVITY"))
+            outbound_total = round(inbound_total * rng.uniform(0.48, 0.68), 2)
+            allocations = _allocate_amounts(outbound_total, outbound_count, rng)
+            for offset, amount in enumerate(allocations):
+                txn_id = _txn_id(next_txn)
+                next_txn += 1
+                txn_type = "PESALINK_OUT" if offset % 2 else "SUPPLIER_PAYMENT_OUT"
+                rail = "PESALINK" if txn_type == "PESALINK_OUT" else "MPESA"
+                tx = _txn_row(
+                    txn_id,
+                    member_start + timedelta(hours=18 + offset * rng.randint(8, 18)),
+                    fosa,
+                    sink_accounts[(inserted + offset) % len(sink_accounts)],
+                    member,
+                    txn_type,
+                    rail,
+                    "BANK_TRANSFER" if rail == "PESALINK" else "PAYBILL",
+                    amount,
+                    "BANK_PARTNER" if rail == "PESALINK" else "MPESA",
+                    "MERCHANT",
+                    fosa.get("branch_id"),
+                    f"DEVICE_MULE_OUT:{device_id}:{member_id}:{offset}",
+                )
+                tx["device_id"] = device_id
+                transactions.append(tx)
+                txn_times.append(str(tx["timestamp"]))
+                member_txn_ids.append(txn_id)
+                alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DEVICE_SHARING_MULE_NETWORK", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "SHARED_DEVICE_MULE_ACTIVITY"))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DEVICE_SHARING_MULE_NETWORK", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
+def _inject_device_sharing_decoys(
+    rng: random.Random,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    world: InstitutionWorld | None,
+    transactions: list[dict[str, object]],
+    used_members: set[str],
+    next_txn: int,
+    target_group_count: int,
+) -> tuple[int, dict[str, object]]:
+    if not world or not world.devices or target_group_count <= 0:
+        return next_txn, {
+            "device_sharing_near_miss_group_count": 0,
+            "device_sharing_near_miss_member_count": 0,
+            "device_sharing_near_miss_transaction_count": 0,
+        }
+    available_device_members = _members_without_shared_devices(world)
+    candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = [member for member in candidates if str(member["member_id"]) in available_device_members]
+    rng.shuffle(candidates)
+    group_count = 0
+    member_ids: set[str] = set()
+    txn_count = 0
+    cursor = 0
+    while group_count < target_group_count and cursor + 3 <= len(candidates):
+        group = candidates[cursor : cursor + 3]
+        cursor += 3
+        group_member_ids = [str(member["member_id"]) for member in group]
+        device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_DECOY_{group_count + 1:05d}")
+        if not device_id:
+            continue
+        group_count += 1
+        start = datetime(2024, 11, 5, 9, 0, tzinfo=EAT) + timedelta(days=group_count * 4)
+        for offset, member in enumerate(group):
+            member_id = str(member["member_id"])
+            fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+            if not fosa:
+                continue
+            member_ids.add(member_id)
+            inbound_amount = float(rng.randrange(18_000, 36_000, 1_000))
+            inbound_id = _txn_id(next_txn)
+            next_txn += 1
+            inbound = _txn_row(
+                inbound_id,
+                start + timedelta(hours=offset * 2),
+                rng.choice(source_accounts),
+                fosa,
+                member,
+                "MPESA_PAYBILL_IN",
+                "MPESA",
+                "PAYBILL",
+                inbound_amount,
+                "MPESA",
+                "CUSTOMER",
+                fosa.get("branch_id"),
+                f"LEGIT_SHARED_DEVICE_IN:{device_id}:{member_id}",
+            )
+            inbound["device_id"] = device_id
+            transactions.append(inbound)
+            outbound_id = _txn_id(next_txn)
+            next_txn += 1
+            outbound = _txn_row(
+                outbound_id,
+                start + timedelta(hours=18 + offset * 3),
+                fosa,
+                rng.choice(sink_accounts),
+                member,
+                "SUPPLIER_PAYMENT_OUT",
+                "MPESA",
+                "PAYBILL",
+                round(inbound_amount * rng.uniform(0.15, 0.32), 2),
+                "MPESA",
+                "MERCHANT",
+                fosa.get("branch_id"),
+                f"LEGIT_SHARED_DEVICE_OUT:{device_id}:{member_id}",
+            )
+            outbound["device_id"] = device_id
+            transactions.append(outbound)
+            txn_count += 2
+    return next_txn, {
+        "device_sharing_near_miss_group_count": group_count,
+        "device_sharing_near_miss_member_count": len(member_ids),
+        "device_sharing_near_miss_transaction_count": txn_count,
+    }
+
+
 def _inject_decoys(
     rng: random.Random,
     members: list[dict[str, object]],
@@ -466,6 +721,39 @@ def _inject_near_rapid(rng: random.Random, member: dict[str, object], fosa: dict
     next_txn += 1
     transactions.append(_txn_row(out_id, start + timedelta(hours=12), fosa, rng.choice(sink_accounts), member, "PESALINK_OUT", "PESALINK", "BANK_TRANSFER", round(amount * rng.uniform(0.55, 0.70), 2), "BANK_PARTNER", "MERCHANT", fosa.get("branch_id"), f"NEAR_RAPID_OUT:{member['member_id']}"))
     return next_txn
+
+
+def _device_mule_inbound_shape(offset: int) -> tuple[str, str, str, str, str]:
+    variants = [
+        ("MPESA_PAYBILL_IN", "MPESA", "PAYBILL", "MPESA", "CUSTOMER"),
+        ("PESALINK_IN", "PESALINK", "BANK_TRANSFER", "BANK_PARTNER", "BANK"),
+        ("BUSINESS_SETTLEMENT_IN", "MPESA", "PAYBILL", "MPESA", "MERCHANT"),
+    ]
+    return variants[offset % len(variants)]
+
+
+def _members_without_shared_devices(world: InstitutionWorld) -> set[str]:
+    members: set[str] = set()
+    blocked: set[str] = set()
+    for device in world.devices:
+        member_id = str(device["member_id"])
+        if device.get("shared_device_group"):
+            blocked.add(member_id)
+        else:
+            members.add(member_id)
+    return members - blocked
+
+
+def _assign_shared_device_group(world: InstitutionWorld, member_ids: list[str], group_name: str) -> str | None:
+    devices_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for device in world.devices:
+        devices_by_member[str(device["member_id"])].append(device)
+    if any(not devices_by_member.get(member_id) for member_id in member_ids):
+        return None
+    for member_id in member_ids:
+        for device in devices_by_member[member_id]:
+            device["shared_device_group"] = group_name
+    return str(devices_by_member[member_ids[0]][0]["device_id"])
 
 
 def _txn_row(
