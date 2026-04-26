@@ -1,0 +1,12 @@
+[project]
+name = "kenya-sacco-sim"
+version = "0.1.0"
+description = "Synthetic AML dataset generator for Kenyan SACCOs"
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

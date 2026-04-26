@@ -1,0 +1,76 @@
+from __future__ import annotations
+
+import random
+from datetime import date, timedelta
+
+from kenya_sacco_sim.core.config import COUNTIES, PERSONA_CONFIG, WorldConfig
+from kenya_sacco_sim.core.id_factory import IdFactory
+from kenya_sacco_sim.core.models import InstitutionWorld
+
+
+def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[str, object]]:
+    rng = random.Random(config.seed + 101)
+    ids = IdFactory()
+    personas = list(PERSONA_CONFIG)
+    weights = [PERSONA_CONFIG[p]["share"] for p in personas]
+    members: list[dict[str, object]] = []
+
+    for _ in range(config.member_count):
+        persona = rng.choices(personas, weights=weights, k=1)[0]
+        settings = PERSONA_CONFIG[persona]
+        institution = rng.choice(world.institutions)
+        urban_rural = _urban_rural(rng, settings["rural"])
+        member_id = ids.next("MEMBER")
+        member_type = "ORGANIZATION" if persona == "CHURCH_ORG" else "INDIVIDUAL"
+        employer_id = None
+        if persona in {"SALARIED_TEACHER", "COUNTY_WORKER"}:
+            employer_id = rng.choice(world.employers)["employer_id"]
+        min_income, mode_income, max_income = settings["income"]
+        monthly_income = int(rng.triangular(min_income, max_income, mode_income))
+
+        members.append(
+            {
+                "member_id": member_id,
+                "institution_id": institution["institution_id"],
+                "member_type": member_type,
+                "persona_type": persona,
+                "county": rng.choice(COUNTIES),
+                "urban_rural": urban_rural,
+                "gender": "UNKNOWN" if member_type == "ORGANIZATION" else rng.choice(["MALE", "FEMALE"]),
+                "age": 0 if member_type == "ORGANIZATION" else rng.randint(21, 68),
+                "occupation": _occupation(persona),
+                "employer_id": employer_id,
+                "join_date": _random_date(rng, date(2015, 1, 1), date.fromisoformat(config.start_date)).isoformat(),
+                "kyc_level": rng.choices(["STANDARD", "ENHANCED", "SIMPLIFIED"], weights=[0.78, 0.12, 0.10], k=1)[0],
+                "risk_segment": rng.choices(["LOW", "MEDIUM", "HIGH"], weights=[0.72, 0.23, 0.05], k=1)[0],
+                "phone_hash": IdFactory.hash_id("PHONE", member_id),
+                "id_hash": None if member_type == "ORGANIZATION" else IdFactory.hash_id("ID", member_id),
+                "declared_monthly_income_kes": monthly_income,
+                "income_stability_score": round(rng.uniform(0.35, 0.95), 3),
+                "dormant_flag": rng.random() < 0.03,
+                "created_at": f"{config.start_date}T00:00:00",
+            }
+        )
+    return members
+
+
+def _urban_rural(rng: random.Random, rural_probability: float) -> str:
+    if rng.random() < rural_probability:
+        return "RURAL"
+    return rng.choices(["URBAN", "PERI_URBAN"], weights=[0.65, 0.35], k=1)[0]
+
+
+def _random_date(rng: random.Random, start: date, end: date) -> date:
+    return start + timedelta(days=rng.randint(0, (end - start).days))
+
+
+def _occupation(persona: str) -> str:
+    return {
+        "SALARIED_TEACHER": "Teacher",
+        "COUNTY_WORKER": "County worker",
+        "SME_OWNER": "SME owner",
+        "FARMER_SEASONAL": "Farmer",
+        "DIASPORA_SUPPORTED": "Household recipient",
+        "BODA_BODA_OPERATOR": "Boda boda operator",
+        "CHURCH_ORG": "Church organization",
+    }[persona]
