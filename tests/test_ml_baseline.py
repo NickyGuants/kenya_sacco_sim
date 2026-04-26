@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from kenya_sacco_sim.benchmark.ml_baseline import BLOCKED_FEATURE_TOKENS, build_member_feature_table, build_ml_baseline_artifacts, member_labels_by_typology
+from kenya_sacco_sim.benchmark.ml_baseline import (
+    BLOCKED_FEATURE_TOKENS,
+    build_member_feature_table,
+    build_ml_baseline_artifacts,
+    build_ml_leakage_ablation_artifact,
+    member_labels_by_typology,
+)
 from kenya_sacco_sim.core.config import WorldConfig
 
 
@@ -47,6 +53,18 @@ class MlBaselineTests(unittest.TestCase):
         section = results["models"]["LogisticRegression"]["STRUCTURING"]
         self.assertEqual(section["status"], "skipped_insufficient_labels")
         self.assertEqual(importance["rankings"]["RandomForestClassifier"]["STRUCTURING"]["status"], "skipped_insufficient_labels")
+
+    def test_ml_leakage_ablation_reports_rule_proxy_drops(self) -> None:
+        rows = _ml_rows()
+        results, _ = build_ml_baseline_artifacts(rows, _split_manifest(), WorldConfig(seed=42))
+
+        ablation = build_ml_leakage_ablation_artifact(rows, _split_manifest(), WorldConfig(seed=42), results)
+
+        section = ablation["models"]["LogisticRegression"]["STRUCTURING"]
+        self.assertEqual(section["status"], "evaluated")
+        self.assertEqual(section["ablation"], "without_typology_rule_proxy_features")
+        self.assertIn("max_sub_100k_deposits_7d", ablation["rule_proxy_features_by_typology"]["STRUCTURING"])
+        self.assertIn("risk_summary", ablation)
 
 
 def _split_manifest() -> dict[str, object]:

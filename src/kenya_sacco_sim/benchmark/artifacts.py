@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 
-from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, member_labels_by_typology
+from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.labels import _reference_leakage_metrics, _txn_id_leakage_metrics
 from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
@@ -22,6 +22,7 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
     split_manifest = _build_split_manifest(rows_by_file, config)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest)
     ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
+    ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results)
     comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results)
     feature_docs = _build_feature_documentation()
     return {
@@ -29,6 +30,7 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
         "baseline_model_results.json": baseline_results,
         "ml_baseline_results.json": ml_results,
         "feature_importance.json": feature_importance,
+        "ml_leakage_ablation.json": ml_ablation,
         "rule_vs_ml_comparison.json": comparison,
         "feature_documentation.json": feature_docs,
         "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, comparison),
@@ -215,6 +217,10 @@ def _build_feature_documentation() -> dict[str, object]:
             "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count"],
             "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes"],
         },
+        "ml_leakage_ablation": {
+            "artifact": "ml_leakage_ablation.json",
+            "purpose": "Retrain baselines without typology-specific rule-proxy features and report validation/test F1 drops.",
+        },
         "recommended_split_source": "split_manifest.json",
         "recommended_split_entity": "member",
         "recommended_split_key_by_file": {
@@ -387,6 +393,7 @@ def _known_limitations() -> str:
 - Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
 - Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
+- `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
 - `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that either approach is production-ready.
 - The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
 """

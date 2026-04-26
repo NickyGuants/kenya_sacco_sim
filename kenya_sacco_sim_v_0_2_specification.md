@@ -28,6 +28,7 @@ split_manifest.json
 baseline_model_results.json
 ml_baseline_results.json
 feature_importance.json
+ml_leakage_ablation.json
 rule_vs_ml_comparison.json
 feature_documentation.json
 dataset_card.md
@@ -417,9 +418,10 @@ v0.2 additions:
 3. baseline_model_results.json includes FAKE_AFFORDABILITY_BEFORE_LOAN rule results.
 4. ml_baseline_results.json reports member-level one-vs-rest ML baseline metrics.
 5. feature_importance.json reports Logistic Regression coefficient rankings and Random Forest importances.
-6. rule_vs_ml_comparison.json reports rule-vs-ML precision, recall, and F1 deltas by typology/model/split.
-7. dataset_card.md documents v0.2 support files, benchmark task definitions, rule baseline performance, ML baseline performance, known biases, and known device limitations.
-8. known_limitations.md clearly defers v1 typologies.
+6. ml_leakage_ablation.json reports ML performance after removing typology-specific rule-proxy features.
+7. rule_vs_ml_comparison.json reports rule-vs-ML precision, recall, and F1 deltas by typology/model/split.
+8. dataset_card.md documents v0.2 support files, benchmark task definitions, rule baseline performance, ML baseline performance, known biases, and known device limitations.
+9. known_limitations.md clearly defers v1 typologies.
 ```
 
 ML baseline contract:
@@ -616,6 +618,7 @@ typology precision/recall ranges stay within 0.10 across accepted v0.2 seeds.
 ML baseline metrics are reported per typology and split, or explicitly skipped for insufficient labels.
 Feature importance rankings are emitted for both model families when training succeeds.
 rule_vs_ml_comparison.json reports where rules dominate and where ML outperforms rules.
+ml_leakage_ablation.json reports rule-proxy dependence and validation/test F1 drops.
 split_manifest.json reports evaluation_validity.status = valid for accepted 10,000-member runs.
 ```
 

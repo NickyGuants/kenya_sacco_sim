@@ -119,6 +119,7 @@ Depending on selected options, the generator writes:
 - `baseline_model_results.json`
 - `ml_baseline_results.json`
 - `feature_importance.json`
+- `ml_leakage_ablation.json`
 - `rule_vs_ml_comparison.json`
 - `feature_documentation.json`
 - `dataset_card.md`
@@ -195,6 +196,7 @@ Benchmark outputs also include:
 baseline_model_results.json   deterministic rule baseline metrics
 ml_baseline_results.json      member-level one-vs-rest ML metrics
 feature_importance.json       Logistic Regression coefficients and Random Forest importances
+ml_leakage_ablation.json      rule-proxy feature ablation diagnostics
 rule_vs_ml_comparison.json    split-level rule-vs-ML precision/recall/F1 deltas
 ```
 
@@ -215,6 +217,11 @@ loan-application proximity and pre-loan external credit share
 persona-relative transaction, inflow, outflow, and cash behavior
 graph/account/guarantor degree features
 ```
+
+`ml_leakage_ablation.json` retrains the ML baselines after removing
+typology-specific rule-proxy features. Large validation/test F1 drops in that
+artifact mean the model is probably relying on direct injected-rule proxies
+rather than broader behavioral signals.
 
 Benchmark validity is explicit in `split_manifest.json` under
 `checks.evaluation_validity`. A valid v0.2 benchmark evaluation requires:

@@ -109,6 +109,7 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertEqual(comparison["status"], "available")
         self.assertIn("ml_outperforms_rules", comparison)
         self.assertIn("rules_dominate", comparison)
+        self.assertIn("ml_leakage_ablation.json", artifacts)
 
     def test_label_validation_uses_half_up_target_count(self) -> None:
         rows_by_file = {

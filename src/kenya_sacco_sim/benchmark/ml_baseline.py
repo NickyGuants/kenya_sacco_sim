@@ -12,6 +12,29 @@ DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
 TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN")
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
+RULE_PROXY_FEATURES_BY_TYPOLOGY = {
+    "STRUCTURING": {
+        "sub_100k_inbound_deposit_count",
+        "max_sub_100k_deposits_7d",
+        "cash_deposit_count",
+        "max_inflow_7d_kes",
+    },
+    "RAPID_PASS_THROUGH": {
+        "max_48h_exit_ratio",
+        "min_inbound_to_outbound_hours",
+        "max_outbound_counterparties_48h",
+        "max_outflow_7d_kes",
+        "pesalink_share",
+    },
+    "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+        "external_credit_share_before_loan",
+        "external_credit_30d_before_loan_kes",
+        "balance_growth_30d_before_loan_kes",
+        "days_from_latest_activity_to_loan_application",
+        "has_loan_application",
+        "loan_count",
+    },
+}
 
 
 def build_ml_baseline_artifacts(rows_by_file: dict[str, list[dict[str, object]]], split_manifest: dict[str, object], config: WorldConfig) -> tuple[dict[str, object], dict[str, object]]:
@@ -20,6 +43,18 @@ def build_ml_baseline_artifacts(rows_by_file: dict[str, list[dict[str, object]]]
     member_split = {str(member_id): str(split) for member_id, split in dict(split_manifest.get("member_id_to_split", {})).items()}
     ml_results, feature_importance = _train_models(feature_table, labels_by_typology, member_split, config)
     return ml_results, feature_importance
+
+
+def build_ml_leakage_ablation_artifact(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    split_manifest: dict[str, object],
+    config: WorldConfig,
+    full_results: dict[str, object],
+) -> dict[str, object]:
+    feature_table = build_member_feature_table(rows_by_file)
+    labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
+    member_split = {str(member_id): str(split) for member_id, split in dict(split_manifest.get("member_id_to_split", {})).items()}
+    return _rule_proxy_ablation(feature_table, labels_by_typology, member_split, config, full_results)
 
 
 def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
@@ -461,6 +496,130 @@ def _train_models(feature_table: dict[str, object], labels_by_typology: dict[str
     return results, importances
 
 
+def _rule_proxy_ablation(
+    feature_table: dict[str, object],
+    labels_by_typology: dict[str, set[str]],
+    member_split: dict[str, str],
+    config: WorldConfig,
+    full_results: dict[str, object],
+) -> dict[str, object]:
+    sklearn = _load_sklearn()
+    feature_names = list(feature_table["feature_names"])
+    member_ids = list(feature_table["member_ids"])
+    matrix = list(feature_table["matrix"])
+    split_indices = _split_indices(member_ids, member_split)
+    models: dict[str, object] = {}
+    max_eval_f1_drop = 0.0
+    high_dependency_cases: list[dict[str, object]] = []
+
+    for model_name in ("LogisticRegression", "RandomForestClassifier"):
+        models[model_name] = {}
+        for typology in TYPOLOGY_NAMES:
+            removed_features = [feature for feature in feature_names if feature in RULE_PROXY_FEATURES_BY_TYPOLOGY[typology]]
+            keep_indices = [index for index, feature in enumerate(feature_names) if feature not in set(removed_features)]
+            y = [1 if member_id in labels_by_typology.get(typology, set()) else 0 for member_id in member_ids]
+            train_indices = split_indices["train"]
+            if not _has_both_classes([y[index] for index in train_indices]):
+                models[model_name][typology] = {
+                    "status": "skipped_insufficient_labels",
+                    "removed_features": removed_features,
+                }
+                continue
+            estimator = _make_estimator(model_name, sklearn, config.seed)
+            x_train = [_select_features(matrix[index], keep_indices) for index in train_indices]
+            y_train = [y[index] for index in train_indices]
+            estimator.fit(x_train, y_train)
+            split_rows: dict[str, object] = {}
+            for split, indices in split_indices.items():
+                split_y = [y[index] for index in indices]
+                if not indices or not _has_both_classes(split_y):
+                    split_rows[split] = {
+                        "status": "skipped_insufficient_labels",
+                        "positive_count": sum(split_y),
+                        "negative_count": len(split_y) - sum(split_y),
+                    }
+                    continue
+                ablated = _evaluate(estimator, [_select_features(matrix[index], keep_indices) for index in indices], split_y, sklearn)
+                full = _full_split_metrics(full_results, model_name, typology, split)
+                full_f1 = float(full.get("f1") or 0.0) if full else 0.0
+                ablated_f1 = float(ablated.get("f1") or 0.0)
+                f1_drop = max(0.0, full_f1 - ablated_f1)
+                if split in {"validation", "test"}:
+                    max_eval_f1_drop = max(max_eval_f1_drop, f1_drop)
+                    if f1_drop >= 0.25:
+                        high_dependency_cases.append(
+                            {
+                                "model": model_name,
+                                "typology": typology,
+                                "split": split,
+                                "full_f1": round(full_f1, 4),
+                                "ablated_f1": round(ablated_f1, 4),
+                                "f1_drop": round(f1_drop, 4),
+                            }
+                        )
+                split_rows[split] = {
+                    "status": "evaluated",
+                    "positive_count": ablated["positive_count"],
+                    "full_precision": full.get("precision") if full else None,
+                    "ablated_precision": ablated["precision"],
+                    "precision_delta": _delta(ablated.get("precision"), full.get("precision") if full else None),
+                    "full_recall": full.get("recall") if full else None,
+                    "ablated_recall": ablated["recall"],
+                    "recall_delta": _delta(ablated.get("recall"), full.get("recall") if full else None),
+                    "full_f1": round(full_f1, 4),
+                    "ablated_f1": round(ablated_f1, 4),
+                    "f1_delta": round(ablated_f1 - full_f1, 4),
+                    "f1_drop": round(f1_drop, 4),
+                }
+            models[model_name][typology] = {
+                "status": "evaluated",
+                "ablation": "without_typology_rule_proxy_features",
+                "removed_features": removed_features,
+                "kept_feature_count": len(keep_indices),
+                "splits": split_rows,
+            }
+
+    return {
+        "baseline_name": "ml_rule_proxy_ablation_v0_2",
+        "purpose": "Estimate whether ML performance depends on direct typology rule-proxy features.",
+        "interpretation": "Large validation/test F1 drops after removing rule-proxy features indicate possible overreliance on injected-rule proxies.",
+        "rule_proxy_features_by_typology": {typology: sorted(features) for typology, features in RULE_PROXY_FEATURES_BY_TYPOLOGY.items()},
+        "models": models,
+        "risk_summary": {
+            "max_validation_or_test_f1_drop": round(max_eval_f1_drop, 4),
+            "high_rule_proxy_dependency": max_eval_f1_drop >= 0.25,
+            "high_dependency_cases": high_dependency_cases,
+        },
+    }
+
+
+def _full_split_metrics(full_results: dict[str, object], model_name: str, typology: str, split: str) -> dict[str, object]:
+    models = full_results.get("models", {})
+    if not isinstance(models, dict):
+        return {}
+    model = models.get(model_name, {})
+    if not isinstance(model, dict):
+        return {}
+    section = model.get(typology, {})
+    if not isinstance(section, dict):
+        return {}
+    splits = section.get("splits", {})
+    if not isinstance(splits, dict):
+        return {}
+    row = splits.get(split, {})
+    return row if isinstance(row, dict) and row.get("status") == "evaluated" else {}
+
+
+def _select_features(values: list[float], indices: list[int]) -> list[float]:
+    return [values[index] for index in indices]
+
+
+def _delta(new_value: object, old_value: object) -> float | None:
+    if not isinstance(new_value, (int, float)) or not isinstance(old_value, (int, float)):
+        return None
+    return round(float(new_value) - float(old_value), 4)
+
+
 def _load_sklearn() -> dict[str, Any]:
     try:
         from sklearn.ensemble import RandomForestClassifier
@@ -569,8 +728,10 @@ def _assert_no_blocked_features(feature_names: list[str]) -> None:
 
 __all__ = [
     "BLOCKED_FEATURE_TOKENS",
+    "RULE_PROXY_FEATURES_BY_TYPOLOGY",
     "TYPOLOGY_NAMES",
     "build_member_feature_table",
     "build_ml_baseline_artifacts",
+    "build_ml_leakage_ablation_artifact",
     "member_labels_by_typology",
 ]
