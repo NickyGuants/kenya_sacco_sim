@@ -17,6 +17,7 @@ Implemented:
 - Milestone 5 benchmark artifacts: deterministic splits, baseline results, feature documentation, dataset card, and known limitations
 - Normal `CHURCH_ORG` behavior with Sunday collections, M-Pesa/cash inflows, donor receipts, rent/vendor/charity outflows, and validation gates
 - Label output in `alerts_truth.csv` with no label columns leaked into feature files
+- Standalone deterministic baseline rules in `src/kenya_sacco_sim/benchmark/baseline_rules.py`
 - Rule reconstruction output in `rule_results.json`
 - Near-miss disclosure metrics for unlabeled suspicious-looking behavior
 - Deterministic `manifest.json` metadata for reproducible seed/config reruns
@@ -96,6 +97,12 @@ Basic code check:
 
 ```bash
 python3 -m compileall src
+```
+
+Focused automated tests:
+
+```bash
+python3 -m unittest discover -s tests
 ```
 
 Representative full-package validation:
