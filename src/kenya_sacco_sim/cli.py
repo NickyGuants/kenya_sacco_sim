@@ -59,7 +59,7 @@ def generate(args: argparse.Namespace) -> int:
     rule_results: dict[str, object] | None = None
     if args.with_typologies:
         assert transactions is not None
-        alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions)
+        alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world)
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors or [])
 

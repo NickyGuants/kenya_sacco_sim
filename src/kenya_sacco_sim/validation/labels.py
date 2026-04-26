@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from kenya_sacco_sim.core.models import ValidationFinding
+from kenya_sacco_sim.core.rules import RULE_CONFIGS
 
 
 FORBIDDEN_FEATURE_COLUMNS = {
@@ -25,6 +26,7 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
     edges = {str(row["edge_id"]) for row in rows_by_file.get("graph_edges.csv", [])}
     by_pattern: dict[str, list[dict[str, object]]] = defaultdict(list)
     suspicious_txn_ids: set[str] = set()
+    suspicious_txn_ids_by_member: dict[str, set[str]] = defaultdict(set)
 
     for alert in alerts:
         row_id = str(alert["alert_id"])
@@ -36,6 +38,8 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         if alert.get("txn_id"):
             txn_id = str(alert["txn_id"])
             suspicious_txn_ids.add(txn_id)
+            if alert.get("member_id"):
+                suspicious_txn_ids_by_member[str(alert["member_id"])].add(txn_id)
             if txn_id not in transactions:
                 findings.append(_error("label.txn_missing", "alert txn_id must resolve to transactions.csv", row_id))
         if alert.get("edge_id") and str(alert["edge_id"]) not in edges:
@@ -58,12 +62,16 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
     realized_ratio = suspicious_member_count / member_count if member_count else 0.0
     if abs(realized_ratio - suspicious_ratio) > tolerance:
         findings.append(_error("label.suspicious_ratio_out_of_tolerance", f"Suspicious member ratio {realized_ratio:.4f} is outside target {suspicious_ratio:.4f} +/- {tolerance:.4f}", None))
+    blend_metrics = _suspicious_blending_metrics(rows_by_file, suspicious_txn_ids_by_member)
+    for member_id in blend_metrics["members_below_50pct_normal_share"]:
+        findings.append(_error("label.suspicious_member_blending_low", "Suspicious member normal transaction share must be >= 0.50", member_id))
     typology_section = {
         "pattern_summary_count": pattern_summary_count,
         "labeled_suspicious_transaction_count": len(suspicious_txn_ids),
         "pattern_counts": dict(sorted(typology_counts.items())),
         "structuring_pattern_count": typology_counts["STRUCTURING"],
         "rapid_pass_through_pattern_count": typology_counts["RAPID_PASS_THROUGH"],
+        "rule_configs": RULE_CONFIGS,
     }
     label_section = {
         "alert_count": len(alerts),
@@ -72,6 +80,8 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "suspicious_member_ratio": round(realized_ratio, 4),
         "target_suspicious_member_ratio": suspicious_ratio,
         "suspicious_transaction_count": len(suspicious_txn_ids),
+        "min_suspicious_member_normal_txn_share": blend_metrics["min_normal_txn_share"],
+        "members_below_50pct_normal_share": blend_metrics["members_below_50pct_normal_share"],
         "error_count": sum(1 for finding in findings if finding.severity == "error" and finding.code.startswith("label")),
         "warning_count": sum(1 for finding in findings if finding.severity == "warning" and finding.code.startswith("label")),
     }
@@ -88,6 +98,23 @@ def _label_leakage_findings(rows_by_file: dict[str, list[dict[str, object]]]) ->
         for column in sorted(leaked):
             findings.append(_error("label.leakage", f"{column} is only allowed in label files", filename))
     return findings
+
+
+def _suspicious_blending_metrics(rows_by_file: dict[str, list[dict[str, object]]], suspicious_txn_ids_by_member: dict[str, set[str]]) -> dict[str, object]:
+    total_by_member = Counter(str(row["member_id_primary"]) for row in rows_by_file.get("transactions.csv", []) if row.get("member_id_primary"))
+    shares: dict[str, float] = {}
+    below: list[str] = []
+    for member_id, suspicious_txn_ids in suspicious_txn_ids_by_member.items():
+        total = total_by_member[member_id]
+        normal = max(0, total - len(suspicious_txn_ids))
+        share = normal / total if total else 0.0
+        shares[member_id] = share
+        if share < 0.50:
+            below.append(member_id)
+    return {
+        "min_normal_txn_share": round(min(shares.values()), 4) if shares else 1.0,
+        "members_below_50pct_normal_share": sorted(below),
+    }
 
 
 def _error(code: str, message: str, row_id: str | None = None) -> ValidationFinding:
