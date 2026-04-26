@@ -5,6 +5,7 @@ import unittest
 from dataclasses import replace
 from pathlib import Path
 
+from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
 from kenya_sacco_sim.benchmark.baseline_rules import build_rule_results
 from kenya_sacco_sim.core.config import load_world_config, with_cli_overrides
 from kenya_sacco_sim.generators.devices import generate_devices
@@ -68,6 +69,52 @@ class V02FoundationTests(unittest.TestCase):
         self.assertEqual(device_section["devices_without_uses_device_edge_count"], 0)
         self.assertEqual(institution_metrics["institution_count"], 3)
 
+    def test_device_validation_reports_required_missing_device_ids(self) -> None:
+        rows = _device_validation_rows()
+        rows["transactions.csv"] = [
+            {
+                "txn_id": "TXN000000000001",
+                "member_id_primary": "MEM0000001",
+                "channel": "PAYBILL",
+                "txn_type": "MPESA_PAYBILL_IN",
+                "device_id": None,
+            }
+        ]
+
+        findings, _, device_section, _ = validate_support_entities(rows)
+
+        self.assertIn("device.transaction_device_id_required", [finding.code for finding in findings])
+        self.assertEqual(device_section["digital_transaction_count"], 1)
+        self.assertEqual(device_section["device_required_transaction_count"], 1)
+        self.assertEqual(device_section["device_required_missing_device_id_count"], 1)
+        self.assertEqual(device_section["missing_transaction_device_id_count"], 1)
+        self.assertEqual(device_section["unresolved_transaction_device_id_count"], 0)
+        self.assertEqual(device_section["unresolved_transaction_device_id_distinct_count"], 0)
+
+    def test_shared_device_validation_requires_shared_group(self) -> None:
+        rows = _device_validation_rows(member_count=2)
+        rows["transactions.csv"] = [
+            {"txn_id": "TXN000000000001", "member_id_primary": "MEM0000001", "channel": "MOBILE_APP", "txn_type": "MPESA_WALLET_TOPUP", "device_id": "DEVICE000001"},
+            {"txn_id": "TXN000000000002", "member_id_primary": "MEM0000002", "channel": "MOBILE_APP", "txn_type": "MPESA_WALLET_TOPUP", "device_id": "DEVICE000001"},
+        ]
+
+        findings, _, device_section, _ = validate_support_entities(rows)
+
+        self.assertIn("device.shared_group_missing", [finding.code for finding in findings])
+        self.assertEqual(device_section["devices_used_by_multiple_members_count"], 1)
+        self.assertEqual(device_section["max_members_per_device"], 2)
+        self.assertEqual(device_section["shared_device_group_missing_count"], 1)
+
+    def test_split_manifest_reports_institution_split_drift(self) -> None:
+        config = with_cli_overrides(load_world_config(Path("missing-config-dir")), seed=42)
+        members = [{"member_id": "MEM0000001", "institution_id": "INST0001"}]
+
+        artifacts = build_benchmark_artifacts({"members.csv": members, "alerts_truth.csv": []}, {}, config)
+        checks = artifacts["split_manifest.json"]["checks"]
+
+        self.assertEqual(checks["institution_split_max_share"], 1.0)
+        self.assertTrue(checks["institution_split_drift_warning"])
+
     def test_fake_affordability_rule_reconstructs_truth_member(self) -> None:
         accounts = [_account("ACC00000001", "MEM0000001")]
         loans = [
@@ -95,6 +142,32 @@ class V02FoundationTests(unittest.TestCase):
 
 def _account(account_id: str, member_id: str) -> dict[str, object]:
     return {"account_id": account_id, "member_id": member_id, "account_owner_type": "MEMBER"}
+
+
+def _device_validation_rows(member_count: int = 1) -> dict[str, list[dict[str, object]]]:
+    members = [{"member_id": f"MEM{index:07d}"} for index in range(1, member_count + 1)]
+    return {
+        "institutions.csv": [
+            {
+                "institution_id": "INST0001",
+                "archetype": "TEACHER_PUBLIC_SECTOR",
+                "digital_maturity": 0.8,
+                "cash_intensity": 0.2,
+                "loan_guarantor_intensity": 0.6,
+            }
+        ],
+        "devices.csv": [
+            {
+                "device_id": "DEVICE000001",
+                "member_id": "MEM0000001",
+                "institution_id": "INST0001",
+                "shared_device_group": None,
+            }
+        ],
+        "members.csv": members,
+        "nodes.csv": [{"node_id": "NODE000001", "entity_id": "DEVICE000001", "node_type": "DEVICE"}],
+        "graph_edges.csv": [{"edge_id": "EDGE000001", "src_node_id": "NODE000002", "dst_node_id": "NODE000001", "edge_type": "USES_DEVICE"}],
+    }
 
 
 def _txn(txn_id: str, member_id: str, account_id_dr: str, account_id_cr: str, txn_type: str, amount: float, timestamp: str) -> dict[str, object]:

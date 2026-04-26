@@ -84,8 +84,8 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
         }
 
     return {
-        "baseline_name": "deterministic_v0_1_rules",
-        "description": "Rule baseline using exported v0.1 structuring and rapid-pass-through definitions.",
+        "baseline_name": "deterministic_v0_2_rules",
+        "description": "Rule baseline using exported structuring, rapid-pass-through, and fake-affordability definitions.",
         "per_typology": per_typology,
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
         "macro_recall": round(sum(recall_values) / len(recall_values), 4) if recall_values else 0,
@@ -228,6 +228,7 @@ def _split_checks(
         if not splits or "unassigned" in splits or len(splits) > 1 or pattern_split.get(pattern_id) == "unassigned"
     )
     unknown_pattern_ids = sorted(pattern_id for pattern_id, split in pattern_split.items() if split == "unassigned")
+    institution_split_drift = _institution_split_drift_metrics(rows_by_file, member_split)
     return {
         "no_member_id_split_leakage": not member_leaks and not unknown_member_ids,
         "no_pattern_id_split_leakage": not pattern_leaks and not unknown_pattern_ids,
@@ -239,6 +240,42 @@ def _split_checks(
         "pattern_ids_with_split_leakage_sample": pattern_leaks[:20],
         "unassigned_member_id_sample": sorted(unknown_member_ids)[:20],
         "unassigned_pattern_id_sample": unknown_pattern_ids[:20],
+        **institution_split_drift,
+    }
+
+
+def _institution_split_drift_metrics(rows_by_file: dict[str, list[dict[str, object]]], member_split: dict[str, str]) -> dict[str, object]:
+    counts_by_institution: dict[str, Counter[str]] = defaultdict(Counter)
+    for member in rows_by_file.get("members.csv", []):
+        institution_id = str(member.get("institution_id") or "")
+        split = member_split.get(str(member.get("member_id") or ""), "unassigned")
+        if institution_id:
+            counts_by_institution[institution_id][split] += 1
+
+    institution_split_distribution: dict[str, dict[str, object]] = {}
+    max_share = 0.0
+    max_institution_id = None
+    max_split = None
+    for institution_id, counts in sorted(counts_by_institution.items()):
+        total = sum(counts.values())
+        institution_max_split, institution_max_count = counts.most_common(1)[0] if counts else ("unassigned", 0)
+        institution_max_share = institution_max_count / total if total else 0.0
+        if institution_max_share > max_share:
+            max_share = institution_max_share
+            max_institution_id = institution_id
+            max_split = institution_max_split
+        institution_split_distribution[institution_id] = {
+            "counts": dict(sorted(counts.items())),
+            "max_split": institution_max_split,
+            "max_split_share": round(institution_max_share, 4),
+        }
+
+    return {
+        "institution_split_distribution": institution_split_distribution,
+        "institution_split_max_share": round(max_share, 4),
+        "institution_split_max_institution_id": max_institution_id,
+        "institution_split_max_split": max_split,
+        "institution_split_drift_warning": max_share > 0.80,
     }
 
 

@@ -57,9 +57,15 @@ def _device_metrics(rows_by_file: dict[str, list[dict[str, object]]], device_ids
     findings: list[ValidationFinding] = []
     transactions = rows_by_file.get("transactions.csv", [])
     digital_txns = [row for row in transactions if row.get("channel") in DIGITAL_CHANNELS]
+    device_required_txns = digital_txns
+    device_exempt_txns: list[dict[str, object]] = []
     digital_with_device = [row for row in digital_txns if row.get("device_id")]
-    missing_device_ids = sorted({str(row["device_id"]) for row in digital_with_device if str(row["device_id"]) not in device_ids})
-    for device_id in missing_device_ids[:20]:
+    required_missing_device_rows = [row for row in device_required_txns if not row.get("device_id")]
+    unresolved_device_rows = [row for row in digital_with_device if str(row["device_id"]) not in device_ids]
+    unresolved_device_ids = sorted({str(row["device_id"]) for row in unresolved_device_rows})
+    for txn in required_missing_device_rows[:20]:
+        findings.append(_error("device.transaction_device_id_required", "digital transaction channel requires device_id", "transactions.csv", str(txn.get("txn_id") or "")))
+    for device_id in unresolved_device_ids[:20]:
         findings.append(_error("device.transaction_device_missing", "transaction device_id must resolve to devices.csv", "transactions.csv", device_id))
 
     uses_device_edges = {str(edge["dst_node_id"]) for edge in rows_by_file.get("graph_edges.csv", []) if edge["edge_type"] == "USES_DEVICE"}
@@ -68,14 +74,40 @@ def _device_metrics(rows_by_file: dict[str, list[dict[str, object]]], device_ids
         findings.append(_error("device.edge_missing", "DEVICE node must have a USES_DEVICE edge", "devices.csv", device_id))
 
     device_owner = {str(row["device_id"]): str(row["member_id"]) for row in rows_by_file.get("devices.csv", [])}
+    device_group = {str(row["device_id"]): str(row.get("shared_device_group") or "") for row in rows_by_file.get("devices.csv", [])}
+    groups_by_member: dict[str, set[str]] = defaultdict(set)
+    for device in rows_by_file.get("devices.csv", []):
+        group = str(device.get("shared_device_group") or "")
+        if group:
+            groups_by_member[str(device["member_id"])].add(group)
     transaction_users_by_device: dict[str, set[str]] = defaultdict(set)
     for txn in digital_with_device:
         transaction_users_by_device[str(txn["device_id"])].add(str(txn.get("member_id_primary") or ""))
-    shared_devices = {device_id for device_id, users in transaction_users_by_device.items() if len({user for user in users if user}) > 1 or (device_id in device_owner and any(user and user != device_owner[device_id] for user in users))}
+    users_by_device = {device_id: {user for user in users if user} for device_id, users in transaction_users_by_device.items()}
+    shared_devices = {
+        device_id
+        for device_id, users in users_by_device.items()
+        if len(users) > 1 or (device_id in device_owner and any(user != device_owner[device_id] for user in users))
+    }
+    shared_device_group_missing = sorted(device_id for device_id in shared_devices if not device_group.get(device_id))
+    unexplained_shared_usage: list[str] = []
+    for device_id in shared_devices:
+        group = device_group.get(device_id, "")
+        owner = device_owner.get(device_id, "")
+        for member_id in users_by_device.get(device_id, set()):
+            if member_id == owner:
+                continue
+            if not group or group not in groups_by_member.get(member_id, set()):
+                unexplained_shared_usage.append(f"{device_id}:{member_id}")
+    for device_id in shared_device_group_missing[:20]:
+        findings.append(_error("device.shared_group_missing", "device used by multiple members must have shared_device_group", "devices.csv", device_id))
+    for usage in unexplained_shared_usage[:20]:
+        findings.append(_error("device.shared_usage_unexplained", "shared device transaction member must be represented in the same shared_device_group", "transactions.csv", usage))
     active_members = {str(row.get("member_id_primary") or "") for row in digital_with_device if row.get("member_id_primary")}
-    shared_members = {member_id for device_id in shared_devices for member_id in transaction_users_by_device.get(device_id, set()) if member_id}
+    shared_members = {member_id for device_id in shared_devices for member_id in users_by_device.get(device_id, set()) if member_id}
     device_coverage = len(digital_with_device) / len(digital_txns) if digital_txns else 1.0
     shared_member_share = len(shared_members) / len(active_members) if active_members else 0.0
+    max_members_per_device = max((len(users) for users in users_by_device.values()), default=0)
     if digital_txns and device_coverage <= 0:
         findings.append(_error("device.coverage_zero", "digital transaction device coverage must be greater than zero", "transactions.csv"))
     if shared_member_share > 0.10:
@@ -84,11 +116,21 @@ def _device_metrics(rows_by_file: dict[str, list[dict[str, object]]], device_ids
         "digital_transaction_count": len(digital_txns),
         "digital_transaction_device_count": len(digital_with_device),
         "digital_device_coverage": round(device_coverage, 4),
+        "device_required_transaction_count": len(device_required_txns),
+        "device_required_missing_device_id_count": len(required_missing_device_rows),
+        "device_exempt_transaction_count": len(device_exempt_txns),
+        "device_exempt_txn_type_counts": dict(sorted(Counter(str(row.get("txn_type") or "") for row in device_exempt_txns).items())),
         "device_count": len(device_ids),
         "shared_device_count": len(shared_devices),
+        "devices_used_by_multiple_members_count": len(shared_devices),
+        "max_members_per_device": max_members_per_device,
+        "shared_device_group_missing_count": len(shared_device_group_missing),
+        "shared_device_unexplained_member_count": len(unexplained_shared_usage),
         "shared_device_member_share": round(shared_member_share, 4),
         "devices_without_uses_device_edge_count": len(devices_without_edges),
-        "missing_transaction_device_id_count": len(missing_device_ids),
+        "missing_transaction_device_id_count": len(required_missing_device_rows),
+        "unresolved_transaction_device_id_count": len(unresolved_device_rows),
+        "unresolved_transaction_device_id_distinct_count": len(unresolved_device_ids),
     }
 
 

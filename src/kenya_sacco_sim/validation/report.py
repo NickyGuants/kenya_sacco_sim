@@ -85,6 +85,18 @@ def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[
         threshold_rule = txn_id_leakage.get("best_txn_id_threshold_rule")
         if isinstance(threshold_rule, dict) and float(threshold_rule.get("precision") or 0) > 0.70 and float(threshold_rule.get("recall") or 0) > 0.70:
             findings.append(ValidationFinding("error", "benchmark.txn_id_threshold_leakage", "Benchmark txn_id threshold leakage check failed", "baseline_model_results.json"))
+    if float(benchmark_validation.get("institution_split_max_share") or 0) > 0.80:
+        institution_id = benchmark_validation.get("institution_split_max_institution_id")
+        max_split = benchmark_validation.get("institution_split_max_split")
+        max_share = benchmark_validation.get("institution_split_max_share")
+        findings.append(
+            ValidationFinding(
+                "warning",
+                "benchmark.institution_split_drift",
+                f"Institution {institution_id} has split {max_split} share {max_share}, above 0.80 review threshold",
+                "split_manifest.json",
+            )
+        )
     return findings
 
 

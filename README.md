@@ -142,6 +142,30 @@ institution_archetype_metrics
 fake_affordability_validation
 ```
 
+`device_validation` distinguishes:
+
+```text
+digital_transaction_count
+device_required_transaction_count
+device_required_missing_device_id_count
+device_exempt_transaction_count
+unresolved_transaction_device_id_count
+unresolved_transaction_device_id_distinct_count
+devices_used_by_multiple_members_count
+max_members_per_device
+shared_device_group_missing_count
+shared_device_unexplained_member_count
+```
+
+Benchmark validation also reports institution split drift:
+
+```text
+institution_split_max_share
+institution_split_max_institution_id
+institution_split_max_split
+institution_split_drift_warning
+```
+
 Latest verified v0.1 10,000-member Milestone 5 run:
 
 ```text
@@ -213,7 +237,7 @@ or mirrored `reference` values.
 Latest verified v0.2 10,000-member gate run:
 
 ```text
-command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark
+command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k_device_fix
 validation errors:   0
 validation warnings: 0
 members:             10,000
@@ -224,8 +248,14 @@ guarantors:          3,372
 alerts_truth:        768
 support files:       institutions / branches / agents / employers / devices
 devices:             10,000
-device coverage:     99.84% of digital transactions
+digital txns:         305,706
+device-required txns: 305,706
+missing devices:      0
+device coverage:      100.00% of digital transactions
 shared device share: 3.90% of active digital members
+shared devices:      330
+max members/device:  2
+institution split max share: 71.12%
 fake affordability:  precision 0.2409 / recall 0.9706
 macro rule baseline: precision 0.6008 / recall 0.9296
 ```

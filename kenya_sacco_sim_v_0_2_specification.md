@@ -253,10 +253,16 @@ BANK_TRANSFER
 Validation:
 
 ```text
-1. device_id coverage for digital transactions must be greater than 0.
-2. If device_id is present in transactions.csv, it must resolve to devices.csv and nodes.csv.
-3. Every DEVICE node must have at least one USES_DEVICE edge.
-4. shared_device_member_share must be reported.
+1. digital_transaction_count counts all rows whose channel is MOBILE_APP, USSD, PAYBILL, TILL, or BANK_TRANSFER.
+2. device_required_transaction_count counts digital rows that must carry device_id.
+3. device_required_missing_device_id_count must be 0.
+4. If device_id is present in transactions.csv, it must resolve to devices.csv and nodes.csv.
+5. unresolved_transaction_device_id_count and unresolved_transaction_device_id_distinct_count must be reported.
+6. Every DEVICE node must have at least one USES_DEVICE edge.
+7. shared_device_member_share must be reported.
+8. devices_used_by_multiple_members_count and max_members_per_device must be reported.
+9. Any device used by multiple transaction members must have shared_device_group.
+10. Shared-device transaction members must be explainable by devices in the same shared_device_group.
 ```
 
 Device sharing is baseline only in v0.2. Device-sharing typologies are deferred to v1.
@@ -514,6 +520,8 @@ Acceptance:
 10,000-member v0.2 benchmark run has zero validation errors.
 Baseline rules are reproducible from exported configs.
 Leakage checks pass.
+institution_split_max_share is reported.
+warning if institution_split_max_share > 0.80.
 ```
 
 ---

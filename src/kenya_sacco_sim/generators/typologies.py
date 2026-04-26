@@ -11,6 +11,9 @@ from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
 
+DIGITAL_DEVICE_REQUIRED_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
+
+
 def inject_typologies(
     config: WorldConfig,
     members: list[dict[str, object]],
@@ -76,6 +79,7 @@ def inject_typologies(
     decoy_target = max(2, targets["STRUCTURING"] // 5) if sum(targets.values()) else 0
     next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, decoy_target)
 
+    _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
     _recompute_balances(transactions, accounts)
@@ -671,6 +675,34 @@ def _agents_by_branch(agents: list[dict[str, object]]) -> dict[str, list[str]]:
     for agent in agents:
         by_branch[str(agent["branch_id"])].append(str(agent["agent_id"]))
     return by_branch
+
+
+def _backfill_digital_device_ids(transactions: list[dict[str, object]], world: InstitutionWorld | None, rng: random.Random) -> None:
+    if not world or not world.devices:
+        return
+    devices_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    devices_by_group: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for device in world.devices:
+        devices_by_member[str(device["member_id"])].append(device)
+        group = device.get("shared_device_group")
+        if group:
+            devices_by_group[str(group)].append(device)
+
+    for txn in transactions:
+        if txn.get("device_id") or txn.get("channel") not in DIGITAL_DEVICE_REQUIRED_CHANNELS:
+            continue
+        member_id = str(txn.get("member_id_primary") or "")
+        if not member_id:
+            continue
+        devices = devices_by_member.get(member_id, [])
+        if not devices:
+            continue
+        device = devices[0]
+        group = device.get("shared_device_group")
+        if group and rng.random() < 0.25:
+            txn["device_id"] = str(rng.choice(devices_by_group.get(str(group), devices))["device_id"])
+        else:
+            txn["device_id"] = str(device["device_id"])
 
 
 def _select_agent_id(agents_by_branch: dict[str, list[str]], branch_id: object | None, rng: random.Random) -> str | None:
