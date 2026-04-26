@@ -99,14 +99,26 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
 
 def _build_feature_documentation() -> dict[str, object]:
     return {
+        "files": {
+            filename: {
+                "columns": columns,
+                "file_role": "label" if filename == "alerts_truth.csv" else "feature",
+                "label_file": filename == "alerts_truth.csv",
+                "split_key": _split_key_for_file(filename),
+            }
+            for filename, columns in REQUIRED_COLUMNS.items()
+        },
         "feature_files": {
-            filename: {"columns": columns, "label_file": filename == "alerts_truth.csv", "split_key": _split_key_for_file(filename)}
+            filename: {"columns": columns, "file_role": "feature", "split_key": _split_key_for_file(filename)}
             for filename, columns in REQUIRED_COLUMNS.items()
             if filename != "alerts_truth.csv"
         },
         "label_files": {
             "alerts_truth.csv": {
                 "columns": REQUIRED_COLUMNS["alerts_truth.csv"],
+                "file_role": "label",
+                "label_file": True,
+                "split_key": _split_key_for_file("alerts_truth.csv"),
                 "purpose": "Ground-truth suspicious pattern labels. Do not use as model features.",
             }
         },

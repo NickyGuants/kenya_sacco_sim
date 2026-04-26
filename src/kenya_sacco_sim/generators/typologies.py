@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 
 from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.core.id_factory import IdFactory
@@ -93,7 +94,8 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
 
 
 def _target_counts(config: WorldConfig) -> dict[str, int]:
-    total = max(0, round(config.member_count * config.suspicious_ratio))
+    target = Decimal(str(config.member_count)) * Decimal(str(config.suspicious_ratio))
+    total = max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
     structuring = total // 2
     rapid = total - structuring
     return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid}

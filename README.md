@@ -151,8 +151,12 @@ CHURCH_ORG median txns/year:        84.00
 
 `feature_documentation.json` points consumers to `split_manifest.json` as the
 source of truth for splits and records the relevant member or pattern key per
-file. `manifest.json` uses deterministic simulation metadata instead of wall
-clock time so identical seed/config runs are easier to compare.
+file. It also exposes explicit file roles so label files are not inferred from
+feature-file metadata. `manifest.json` uses deterministic simulation metadata
+instead of wall clock time so identical seed/config runs are easier to compare.
+Suspicious-member targets are generated and validated with half-up count
+rounding plus a discrete count tolerance, avoiding Python banker-rounding edge
+cases in small runs.
 
 The label validator also checks whether a simple transaction-ID threshold can
 recover suspicious transactions. The latest verified 10,000-member run reports:

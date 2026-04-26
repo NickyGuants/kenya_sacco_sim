@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from decimal import Decimal, ROUND_HALF_UP
 
 from kenya_sacco_sim.core.models import ValidationFinding
 from kenya_sacco_sim.core.rules import RULE_CONFIGS
@@ -129,7 +130,8 @@ def _empty_label_section(status: str, suspicious_ratio: float, target_count: int
 
 
 def _target_suspicious_count(member_count: int, suspicious_ratio: float) -> int:
-    return max(0, round(member_count * suspicious_ratio))
+    target = Decimal(str(member_count)) * Decimal(str(suspicious_ratio))
+    return max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
 
 
 def _suspicious_count_tolerance(member_count: int, ratio_tolerance: float) -> int:
