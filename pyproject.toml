@@ -3,7 +3,7 @@ name = "kenya-sacco-sim"
 version = "0.2.0"
 description = "Synthetic AML dataset generator for Kenyan SACCOs"
 requires-python = ">=3.11"
-dependencies = ["PyYAML>=6.0"]
+dependencies = ["PyYAML>=6.0", "scikit-learn>=1.4"]
 
 [build-system]
 requires = ["setuptools>=68"]
