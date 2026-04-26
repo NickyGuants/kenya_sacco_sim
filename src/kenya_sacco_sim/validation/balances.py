@@ -23,7 +23,7 @@ def validate_balances(rows_by_file: dict[str, list[dict[str, object]]]) -> list[
             if debit_id not in balances:
                 findings.append(_error("balance.debit_account_missing", f"Debit account {debit_id} not found", txn_id))
             else:
-                balances[debit_id] -= amount
+                _apply_movement(balances, accounts, debit_id, "dr", amount)
                 if round(balances[debit_id], 2) != round(float(txn["balance_after_dr_kes"]), 2):
                     findings.append(_error("balance.after_debit_mismatch", "balance_after_dr_kes does not match ledger state", txn_id))
                 if accounts[debit_id]["account_type"] not in {"SOURCE_ACCOUNT"} and balances[debit_id] < -0.005:
@@ -32,7 +32,7 @@ def validate_balances(rows_by_file: dict[str, list[dict[str, object]]]) -> list[
             if credit_id not in balances:
                 findings.append(_error("balance.credit_account_missing", f"Credit account {credit_id} not found", txn_id))
             else:
-                balances[credit_id] += amount
+                _apply_movement(balances, accounts, credit_id, "cr", amount)
                 if round(balances[credit_id], 2) != round(float(txn["balance_after_cr_kes"]), 2):
                     findings.append(_error("balance.after_credit_mismatch", "balance_after_cr_kes does not match ledger state", txn_id))
 
@@ -41,6 +41,13 @@ def validate_balances(rows_by_file: dict[str, list[dict[str, object]]]) -> list[
         if round(calculated, 2) != exported:
             findings.append(_error("balance.current_balance_mismatch", f"Exported current balance mismatch for {account_id}", account_id))
     return findings
+
+
+def _apply_movement(balances: dict[str, float], accounts: dict[str, dict[str, object]], account_id: str, side: str, amount: float) -> None:
+    if accounts[account_id]["account_type"] == "LOAN_ACCOUNT":
+        balances[account_id] += amount if side == "dr" else -amount
+    else:
+        balances[account_id] += -amount if side == "dr" else amount
 
 
 def _error(code: str, message: str, row_id: str | None = None) -> ValidationFinding:

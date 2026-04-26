@@ -5,6 +5,7 @@ from kenya_sacco_sim.core.models import ValidationFinding
 from kenya_sacco_sim.validation.balances import validate_balances
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.foreign_keys import validate_foreign_keys
+from kenya_sacco_sim.validation.loan_validator import validate_credit_distribution, validate_guarantors, validate_loans
 from kenya_sacco_sim.validation.schema import validate_schema
 
 
@@ -14,7 +15,13 @@ def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], co
     findings.extend(validate_foreign_keys(rows_by_file))
     findings.extend(validate_balances(rows_by_file))
     distribution_findings, distribution_section = validate_distribution(rows_by_file)
+    loan_findings, loan_section = validate_loans(rows_by_file)
+    guarantor_findings, guarantor_section = validate_guarantors(rows_by_file)
+    credit_findings, credit_section = validate_credit_distribution(rows_by_file)
     findings.extend(distribution_findings)
+    findings.extend(loan_findings)
+    findings.extend(guarantor_findings)
+    findings.extend(credit_findings)
     has_transactions = "transactions.csv" in rows_by_file
 
     return {
@@ -23,6 +30,9 @@ def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], co
         "balance_validation": _section(findings, "balance") if has_transactions else {"status": "not_applicable_milestone_1"},
         "graph_validation": _section(findings, "foreign_key"),
         "label_validation": {"status": "not_applicable_milestone_1"},
+        "loan_validation": loan_section,
+        "guarantor_validation": guarantor_section,
+        "credit_distribution_validation": credit_section,
         "distribution_validation": distribution_section,
         "typology_validation": {"status": "not_applicable_milestone_1"},
         "errors": [_finding_to_dict(f) for f in findings if f.severity == "error"],

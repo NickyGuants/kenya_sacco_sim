@@ -10,6 +10,7 @@ from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
+from kenya_sacco_sim.generators.loans import generate_loans_and_guarantors
 from kenya_sacco_sim.generators.members import generate_members
 from kenya_sacco_sim.generators.nodes import generate_nodes
 from kenya_sacco_sim.generators.transactions import generate_transactions
@@ -29,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--suspicious-ratio", type=float, default=0.01)
     generate.add_argument("--difficulty", default="medium")
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
+    generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
     return parser
 
 
@@ -45,9 +47,13 @@ def generate(args: argparse.Namespace) -> int:
     institution_world = generate_institution_world(config)
     members = generate_members(config, institution_world)
     accounts = generate_accounts(config, members, institution_world)
-    transactions = generate_transactions(config, members, accounts, institution_world) if args.with_transactions else None
+    loans: list[dict[str, object]] | None = None
+    guarantors: list[dict[str, object]] | None = None
+    if args.with_loans:
+        loans, guarantors = generate_loans_and_guarantors(config, members, accounts, institution_world)
+    transactions = generate_transactions(config, members, accounts, institution_world, loans or []) if args.with_transactions or args.with_loans else None
     nodes = generate_nodes(institution_world, members, accounts)
-    graph_edges = generate_edges(members, accounts, institution_world, nodes)
+    graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors or [])
 
     rows_by_file = {
         "members.csv": members,
@@ -57,6 +63,10 @@ def generate(args: argparse.Namespace) -> int:
     }
     if transactions is not None:
         rows_by_file["transactions.csv"] = transactions
+    if loans is not None:
+        rows_by_file["loans.csv"] = loans
+    if guarantors is not None:
+        rows_by_file["guarantors.csv"] = guarantors
     report = build_validation_report(rows_by_file, config)
 
     write_csvs(args.output, rows_by_file)

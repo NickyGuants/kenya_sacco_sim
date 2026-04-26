@@ -89,6 +89,41 @@ REQUIRED_COLUMNS = {
         "balance_after_cr_kes",
         "is_reversal",
     ],
+    "loans.csv": [
+        "loan_id",
+        "member_id",
+        "institution_id",
+        "loan_account_id",
+        "product_code",
+        "application_date",
+        "approval_date",
+        "disbursement_date",
+        "principal_kes",
+        "tenor_months",
+        "interest_rate_annual",
+        "repayment_mode",
+        "disbursement_channel",
+        "purpose_code",
+        "deposit_balance_at_application_kes",
+        "loan_to_deposit_multiple",
+        "performing_status",
+        "arrears_days",
+        "restructure_flag",
+        "default_flag",
+    ],
+    "guarantors.csv": [
+        "guarantee_id",
+        "loan_id",
+        "borrower_member_id",
+        "guarantor_member_id",
+        "guarantee_amount_kes",
+        "guarantee_pct",
+        "pledge_date",
+        "release_date",
+        "guarantor_deposit_balance_at_pledge_kes",
+        "relationship_type",
+        "guarantor_capacity_remaining_kes",
+    ],
 }
 
 PRIMARY_KEYS = {
@@ -97,6 +132,8 @@ PRIMARY_KEYS = {
     "nodes.csv": "node_id",
     "graph_edges.csv": "edge_id",
     "transactions.csv": "txn_id",
+    "loans.csv": "loan_id",
+    "guarantors.csv": "guarantee_id",
 }
 
 STRICT_ENUMS = {
@@ -115,6 +152,12 @@ STRICT_ENUMS = {
     ("transactions.csv", "channel"): CHANNELS,
     ("transactions.csv", "counterparty_type"): COUNTERPARTY_TYPES,
     ("transactions.csv", "currency"): {"KES"},
+    ("loans.csv", "product_code"): {"DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "EMERGENCY_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE", "SALARY_ADVANCE"},
+    ("loans.csv", "repayment_mode"): {"PAYROLL_CHECKOFF", "MANUAL_FOSA_TRANSFER", "MPESA_PAYBILL", "CASH_BRANCH"},
+    ("loans.csv", "disbursement_channel"): {"FOSA_ACCOUNT", "MPESA_WALLET", "BANK_TRANSFER", "CASH_BRANCH"},
+    ("loans.csv", "purpose_code"): {"SCHOOL_FEES", "BUSINESS_WORKING_CAPITAL", "ASSET_PURCHASE", "MEDICAL_EMERGENCY", "HOUSEHOLD_NEED", "AGRICULTURE_INPUTS", "DEVELOPMENT_PROJECT", "OTHER"},
+    ("loans.csv", "performing_status"): {"CURRENT", "IN_ARREARS", "RESTRUCTURED", "DEFAULTED", "CLOSED", "WRITTEN_OFF"},
+    ("guarantors.csv", "relationship_type"): {"COWORKER", "FAMILY", "FRIEND", "SACCO_MEMBER", "CHURCH_MEMBER", "BUSINESS_ASSOCIATE", "UNKNOWN"},
 }
 
 RECOMMENDED_ENUMS = {
@@ -131,6 +174,7 @@ ACCOUNT_PRODUCT_CODES = {
     "AIRTEL_WALLET": {"AIRTEL_WALLET"},
     "SOURCE_ACCOUNT": {"EXTERNAL_SOURCE"},
     "SINK_ACCOUNT": {"EXTERNAL_SINK"},
+    "LOAN_ACCOUNT": {"DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "EMERGENCY_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE", "SALARY_ADVANCE"},
 }
 
 
@@ -139,7 +183,7 @@ def validate_schema(rows_by_file: dict[str, list[dict[str, object]]], config: Wo
     for filename, columns in REQUIRED_COLUMNS.items():
         rows = rows_by_file.get(filename)
         if rows is None:
-            if filename == "transactions.csv":
+            if filename in {"transactions.csv", "loans.csv", "guarantors.csv"}:
                 continue
             findings.append(_error("schema.missing_file", f"Missing required file {filename}", filename))
             continue
@@ -165,6 +209,8 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
         "nodes.csv": re.compile(r"^NODE\d{8}$"),
         "graph_edges.csv": re.compile(r"^EDGE\d{8}$"),
         "transactions.csv": re.compile(r"^TXN\d{12}$"),
+        "loans.csv": re.compile(r"^LOAN\d{6}$"),
+        "guarantors.csv": re.compile(r"^GUA\d{6}$"),
     }
     pattern = patterns.get(filename)
     seen: set[str] = set()
@@ -193,7 +239,7 @@ def _validate_enums(filename: str, rows: list[dict[str, object]], findings: list
 def _validate_dates(filename: str, rows: list[dict[str, object]], config: WorldConfig, findings: list[ValidationFinding]) -> None:
     start = date.fromisoformat(config.start_date)
     end = date.fromisoformat(config.end_date)
-    date_columns = [column for column in ("join_date", "open_date", "start_date", "end_date") if rows and column in rows[0]]
+    date_columns = [column for column in ("join_date", "open_date", "start_date", "end_date", "application_date", "approval_date", "disbursement_date", "pledge_date", "release_date") if rows and column in rows[0]]
     for row in rows:
         for column in date_columns:
             value = row.get(column)
@@ -261,7 +307,7 @@ def _validate_transaction_amounts(rows: list[dict[str, object]], findings: list[
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for key in ("member_id", "account_id", "node_id", "edge_id", "txn_id"):
+    for key in ("member_id", "account_id", "node_id", "edge_id", "txn_id", "loan_id", "guarantee_id"):
         if row.get(key):
             return str(row[key])
     return None
