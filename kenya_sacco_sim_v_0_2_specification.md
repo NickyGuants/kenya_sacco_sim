@@ -523,6 +523,7 @@ updated baseline_model_results.json
 updated feature_documentation.json
 updated dataset_card.md
 updated known_limitations.md
+multi_seed_results.json
 ```
 
 Acceptance:
@@ -533,6 +534,14 @@ Baseline rules are reproducible from exported configs.
 Leakage checks pass.
 institution_split_max_share is reported.
 warning if institution_split_max_share > 0.80.
+multi-seed harness runs configured seeds without validation errors.
+typology precision/recall ranges stay within 0.10 across accepted v0.2 seeds.
+```
+
+Stability command:
+
+```bash
+python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
 ```
 
 ---

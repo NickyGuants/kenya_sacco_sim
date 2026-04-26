@@ -2,7 +2,19 @@
 
 This backlog preserves research-blueprint ideas that are intentionally outside the v0.2 foundation release.
 
-v1 should only start after v0.2 produces clean 10,000-member benchmark runs with support files, device coverage, institution archetypes, and `FAKE_AFFORDABILITY_BEFORE_LOAN`.
+v1 should only start after v0.2 produces clean 10,000-member benchmark runs with support files, device coverage, institution archetypes, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and multi-seed stability evidence.
+
+## v0.2 Completion Gate Before v1
+
+```text
+multi_seed_results.json generated
+all configured seeds have validation_error_count = 0
+typology precision/recall range <= 0.10 across accepted seeds
+cash/device/credit stability statistics reported
+dataset card documents expected ambiguity and benchmark limits
+```
+
+Do not add v1 typologies until this gate is clean.
 
 ## v1 Typology Backlog
 

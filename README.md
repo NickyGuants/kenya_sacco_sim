@@ -69,6 +69,17 @@ Generate the full Milestone 5 benchmark package:
 python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k
 ```
 
+Run the v0.2 multi-seed stability harness:
+
+```bash
+python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
+```
+
+The harness writes `multi_seed_results.json` with per-seed validation status,
+baseline precision/recall, and distribution stability statistics. It fails if
+any seed has validation errors or if typology precision/recall ranges exceed
+the v0.2 stability threshold of `0.10`.
+
 If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
 
 `--with-typologies` injects suspicious labels into the transaction world. When
@@ -263,6 +274,24 @@ max members/device:  2
 institution split max share: 71.12%
 fake affordability:  precision 0.2409 / recall 0.9706
 macro rule baseline: precision 0.6008 / recall 0.9296
+```
+
+Latest v0.2 multi-seed stability gate:
+
+```text
+command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
+validation error free: true
+precision/recall variance within threshold: true
+STRUCTURING precision range: 0.0576
+STRUCTURING recall range:    0.0000
+RAPID precision range:       0.0241
+RAPID recall range:          0.0000
+FAKE precision range:        0.0300
+FAKE recall range:           0.0882
+cash rail share mean:        0.1939
+digital device coverage:     1.0000
+loan active member mean:     0.2385
+arrears share mean:          0.0927
 ```
 
 Known v0.2 benchmark behavior:
