@@ -2,13 +2,12 @@
 
 Synthetic AML dataset generator for Kenyan SACCO behavior.
 
-The repository implements the frozen v0.1 specification through Milestone 5:
-a deterministic SACCO world, reconciled payment and credit ledgers, two
-audit-grade suspicious typologies, and benchmark release artifacts.
+The repository now carries the frozen v0.1 release-candidate spec plus the
+v0.2 foundation implementation from the deep research blueprint.
 
 ## Current Status
 
-Implemented:
+Implemented v0.1:
 
 - Milestone 1 world generation: institutions, members, accounts, nodes, and graph edges
 - Milestone 2 normal transaction engine with Kenya-like rails, cash/mobile behavior, seasonality, and ledger replay
@@ -23,11 +22,26 @@ Implemented:
 - Deterministic `manifest.json` metadata for reproducible seed/config reruns
 - Validation for schema, foreign keys, balances, graph completeness, distributions, credit, guarantors, labels, clean AML baselines, benchmark splits, and ID/reference leakage; benchmark leakage failures affect validation errors
 
-Deferred by the frozen v0.1 spec:
+Implemented v0.2 foundation:
 
-- `FAKE_AFFORDABILITY_BEFORE_LOAN`
-- Additional suspicious typologies beyond `STRUCTURING` and `RAPID_PASS_THROUGH`
+- Engineer-ready v0.2 spec: `kenya_sacco_sim_v_0_2_specification.md`
+- v1 backlog: `kenya_sacco_sim_v_1_backlog.md`
+- Full research blueprint preserved at `docs/research/deep-research-report.md`
+- External YAML config files in `config/` with current defaults and CLI override support
+- Support entity exports: `institutions.csv`, `branches.csv`, `agents.csv`, `employers.csv`, `devices.csv`
+- Institution archetypes with digital maturity, cash intensity, and guarantor intensity
+- Device baseline population, `DEVICE` nodes, `USES_DEVICE` graph edges, and device validation metrics
+- New suspicious typology and baseline rule: `FAKE_AFFORDABILITY_BEFORE_LOAN`
+- Fake-affordability injection respects configured simulation date windows
+
+Deferred to v1:
+
+- Guarantor fraud rings
+- Wallet funneling
+- Dormant reactivation abuse
+- Remittance layering
 - Device-sharing typologies
+- Graph neural network benchmark and 100,000+ member scale
 
 ## Usage
 
@@ -52,17 +66,21 @@ python3 -m kenya_sacco_sim generate --members 1000 --with-loans
 Generate the full Milestone 5 benchmark package:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_m5_10k
+python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k
 ```
 
 If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
 
-`--with-typologies` injects the v0.1 suspicious labels into the transaction world.
-It does not imply `--with-loans`; pass both flags when you need credit outputs in
-the same dataset.
+`--with-typologies` injects suspicious labels into the transaction world. When
+combined with `--with-loans`, v0.2 also injects
+`FAKE_AFFORDABILITY_BEFORE_LOAN`; without loans, typology generation falls back
+to the v0.1 structuring and rapid-pass-through set.
 
-`--with-benchmark` emits Milestone 5 benchmark artifacts and requires
+`--with-benchmark` emits benchmark artifacts and requires
 `--with-typologies`.
+
+`--config-dir` defaults to `./config`. Missing config files fall back to built-in
+defaults, and CLI arguments override loaded config values.
 
 ## Outputs
 
@@ -70,6 +88,11 @@ Depending on selected options, the generator writes:
 
 - `members.csv`
 - `accounts.csv`
+- `institutions.csv`
+- `branches.csv`
+- `agents.csv`
+- `employers.csv`
+- `devices.csv`
 - `nodes.csv`
 - `graph_edges.csv`
 - `transactions.csv`
@@ -88,7 +111,7 @@ Depending on selected options, the generator writes:
 Default output directory:
 
 ```text
-datasets/KENYA_SACCO_SIM_v0_1
+datasets/KENYA_SACCO_SIM_v0_2
 ```
 
 ## Validation
@@ -108,10 +131,47 @@ python3 -m unittest discover -s tests
 Representative full-package validation:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_m5_10k
+python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k
 ```
 
-Latest verified 10,000-member Milestone 5 run:
+v0.2 validation adds:
+
+```text
+support_entity_validation
+device_validation
+institution_archetype_metrics
+fake_affordability_validation
+```
+
+Support entity validation rejects institution archetype parameters outside
+`0.0-1.0` for `digital_maturity`, `cash_intensity`, and
+`loan_guarantor_intensity`.
+
+`device_validation` distinguishes:
+
+```text
+digital_transaction_count
+device_required_transaction_count
+device_required_missing_device_id_count
+device_exempt_transaction_count
+unresolved_transaction_device_id_count
+unresolved_transaction_device_id_distinct_count
+devices_used_by_multiple_members_count
+max_members_per_device
+shared_device_group_missing_count
+shared_device_unexplained_member_count
+```
+
+Benchmark validation also reports institution split drift:
+
+```text
+institution_split_max_share
+institution_split_max_institution_id
+institution_split_max_split
+institution_split_drift_warning
+```
+
+Latest verified v0.1 10,000-member Milestone 5 run:
 
 ```text
 validation errors:   0
@@ -178,6 +238,40 @@ best threshold recall:              0.9825
 
 This prevents the benchmark from leaking injection phase through late `txn_id`
 or mirrored `reference` values.
+
+Latest verified v0.2 10,000-member gate run:
+
+```text
+command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k_review_fix
+validation errors:   0
+validation warnings: 0
+members:             10,000
+accounts:            41,003
+transactions:        510,980
+loans:               2,352
+guarantors:          3,372
+alerts_truth:        768
+support files:       institutions / branches / agents / employers / devices
+devices:             10,000
+digital txns:         305,706
+device-required txns: 305,706
+missing devices:      0
+device coverage:      100.00% of digital transactions
+shared device share: 3.90% of active digital members
+shared devices:      330
+max members/device:  2
+institution split max share: 71.12%
+fake affordability:  precision 0.2409 / recall 0.9706
+macro rule baseline: precision 0.6008 / recall 0.9296
+```
+
+Known v0.2 benchmark behavior:
+
+```text
+FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
+Normal borrowers may receive legitimate large pre-loan inflows, so false
+positives are expected and make the benchmark less cartoon-clean.
+```
 
 ## Development Discipline
 

@@ -92,6 +92,7 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "pattern_counts": dict(sorted(typology_counts.items())),
         "structuring_pattern_count": typology_counts["STRUCTURING"],
         "rapid_pass_through_pattern_count": typology_counts["RAPID_PASS_THROUGH"],
+        "fake_affordability_pattern_count": typology_counts["FAKE_AFFORDABILITY_BEFORE_LOAN"],
         "rule_configs": RULE_CONFIGS,
     }
     label_section = {

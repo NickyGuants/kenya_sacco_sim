@@ -1,0 +1,43 @@
+personas:
+  SALARIED_TEACHER:
+    share: 0.22
+    monthly_income_kes: [45000, 78000, 120000]
+    wallet_adoption_probability: 0.95
+    rural_probability: 0.35
+    loan_probability_annual: 0.35
+  COUNTY_WORKER:
+    share: 0.13
+    monthly_income_kes: [35000, 65000, 95000]
+    wallet_adoption_probability: 0.95
+    rural_probability: 0.30
+    loan_probability_annual: 0.30
+  SME_OWNER:
+    share: 0.18
+    monthly_income_kes: [30000, 120000, 300000]
+    wallet_adoption_probability: 0.98
+    rural_probability: 0.25
+    loan_probability_annual: 0.25
+  FARMER_SEASONAL:
+    share: 0.17
+    monthly_income_kes: [10000, 35000, 150000]
+    wallet_adoption_probability: 0.80
+    rural_probability: 0.85
+    loan_probability_annual: 0.20
+  DIASPORA_SUPPORTED:
+    share: 0.10
+    monthly_income_kes: [15000, 50000, 180000]
+    wallet_adoption_probability: 0.95
+    rural_probability: 0.45
+    loan_probability_annual: 0.15
+  BODA_BODA_OPERATOR:
+    share: 0.15
+    monthly_income_kes: [20000, 45000, 80000]
+    wallet_adoption_probability: 0.98
+    rural_probability: 0.40
+    loan_probability_annual: 0.22
+  CHURCH_ORG:
+    share: 0.05
+    monthly_income_kes: [30000, 150000, 600000]
+    wallet_adoption_probability: 0.90
+    rural_probability: 0.50
+    loan_probability_annual: 0.10

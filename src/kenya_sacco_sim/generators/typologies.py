@@ -11,12 +11,16 @@ from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
 
+DIGITAL_DEVICE_REQUIRED_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
+
+
 def inject_typologies(
     config: WorldConfig,
     members: list[dict[str, object]],
     accounts: list[dict[str, object]],
     transactions: list[dict[str, object]],
     world: InstitutionWorld | None = None,
+    loans: list[dict[str, object]] | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     rng = random.Random(config.seed + 505)
     account_by_member = _accounts_by_member(accounts)
@@ -28,7 +32,7 @@ def inject_typologies(
     next_txn = _next_txn_index(transactions)
     next_pattern = 1
     used_members: set[str] = set()
-    targets = _target_counts(config)
+    targets = _target_counts(config, include_fake_affordability=bool(loans))
 
     next_txn, next_pattern = _inject_structuring(
         rng,
@@ -58,23 +62,44 @@ def inject_typologies(
         next_pattern,
         targets["RAPID_PASS_THROUGH"],
     )
+    next_txn, next_pattern = _inject_fake_affordability(
+        rng,
+        config,
+        members,
+        account_by_member,
+        source_accounts,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        loans or [],
+        next_txn,
+        next_pattern,
+        targets["FAKE_AFFORDABILITY_BEFORE_LOAN"],
+    )
     decoy_target = max(2, targets["STRUCTURING"] // 5) if sum(targets.values()) else 0
     next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, decoy_target)
 
+    _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
     _recompute_balances(transactions, accounts)
-    rule_results = build_rule_results(transactions, accounts, alerts)
+    rule_results = build_rule_results(transactions, accounts, alerts, loans or [])
     rule_results["near_miss_disclosure"] = near_miss_stats
     return alerts, rule_results
 
 
-def _target_counts(config: WorldConfig) -> dict[str, int]:
+def _target_counts(config: WorldConfig, include_fake_affordability: bool = True) -> dict[str, int]:
     target = Decimal(str(config.member_count)) * Decimal(str(config.suspicious_ratio))
     total = max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
-    structuring = total // 2
-    rapid = total - structuring
-    return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid}
+    if not include_fake_affordability:
+        structuring = total // 2
+        rapid = total - structuring
+        return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid, "FAKE_AFFORDABILITY_BEFORE_LOAN": 0}
+    structuring = total // 3
+    rapid = total // 3
+    fake = total - structuring - rapid
+    return {"STRUCTURING": structuring, "RAPID_PASS_THROUGH": rapid, "FAKE_AFFORDABILITY_BEFORE_LOAN": fake}
 
 
 def _inject_structuring(
@@ -258,6 +283,92 @@ def _inject_rapid_pass_through(
     return next_txn, next_pattern
 
 
+def _inject_fake_affordability(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    loans: list[dict[str, object]],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    if not loans or target_count <= 0:
+        return next_txn, next_pattern
+    member_by_id = {str(member["member_id"]): member for member in members}
+    eligible_products = {"DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "BIASHARA_LOAN"}
+    candidates = [
+        loan
+        for loan in loans
+        if str(loan["product_code"]) in eligible_products
+        and str(loan["member_id"]) in member_by_id
+        and str(member_by_id[str(loan["member_id"])]["persona_type"]) in {"SME_OWNER", "DIASPORA_SUPPORTED", "COUNTY_WORKER", "SALARIED_TEACHER"}
+        and str(loan["member_id"]) not in used_members
+    ]
+    rng.shuffle(candidates)
+    inserted = 0
+    for loan in candidates:
+        if inserted >= target_count:
+            break
+        member_id = str(loan["member_id"])
+        member = member_by_id[member_id]
+        credit_count = rng.randint(2, 5)
+        if normal_txn_counts[member_id] < credit_count:
+            continue
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        if not fosa:
+            continue
+        application_date = datetime.fromisoformat(f"{loan['application_date']}T09:00:00+03:00")
+        simulation_start = _simulation_datetime(config.start_date, 9, 0)
+        simulation_end = _simulation_datetime(config.end_date, 23, 59)
+        start = max(simulation_start, application_date - timedelta(days=rng.randint(24, 30)))
+        end = min(simulation_end, application_date - timedelta(hours=2))
+        if start >= end:
+            continue
+        timestamps = _spread_timestamps(start, max(credit_count + 1, int((end - start).total_seconds() // 3600)), credit_count, rng)
+        pattern_id = _pattern_id(next_pattern)
+        next_pattern += 1
+        inserted += 1
+        used_members.add(member_id)
+        txn_times: list[str] = []
+        for offset, timestamp in enumerate(timestamps):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            rail = rng.choice(["REMITTANCE", "MPESA", "PESALINK", "CASH_BRANCH"])
+            txn_type = "PESALINK_IN" if rail in {"REMITTANCE", "PESALINK"} else "MPESA_PAYBILL_IN" if rail == "MPESA" else "FOSA_CASH_DEPOSIT"
+            channel = "BANK_TRANSFER" if rail in {"REMITTANCE", "PESALINK"} else "PAYBILL" if rail == "MPESA" else "BRANCH"
+            provider = "BANK_PARTNER" if rail in {"REMITTANCE", "PESALINK"} else "MPESA" if rail == "MPESA" else "SACCO_CORE"
+            counterparty_type = "BANK" if rail in {"REMITTANCE", "PESALINK"} else "CUSTOMER"
+            amount = float(rng.randrange(45_000, 150_000, 5_000))
+            tx = _txn_row(
+                txn_id,
+                timestamp,
+                rng.choice(source_accounts),
+                fosa,
+                member,
+                txn_type,
+                rail,
+                channel,
+                amount,
+                provider,
+                counterparty_type,
+                fosa.get("branch_id"),
+                f"FAKE_AFFORDABILITY:{member_id}:{loan['loan_id']}:{offset}",
+            )
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "FAKE_AFFORDABILITY_BEFORE_LOAN", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "PLACEMENT", "PRE_LOAN_AFFORDABILITY_BOOST"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "FAKE_AFFORDABILITY_BEFORE_LOAN", "MEMBER", member_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "INTEGRATION", "PRE_LOAN_AFFORDABILITY_BOOST"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "FAKE_AFFORDABILITY_BEFORE_LOAN", "ACCOUNT", str(fosa["account_id"]), member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "INTEGRATION", "PRE_LOAN_AFFORDABILITY_BOOST"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "FAKE_AFFORDABILITY_BEFORE_LOAN", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
 def _inject_decoys(
     rng: random.Random,
     members: list[dict[str, object]],
@@ -395,7 +506,7 @@ def _txn_row(
         "reference": txn_id.replace("TXN", "REF", 1),
         "branch_id": branch_id,
         "agent_id": agent_id,
-        "device_id": None,
+        "device_id": None,  # Digital typology rows are assigned devices before ID reordering.
         "geo_bucket": member["county"],
         "batch_id": None,
         "balance_after_dr_kes": 0.0,
@@ -509,6 +620,10 @@ def _spread_timestamps(start: datetime, window_hours: int, count: int, rng: rand
     return [start + timedelta(hours=offset) for offset in offsets]
 
 
+def _simulation_datetime(date_value: str, hour: int, minute: int) -> datetime:
+    return datetime.fromisoformat(f"{date_value}T{hour:02d}:{minute:02d}:00+03:00").astimezone(EAT)
+
+
 def _allocate_amounts(total: float, count: int, rng: random.Random) -> list[float]:
     weights = [rng.uniform(0.6, 1.4) for _ in range(count)]
     weight_total = sum(weights)
@@ -569,6 +684,34 @@ def _agents_by_branch(agents: list[dict[str, object]]) -> dict[str, list[str]]:
     for agent in agents:
         by_branch[str(agent["branch_id"])].append(str(agent["agent_id"]))
     return by_branch
+
+
+def _backfill_digital_device_ids(transactions: list[dict[str, object]], world: InstitutionWorld | None, rng: random.Random) -> None:
+    if not world or not world.devices:
+        return
+    devices_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    devices_by_group: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for device in world.devices:
+        devices_by_member[str(device["member_id"])].append(device)
+        group = device.get("shared_device_group")
+        if group:
+            devices_by_group[str(group)].append(device)
+
+    for txn in transactions:
+        if txn.get("device_id") or txn.get("channel") not in DIGITAL_DEVICE_REQUIRED_CHANNELS:
+            continue
+        member_id = str(txn.get("member_id_primary") or "")
+        if not member_id:
+            continue
+        devices = devices_by_member.get(member_id, [])
+        if not devices:
+            continue
+        device = devices[0]
+        group = device.get("shared_device_group")
+        if group and rng.random() < 0.25:
+            txn["device_id"] = str(rng.choice(devices_by_group.get(str(group), devices))["device_id"])
+        else:
+            txn["device_id"] = str(device["device_id"])
 
 
 def _select_agent_id(agents_by_branch: dict[str, list[str]], branch_id: object | None, rng: random.Random) -> str | None:

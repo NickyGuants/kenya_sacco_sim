@@ -50,6 +50,35 @@ def generate_edges(
             {},
         )
 
+    devices_by_group: dict[str, list[dict[str, object]]] = {}
+    for device in world.devices:
+        group = str(device.get("shared_device_group") or "")
+        if group:
+            devices_by_group.setdefault(group, []).append(device)
+        _append_edge(
+            ids,
+            edges,
+            node_by_entity[str(device["member_id"])],
+            node_by_entity[str(device["device_id"])],
+            "USES_DEVICE",
+            str(device["first_seen"]),
+            {"app_user_flag": device["app_user_flag"], "os_family": device["os_family"]},
+        )
+    for grouped_devices in devices_by_group.values():
+        member_ids = {str(device["member_id"]) for device in grouped_devices}
+        device_ids = {str(device["device_id"]) for device in grouped_devices}
+        for member_id in member_ids:
+            for device_id in device_ids:
+                _append_edge(
+                    ids,
+                    edges,
+                    node_by_entity[member_id],
+                    node_by_entity[device_id],
+                    "USES_DEVICE",
+                    str(grouped_devices[0]["first_seen"]),
+                    {"shared_device_group": grouped_devices[0]["shared_device_group"]},
+                )
+
     for account in accounts:
         member_id = account["member_id"]
         account_id = str(account["account_id"])

@@ -1,0 +1,23 @@
+patterns:
+  normal:
+    SALARY_CHECKOFF_WALLET_SPEND:
+      enabled: true
+      monthly_probability: 1.0
+    SME_DAILY_RECEIPTS_MONDAY_DEPOSIT:
+      enabled: true
+      monthly_probability: 0.95
+    FARMER_SEASONAL_INCOME:
+      enabled: true
+      harvest_months: [3, 4, 8, 9, 12]
+    DIASPORA_SUPPORT_HOUSEHOLD:
+      enabled: true
+      monthly_probability: 0.65
+    LOAN_LIFECYCLE_NORMAL:
+      enabled: true
+  suspicious:
+    STRUCTURING:
+      enabled: true
+    RAPID_PASS_THROUGH:
+      enabled: true
+    FAKE_AFFORDABILITY_BEFORE_LOAN:
+      enabled: true

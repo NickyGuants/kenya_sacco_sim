@@ -1,0 +1,19 @@
+products:
+  accounts:
+    BOSA_DEPOSIT:
+      withdrawable: false
+      loan_eligibility_base: true
+    FOSA_SAVINGS:
+      withdrawable: true
+      transactional: true
+    FOSA_CURRENT:
+      withdrawable: true
+      transactional: true
+    SHARE_CAPITAL:
+      withdrawable: false
+      ownership_equity: true
+    MPESA_WALLET:
+      withdrawable: true
+      external_wallet: true
+    LOAN_ACCOUNT:
+      balance_semantics: "positive_outstanding_principal"

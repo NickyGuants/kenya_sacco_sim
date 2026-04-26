@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from datetime import date, timedelta
 
-from kenya_sacco_sim.core.config import COUNTIES, PERSONA_CONFIG, WorldConfig, start_timestamp
+from kenya_sacco_sim.core.config import COUNTIES, WorldConfig, persona_config, start_timestamp
 from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
@@ -11,14 +11,14 @@ from kenya_sacco_sim.core.models import InstitutionWorld
 def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 101)
     ids = IdFactory()
-    personas = list(PERSONA_CONFIG)
-    weights = [PERSONA_CONFIG[p]["share"] for p in personas]
+    personas = list(persona_config(config))
+    weights = [float(persona_config(config)[p]["share"]) for p in personas]
     members: list[dict[str, object]] = []
 
     for _ in range(config.member_count):
         persona = rng.choices(personas, weights=weights, k=1)[0]
-        settings = PERSONA_CONFIG[persona]
-        institution = rng.choice(world.institutions)
+        settings = persona_config(config)[persona]
+        institution = _institution_for_persona(rng, persona, world.institutions)
         urban_rural = _urban_rural(rng, settings["rural"])
         member_id = ids.next("MEMBER")
         member_type = "ORGANIZATION" if persona == "CHURCH_ORG" else "INDIVIDUAL"
@@ -52,6 +52,20 @@ def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[
             }
         )
     return members
+
+
+def _institution_for_persona(rng: random.Random, persona: str, institutions: list[dict[str, object]]) -> dict[str, object]:
+    affinity = {
+        "SALARIED_TEACHER": {"TEACHER_PUBLIC_SECTOR": 5, "UNIFORMED_SERVICES": 2},
+        "COUNTY_WORKER": {"TEACHER_PUBLIC_SECTOR": 2, "UNIFORMED_SERVICES": 3, "UTILITY_PRIVATE_SECTOR": 2},
+        "SME_OWNER": {"SME_BIASHARA": 5, "UTILITY_PRIVATE_SECTOR": 2, "DIASPORA_FACING": 2},
+        "FARMER_SEASONAL": {"FARMER_COOPERATIVE": 6, "COMMUNITY_CHURCH": 2},
+        "DIASPORA_SUPPORTED": {"DIASPORA_FACING": 6, "COMMUNITY_CHURCH": 2},
+        "BODA_BODA_OPERATOR": {"SME_BIASHARA": 3, "COMMUNITY_CHURCH": 2, "FARMER_COOPERATIVE": 2},
+        "CHURCH_ORG": {"COMMUNITY_CHURCH": 7, "DIASPORA_FACING": 2},
+    }
+    weights = [affinity.get(persona, {}).get(str(institution.get("archetype")), 1) for institution in institutions]
+    return rng.choices(institutions, weights=weights, k=1)[0]
 
 
 def _urban_rural(rng: random.Random, rural_probability: float) -> str:

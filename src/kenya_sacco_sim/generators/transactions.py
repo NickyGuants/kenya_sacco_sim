@@ -20,6 +20,8 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
     source_account = source_accounts[0]
     sink_account = sink_accounts[0]
     agents_by_branch = _agents_by_branch(world.agents if world else [])
+    devices_by_member = _devices_by_member(world.devices if world else [])
+    devices_by_group = _devices_by_group(world.devices if world else [])
     transactions: list[dict[str, object]] = []
     def emit(
         timestamp: datetime,
@@ -43,6 +45,7 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         debit_id = str(debit_account["account_id"])
         credit_id = str(credit_account["account_id"])
         agent_id = _select_agent_id(agents_by_branch, branch_id, rng) if rail == "CASH_AGENT" else None
+        device_id = _select_device_id(devices_by_member, devices_by_group, member, channel, rng)
         counterparty_id_hash = _counterparty_hash(counterparty_type, txn_type, member, debit_id, credit_id, branch_id, agent_id)
         _apply_movement(balances, account_by_id, debit_id, "dr", amount)
         _apply_movement(balances, account_by_id, credit_id, "cr", amount)
@@ -68,7 +71,7 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
                 "reference": txn_id.replace("TXN", "REF", 1),
                 "branch_id": branch_id,
                 "agent_id": agent_id,
-                "device_id": None,
+                "device_id": device_id,
                 "geo_bucket": member["county"] if member else None,
                 "batch_id": None,
                 "balance_after_dr_kes": round(balances[debit_id], 2),
@@ -477,6 +480,22 @@ def _agents_by_branch(agents: list[dict[str, object]]) -> dict[str, list[str]]:
     return by_branch
 
 
+def _devices_by_member(devices: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for device in devices:
+        by_member[str(device["member_id"])].append(device)
+    return by_member
+
+
+def _devices_by_group(devices: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    by_group: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for device in devices:
+        group = device.get("shared_device_group")
+        if group:
+            by_group[str(group)].append(device)
+    return by_group
+
+
 def _select_agent_id(agents_by_branch: dict[str, list[str]], branch_id: object | None, rng: random.Random) -> str | None:
     if branch_id is None:
         return None
@@ -484,6 +503,25 @@ def _select_agent_id(agents_by_branch: dict[str, list[str]], branch_id: object |
     if not candidates:
         return None
     return rng.choice(candidates)
+
+
+def _select_device_id(
+    devices_by_member: dict[str, list[dict[str, object]]],
+    devices_by_group: dict[str, list[dict[str, object]]],
+    member: dict[str, object] | None,
+    channel: str,
+    rng: random.Random,
+) -> str | None:
+    if not member or channel not in {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}:
+        return None
+    devices = devices_by_member.get(str(member["member_id"]), [])
+    if not devices:
+        return None
+    device = devices[0]
+    group = device.get("shared_device_group")
+    if group and rng.random() < 0.25:
+        return str(rng.choice(devices_by_group.get(str(group), devices))["device_id"])
+    return str(device["device_id"])
 
 
 def _select_external_account(

@@ -27,7 +27,17 @@ RAPID_PASS_THROUGH_RULE_CONFIG = {
     "include_supplier_payment": True,
 }
 
+FAKE_AFFORDABILITY_RULE_CONFIG = {
+    "lookback_days": 30,
+    "inbound_txn_types": ["PESALINK_IN", "MPESA_PAYBILL_IN", "FOSA_CASH_DEPOSIT", "BUSINESS_SETTLEMENT_IN"],
+    "excluded_stable_income_types": ["SALARY_IN", "CHECKOFF_DEPOSIT", "LOAN_DISBURSEMENT"],
+    "min_external_credit_share": 0.55,
+    "min_balance_growth_kes": 50_000,
+    "eligible_loan_products": ["DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "BIASHARA_LOAN"],
+}
+
 RULE_CONFIGS = {
     "STRUCTURING": STRUCTURING_RULE_CONFIG,
     "RAPID_PASS_THROUGH": RAPID_PASS_THROUGH_RULE_CONFIG,
+    "FAKE_AFFORDABILITY_BEFORE_LOAN": FAKE_AFFORDABILITY_RULE_CONFIG,
 }

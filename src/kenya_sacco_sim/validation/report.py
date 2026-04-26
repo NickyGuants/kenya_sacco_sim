@@ -9,6 +9,7 @@ from kenya_sacco_sim.validation.foreign_keys import validate_foreign_keys
 from kenya_sacco_sim.validation.labels import validate_labels
 from kenya_sacco_sim.validation.loan_validator import validate_credit_distribution, validate_guarantors, validate_loans
 from kenya_sacco_sim.validation.schema import validate_schema
+from kenya_sacco_sim.validation.support_entities import validate_support_entities
 
 
 def build_validation_report(
@@ -26,11 +27,13 @@ def build_validation_report(
     guarantor_findings, guarantor_section = validate_guarantors(rows_by_file)
     credit_findings, credit_section = validate_credit_distribution(rows_by_file)
     label_findings, label_section, typology_section = validate_labels(rows_by_file, config.suspicious_ratio)
+    support_findings, support_section, device_section, institution_metrics = validate_support_entities(rows_by_file)
     findings.extend(distribution_findings)
     findings.extend(loan_findings)
     findings.extend(guarantor_findings)
     findings.extend(credit_findings)
     findings.extend(label_findings)
+    findings.extend(support_findings)
     findings.extend(_benchmark_findings(benchmark_validation))
     has_transactions = "transactions.csv" in rows_by_file
 
@@ -43,10 +46,14 @@ def build_validation_report(
         "loan_validation": loan_section,
         "guarantor_validation": guarantor_section,
         "credit_distribution_validation": credit_section,
+        "support_entity_validation": support_section,
+        "device_validation": device_section,
+        "institution_archetype_metrics": institution_metrics,
         "clean_baseline_aml_metrics": clean_baseline_metrics(rows_by_file),
         "distribution_validation": distribution_section,
         "typology_validation": typology_section,
         "typology_runtime_metrics": typology_runtime_metrics or {"status": "not_applicable"},
+        "fake_affordability_validation": _fake_affordability_section(typology_runtime_metrics),
         "benchmark_validation": benchmark_validation or {"status": "not_applicable"},
         "errors": [_finding_to_dict(f) for f in findings if f.severity == "error"],
         "warnings": [_finding_to_dict(f) for f in findings if f.severity == "warning"],
@@ -78,7 +85,33 @@ def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[
         threshold_rule = txn_id_leakage.get("best_txn_id_threshold_rule")
         if isinstance(threshold_rule, dict) and float(threshold_rule.get("precision") or 0) > 0.70 and float(threshold_rule.get("recall") or 0) > 0.70:
             findings.append(ValidationFinding("error", "benchmark.txn_id_threshold_leakage", "Benchmark txn_id threshold leakage check failed", "baseline_model_results.json"))
+    if float(benchmark_validation.get("institution_split_max_share") or 0) > 0.80:
+        institution_id = benchmark_validation.get("institution_split_max_institution_id")
+        max_split = benchmark_validation.get("institution_split_max_split")
+        max_share = benchmark_validation.get("institution_split_max_share")
+        findings.append(
+            ValidationFinding(
+                "warning",
+                "benchmark.institution_split_drift",
+                f"Institution {institution_id} has split {max_split} share {max_share}, above 0.80 review threshold",
+                "split_manifest.json",
+            )
+        )
     return findings
+
+
+def _fake_affordability_section(rule_results: dict[str, object] | None) -> dict[str, object]:
+    if not rule_results or not isinstance(rule_results.get("FAKE_AFFORDABILITY_BEFORE_LOAN"), dict):
+        return {"status": "not_applicable"}
+    section = rule_results["FAKE_AFFORDABILITY_BEFORE_LOAN"]
+    return {
+        "candidate_count": section.get("candidate_count", 0),
+        "true_positive_count": section.get("true_positive_count", 0),
+        "false_positive_count": section.get("false_positive_count", 0),
+        "false_negative_count": section.get("false_negative_count", 0),
+        "precision": section.get("precision", 0),
+        "recall": section.get("recall", 0),
+    }
 
 
 def _finding_to_dict(finding: ValidationFinding) -> dict[str, object]:

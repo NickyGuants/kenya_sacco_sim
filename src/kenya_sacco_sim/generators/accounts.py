@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 
-from kenya_sacco_sim.core.config import PERSONA_CONFIG, WorldConfig
+from kenya_sacco_sim.core.config import WorldConfig, persona_config
 from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 
@@ -34,7 +34,7 @@ def generate_accounts(config: WorldConfig, members: list[dict[str, object]], wor
             if rng.random() < 0.65:
                 accounts.append(_account(ids, member_id, institution_id, "BOSA_DEPOSIT", "BOSA_STANDARD", join_date, branch["branch_id"], rng.randint(5_000, 60_000), config.currency))
 
-        if rng.random() < PERSONA_CONFIG[persona]["wallet"]:
+        if rng.random() < float(persona_config(config)[persona]["wallet"]):
             accounts.append(_account(ids, member_id, institution_id, "MPESA_WALLET", "MPESA_WALLET", join_date, None, rng.randint(0, 15_000), config.currency))
 
     accounts.extend(_external_accounts(ids, config))

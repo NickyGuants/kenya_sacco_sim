@@ -4,7 +4,7 @@ import random
 from collections import defaultdict
 from datetime import date, timedelta
 
-from kenya_sacco_sim.core.config import PERSONA_CONFIG, WorldConfig
+from kenya_sacco_sim.core.config import WorldConfig, persona_config
 from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.core.models import InstitutionWorld
 from kenya_sacco_sim.generators.guarantors import GUARANTEED_PRODUCTS, select_guarantors
@@ -46,7 +46,7 @@ def generate_loans_and_guarantors(
         persona = str(member["persona_type"])
         if member["member_type"] != "INDIVIDUAL":
             continue
-        if rng.random() > PERSONA_CONFIG[persona]["loan"]:
+        if rng.random() > float(persona_config(config)[persona]["loan"]):
             continue
         fosa = _first(member_accounts[str(member["member_id"])], {"FOSA_SAVINGS", "FOSA_CURRENT"})
         bosa = _first(member_accounts[str(member["member_id"])], {"BOSA_DEPOSIT"})

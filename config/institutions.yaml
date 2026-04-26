@@ -1,0 +1,30 @@
+institutions:
+  archetypes:
+    TEACHER_PUBLIC_SECTOR:
+      digital_maturity: 0.72
+      cash_intensity: 0.16
+      loan_guarantor_intensity: 0.75
+    UNIFORMED_SERVICES:
+      digital_maturity: 0.66
+      cash_intensity: 0.22
+      loan_guarantor_intensity: 0.82
+    UTILITY_PRIVATE_SECTOR:
+      digital_maturity: 0.86
+      cash_intensity: 0.12
+      loan_guarantor_intensity: 0.58
+    COMMUNITY_CHURCH:
+      digital_maturity: 0.55
+      cash_intensity: 0.42
+      loan_guarantor_intensity: 0.50
+    FARMER_COOPERATIVE:
+      digital_maturity: 0.48
+      cash_intensity: 0.58
+      loan_guarantor_intensity: 0.63
+    SME_BIASHARA:
+      digital_maturity: 0.80
+      cash_intensity: 0.28
+      loan_guarantor_intensity: 0.68
+    DIASPORA_FACING:
+      digital_maturity: 0.90
+      cash_intensity: 0.14
+      loan_guarantor_intensity: 0.42
