@@ -243,7 +243,7 @@ def _boda_cash_cycle(
     for month in range(1, config.months + 1):
         monthly_cash = monthly_income * rng.uniform(0.75, 1.15)
         deposited_total = 0.0
-        cycle_count = 2 if rng.random() < 0.62 else 1
+        cycle_count = 2 if rng.random() < 0.42 else 1
         for cycle in range(cycle_count):
             deposit_day = min(_last_day(2024, month), 5 + cycle * 14 + rng.randint(0, 3))
             deposit = round(monthly_cash * rng.uniform(0.14, 0.22), 2)

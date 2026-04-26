@@ -3,9 +3,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 
-from kenya_sacco_sim.core.config import WorldConfig
+from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
 from kenya_sacco_sim.generators.edges import generate_edges
@@ -14,6 +15,7 @@ from kenya_sacco_sim.generators.loans import generate_loans_and_guarantors
 from kenya_sacco_sim.generators.members import generate_members
 from kenya_sacco_sim.generators.nodes import generate_nodes
 from kenya_sacco_sim.generators.transactions import generate_transactions
+from kenya_sacco_sim.generators.typologies import inject_typologies
 from kenya_sacco_sim.validation.report import build_validation_report
 
 
@@ -31,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--difficulty", default="medium")
     generate.add_argument("--with-transactions", action="store_true", help="Emit normal-pattern transactions.csv and run balance validation")
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
+    generate.add_argument("--with-typologies", action="store_true", help="Inject v0.1 suspicious typologies and emit alerts_truth.csv/rule_results.json")
     return parser
 
 
@@ -49,9 +52,14 @@ def generate(args: argparse.Namespace) -> int:
     accounts = generate_accounts(config, members, institution_world)
     loans: list[dict[str, object]] | None = None
     guarantors: list[dict[str, object]] | None = None
-    if args.with_loans:
+    if args.with_loans or args.with_typologies:
         loans, guarantors = generate_loans_and_guarantors(config, members, accounts, institution_world)
-    transactions = generate_transactions(config, members, accounts, institution_world, loans or []) if args.with_transactions or args.with_loans else None
+    transactions = generate_transactions(config, members, accounts, institution_world, loans or []) if args.with_transactions or args.with_loans or args.with_typologies else None
+    alerts_truth: list[dict[str, object]] | None = None
+    rule_results: dict[str, object] | None = None
+    if args.with_typologies:
+        assert transactions is not None
+        alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions)
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors or [])
 
@@ -67,18 +75,25 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["loans.csv"] = loans
     if guarantors is not None:
         rows_by_file["guarantors.csv"] = guarantors
+    if alerts_truth is not None:
+        rows_by_file["alerts_truth.csv"] = alerts_truth
     report = build_validation_report(rows_by_file, config)
 
     write_csvs(args.output, rows_by_file)
+    if rule_results is not None:
+        write_json(args.output / "rule_results.json", rule_results)
     write_json(args.output / "validation_report.json", report)
-    write_json(args.output / "manifest.json", _manifest(config, rows_by_file, report, args.output))
+    extra_files = ["rule_results.json"] if rule_results is not None else []
+    write_json(args.output / "manifest.json", _manifest(config, rows_by_file, report, args.output, extra_files))
 
     error_count = len(report["errors"])
     print(json.dumps({"output": str(args.output), "errors": error_count, "warnings": len(report["warnings"])}, indent=2))
     return 1 if error_count else 0
 
 
-def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object]]], report: dict[str, object], output_dir: Path) -> dict[str, object]:
+def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object]]], report: dict[str, object], output_dir: Path, extra_files: list[str] | None = None) -> dict[str, object]:
+    extra_files = extra_files or []
+    payload_files = list(rows_by_file) + extra_files + ["manifest.json", "validation_report.json"]
     return {
         "dataset_name": "KENYA_SACCO_SIM",
         "version": "0.1.0",
@@ -89,8 +104,9 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
         "institutions": config.institution_count,
         "suspicious_ratio": config.suspicious_ratio,
         "difficulty": config.difficulty,
-        "files": list(rows_by_file) + ["manifest.json", "validation_report.json"],
-        "file_hashes_md5": _file_hashes(output_dir, list(rows_by_file) + ["validation_report.json"]),
+        "created_at": datetime.now(EAT).isoformat(timespec="seconds"),
+        "files": payload_files,
+        "file_hashes_md5": _file_hashes(output_dir, list(rows_by_file) + extra_files + ["validation_report.json"]),
         "validation": {
             "error_count": len(report["errors"]),
             "warning_count": len(report["warnings"]),
