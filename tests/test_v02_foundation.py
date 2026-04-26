@@ -2,17 +2,20 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import random
+from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
-from kenya_sacco_sim.benchmark.baseline_rules import build_rule_results
+from kenya_sacco_sim.benchmark.baseline_rules import build_rule_results, fake_affordability_candidates
 from kenya_sacco_sim.core.config import load_world_config, with_cli_overrides
 from kenya_sacco_sim.generators.devices import generate_devices
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
 from kenya_sacco_sim.generators.members import generate_members
 from kenya_sacco_sim.generators.nodes import generate_nodes
+from kenya_sacco_sim.generators.typologies import _inject_fake_affordability
 from kenya_sacco_sim.validation.support_entities import validate_support_entities
 
 
@@ -69,6 +72,26 @@ class V02FoundationTests(unittest.TestCase):
         self.assertEqual(device_section["devices_without_uses_device_edge_count"], 0)
         self.assertEqual(institution_metrics["institution_count"], 3)
 
+    def test_small_run_shared_device_groups_are_pairs(self) -> None:
+        config = load_world_config(Path("missing-config-dir"))
+        members = [
+            {"member_id": "MEM0000001", "institution_id": "INST0001", "join_date": "2024-01-01"},
+            {"member_id": "MEM0000002", "institution_id": "INST0001", "join_date": "2024-01-01"},
+        ]
+
+        devices = generate_devices(config, members)
+
+        self.assertEqual(devices[0]["shared_device_group"], "SHARED_DEVICE_GROUP_00001")
+        self.assertEqual(devices[1]["shared_device_group"], "SHARED_DEVICE_GROUP_00001")
+
+    def test_single_member_run_does_not_create_singleton_shared_group(self) -> None:
+        config = load_world_config(Path("missing-config-dir"))
+        members = [{"member_id": "MEM0000001", "institution_id": "INST0001", "join_date": "2024-01-01"}]
+
+        devices = generate_devices(config, members)
+
+        self.assertIsNone(devices[0]["shared_device_group"])
+
     def test_device_validation_reports_required_missing_device_ids(self) -> None:
         rows = _device_validation_rows()
         rows["transactions.csv"] = [
@@ -105,6 +128,15 @@ class V02FoundationTests(unittest.TestCase):
         self.assertEqual(device_section["max_members_per_device"], 2)
         self.assertEqual(device_section["shared_device_group_missing_count"], 1)
 
+    def test_institution_archetype_metrics_validate_unit_interval(self) -> None:
+        rows = _device_validation_rows()
+        rows["institutions.csv"][0]["digital_maturity"] = 1.2
+
+        findings, support_section, _, _ = validate_support_entities(rows)
+
+        self.assertIn("support.institution_metric_out_of_range", [finding.code for finding in findings])
+        self.assertEqual(support_section["error_count"], 1)
+
     def test_split_manifest_reports_institution_split_drift(self) -> None:
         config = with_cli_overrides(load_world_config(Path("missing-config-dir")), seed=42)
         members = [{"member_id": "MEM0000001", "institution_id": "INST0001"}]
@@ -138,6 +170,60 @@ class V02FoundationTests(unittest.TestCase):
         self.assertEqual(section["false_negative_count"], 0)
         self.assertEqual(section["precision"], 1.0)
         self.assertEqual(section["recall"], 1.0)
+
+    def test_fake_affordability_rule_treats_missing_member_accounts_as_non_candidate(self) -> None:
+        loans = [
+            {
+                "loan_id": "LOAN000001",
+                "member_id": "MEM0000001",
+                "product_code": "DEVELOPMENT_LOAN",
+                "application_date": "2024-06-15",
+            }
+        ]
+
+        candidates = fake_affordability_candidates([], {}, loans)
+
+        self.assertEqual(candidates, {})
+
+    def test_fake_affordability_injection_respects_configured_date_window(self) -> None:
+        config = replace(load_world_config(Path("missing-config-dir")), start_date="2024-06-01", end_date="2024-06-30")
+        member = {
+            "member_id": "MEM0000001",
+            "institution_id": "INST0001",
+            "persona_type": "SME_OWNER",
+            "county": "Nairobi",
+        }
+        account = {"account_id": "ACC00000001", "account_type": "FOSA_CURRENT", "branch_id": "BRANCH0001"}
+        source = {"account_id": "SRC00000001", "account_type": "SOURCE_ACCOUNT"}
+        loan = {
+            "loan_id": "LOAN000001",
+            "member_id": "MEM0000001",
+            "product_code": "BIASHARA_LOAN",
+            "application_date": "2024-06-20",
+        }
+        transactions: list[dict[str, object]] = []
+        alerts: list[dict[str, object]] = []
+
+        _inject_fake_affordability(
+            random.Random(7),
+            config,
+            [member],
+            {"MEM0000001": [account]},
+            [source],
+            transactions,
+            alerts,
+            set(),
+            Counter({"MEM0000001": 5}),
+            [loan],
+            1,
+            1,
+            1,
+        )
+
+        self.assertGreater(len(transactions), 0)
+        for txn in transactions:
+            self.assertGreaterEqual(str(txn["timestamp"]), "2024-06-01T00:00:00+03:00")
+            self.assertLessEqual(str(txn["timestamp"]), "2024-06-30T23:59:59+03:00")
 
 
 def _account(account_id: str, member_id: str) -> dict[str, object]:

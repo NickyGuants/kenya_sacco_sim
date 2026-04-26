@@ -266,6 +266,8 @@ Validation:
 ```
 
 Device sharing is baseline only in v0.2. Device-sharing typologies are deferred to v1.
+Shared-device baseline groups must contain at least two members; small smoke
+runs must not emit singleton shared-device groups.
 
 ---
 

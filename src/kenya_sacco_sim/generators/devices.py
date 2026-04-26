@@ -14,8 +14,12 @@ def generate_devices(config: WorldConfig, members: list[dict[str, object]]) -> l
     share_stride = 50
     for index, member in enumerate(members):
         shared_group = None
-        if index % share_stride in {0, 1} and index + 1 < len(members):
+        stride_position = index % share_stride
+        if stride_position == 0 and index + 1 < len(members):
             group_index = index // share_stride
+            shared_group = shared_group_by_index.setdefault(group_index, f"SHARED_DEVICE_GROUP_{group_index + 1:05d}")
+        elif stride_position == 1:
+            group_index = (index - 1) // share_stride
             shared_group = shared_group_by_index.setdefault(group_index, f"SHARED_DEVICE_GROUP_{group_index + 1:05d}")
         devices.append(
             {

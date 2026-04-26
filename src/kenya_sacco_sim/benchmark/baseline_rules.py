@@ -51,7 +51,7 @@ def structuring_candidates(transactions: list[dict[str, object]], member_account
     allowed_types = set(STRUCTURING_RULE_CONFIG["inbound_txn_types"])
     for txn in transactions:
         member_id = str(txn.get("member_id_primary") or "")
-        if not member_id or str(txn["account_id_cr"]) not in member_accounts[member_id]:
+        if not member_id or str(txn["account_id_cr"]) not in member_accounts.get(member_id, set()):
             continue
         if str(txn["txn_type"]) not in allowed_types:
             continue
@@ -71,7 +71,7 @@ def rapid_pass_through_candidates(transactions: list[dict[str, object]], member_
     candidates: dict[str, object] = {}
     for member_id, rows in by_member.items():
         rows.sort(key=lambda row: str(row["timestamp"]))
-        if has_rapid_pass_through(rows, member_accounts[member_id]):
+        if has_rapid_pass_through(rows, member_accounts.get(member_id, set())):
             candidates[member_id] = True
     return candidates
 
@@ -90,7 +90,7 @@ def fake_affordability_candidates(transactions: list[dict[str, object]], member_
             continue
         application_ts = datetime.fromisoformat(f"{loan['application_date']}T00:00:00+03:00")
         rows = by_member.get(member_id, [])
-        if has_fake_affordability_window(rows, member_accounts[member_id], application_ts):
+        if has_fake_affordability_window(rows, member_accounts.get(member_id, set()), application_ts):
             candidates[member_id] = True
     return candidates
 

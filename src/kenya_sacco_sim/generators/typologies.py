@@ -64,6 +64,7 @@ def inject_typologies(
     )
     next_txn, next_pattern = _inject_fake_affordability(
         rng,
+        config,
         members,
         account_by_member,
         source_accounts,
@@ -284,6 +285,7 @@ def _inject_rapid_pass_through(
 
 def _inject_fake_affordability(
     rng: random.Random,
+    config: WorldConfig,
     members: list[dict[str, object]],
     account_by_member: dict[str, list[dict[str, object]]],
     source_accounts: list[dict[str, object]],
@@ -322,10 +324,13 @@ def _inject_fake_affordability(
         if not fosa:
             continue
         application_date = datetime.fromisoformat(f"{loan['application_date']}T09:00:00+03:00")
-        start = max(datetime(2024, 1, 2, 9, 0, tzinfo=EAT), application_date - timedelta(days=rng.randint(24, 30)))
-        if start >= application_date:
+        simulation_start = _simulation_datetime(config.start_date, 9, 0)
+        simulation_end = _simulation_datetime(config.end_date, 23, 59)
+        start = max(simulation_start, application_date - timedelta(days=rng.randint(24, 30)))
+        end = min(simulation_end, application_date - timedelta(hours=2))
+        if start >= end:
             continue
-        timestamps = _spread_timestamps(start, max(credit_count + 1, int((application_date - start).total_seconds() // 3600) - 2), credit_count, rng)
+        timestamps = _spread_timestamps(start, max(credit_count + 1, int((end - start).total_seconds() // 3600)), credit_count, rng)
         pattern_id = _pattern_id(next_pattern)
         next_pattern += 1
         inserted += 1
@@ -501,7 +506,7 @@ def _txn_row(
         "reference": txn_id.replace("TXN", "REF", 1),
         "branch_id": branch_id,
         "agent_id": agent_id,
-        "device_id": None,
+        "device_id": None,  # Digital typology rows are assigned devices before ID reordering.
         "geo_bucket": member["county"],
         "batch_id": None,
         "balance_after_dr_kes": 0.0,
@@ -613,6 +618,10 @@ def _spread_timestamps(start: datetime, window_hours: int, count: int, rng: rand
         return [start + timedelta(hours=offset) for offset in offsets]
     offsets = sorted(rng.sample(range(0, max(window_hours, count) + 1), count))
     return [start + timedelta(hours=offset) for offset in offsets]
+
+
+def _simulation_datetime(date_value: str, hour: int, minute: int) -> datetime:
+    return datetime.fromisoformat(f"{date_value}T{hour:02d}:{minute:02d}:00+03:00").astimezone(EAT)
 
 
 def _allocate_amounts(total: float, count: int, rng: random.Random) -> list[float]:

@@ -32,6 +32,7 @@ Implemented v0.2 foundation:
 - Institution archetypes with digital maturity, cash intensity, and guarantor intensity
 - Device baseline population, `DEVICE` nodes, `USES_DEVICE` graph edges, and device validation metrics
 - New suspicious typology and baseline rule: `FAKE_AFFORDABILITY_BEFORE_LOAN`
+- Fake-affordability injection respects configured simulation date windows
 
 Deferred to v1:
 
@@ -142,6 +143,10 @@ institution_archetype_metrics
 fake_affordability_validation
 ```
 
+Support entity validation rejects institution archetype parameters outside
+`0.0-1.0` for `digital_maturity`, `cash_intensity`, and
+`loan_guarantor_intensity`.
+
 `device_validation` distinguishes:
 
 ```text
@@ -237,7 +242,7 @@ or mirrored `reference` values.
 Latest verified v0.2 10,000-member gate run:
 
 ```text
-command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k_device_fix
+command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k_review_fix
 validation errors:   0
 validation warnings: 0
 members:             10,000

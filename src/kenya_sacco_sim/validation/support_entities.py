@@ -32,6 +32,16 @@ def validate_support_entities(rows_by_file: dict[str, list[dict[str, object]]]) 
     for branch in branches:
         if str(branch["institution_id"]) not in institution_ids:
             findings.append(_error("support.branch_institution_missing", "branch institution_id must resolve to institutions.csv", "branches.csv", str(branch["branch_id"])))
+    for institution in institutions:
+        institution_id = str(institution["institution_id"])
+        for metric in ("digital_maturity", "cash_intensity", "loan_guarantor_intensity"):
+            try:
+                value = float(institution[metric])
+            except (TypeError, ValueError):
+                findings.append(_error("support.institution_metric_invalid", f"{metric} must be numeric and within 0.0-1.0", "institutions.csv", institution_id))
+                continue
+            if value < 0.0 or value > 1.0:
+                findings.append(_error("support.institution_metric_out_of_range", f"{metric} must be within 0.0-1.0", "institutions.csv", institution_id))
     for agent in agents:
         if str(agent["institution_id"]) not in institution_ids:
             findings.append(_error("support.agent_institution_missing", "agent institution_id must resolve to institutions.csv", "agents.csv", str(agent["agent_id"])))
