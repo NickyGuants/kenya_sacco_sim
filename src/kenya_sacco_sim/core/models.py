@@ -8,6 +8,7 @@ class InstitutionWorld:
     institutions: list[dict[str, object]]
     branches: list[dict[str, object]]
     employers: list[dict[str, object]]
+    agents: list[dict[str, object]]
 
 
 @dataclass(frozen=True)

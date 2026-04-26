@@ -8,13 +8,16 @@ from kenya_sacco_sim.core.config import EAT, WorldConfig
 from kenya_sacco_sim.core.id_factory import IdFactory
 
 
-def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]]) -> list[dict[str, object]]:
+def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]], world=None) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 303)
     balances = {str(account["account_id"]): float(account["opening_balance_kes"]) for account in accounts}
     ids = IdFactory()
     by_member = _accounts_by_member(accounts)
-    source_account = next(account for account in accounts if account["account_type"] == "SOURCE_ACCOUNT")
-    sink_account = next(account for account in accounts if account["account_type"] == "SINK_ACCOUNT")
+    source_accounts = [account for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"]
+    sink_accounts = [account for account in accounts if account["account_type"] == "SINK_ACCOUNT"]
+    source_account = source_accounts[0]
+    sink_account = sink_accounts[0]
+    agents_by_branch = _agents_by_branch(world.agents if world else [])
     transactions: list[dict[str, object]] = []
     def emit(
         timestamp: datetime,
@@ -33,8 +36,12 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         if amount <= 0:
             return
         timestamp = _bounded_timestamp(timestamp, config)
+        debit_account = _select_external_account(debit_account, source_accounts, txn_type, member, "dr")
+        credit_account = _select_external_account(credit_account, sink_accounts, txn_type, member, "cr")
         debit_id = str(debit_account["account_id"])
         credit_id = str(credit_account["account_id"])
+        agent_id = _select_agent_id(agents_by_branch, branch_id, rng) if rail == "CASH_AGENT" else None
+        counterparty_id_hash = _counterparty_hash(counterparty_type, txn_type, member, debit_id, credit_id, branch_id, agent_id)
         balances[debit_id] -= amount
         balances[credit_id] += amount
         txn_id = ids.next("TXN")
@@ -51,14 +58,14 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
                 "channel": channel,
                 "provider": provider,
                 "counterparty_type": counterparty_type,
-                "counterparty_id_hash": None,
+                "counterparty_id_hash": counterparty_id_hash,
                 "amount_kes": amount,
                 "fee_kes": 0.0,
                 "currency": config.currency,
                 "narrative": _narrative(txn_type),
                 "reference": txn_id.replace("TXN", "REF", 1),
                 "branch_id": branch_id,
-                "agent_id": None,
+                "agent_id": agent_id,
                 "device_id": None,
                 "geo_bucket": member["county"] if member else None,
                 "batch_id": None,
@@ -229,7 +236,7 @@ def _boda_cash_cycle(
     for month in range(1, config.months + 1):
         monthly_cash = monthly_income * rng.uniform(0.75, 1.15)
         deposited_total = 0.0
-        cycle_count = 2 if rng.random() < 0.65 else 1
+        cycle_count = 2 if rng.random() < 0.62 else 1
         for cycle in range(cycle_count):
             deposit_day = min(_last_day(2024, month), 5 + cycle * 14 + rng.randint(0, 3))
             deposit = round(monthly_cash * rng.uniform(0.14, 0.22), 2)
@@ -299,6 +306,55 @@ def _accounts_by_member(accounts: list[dict[str, object]]) -> dict[str, list[dic
         if member_id:
             by_member[str(member_id)].append(account)
     return by_member
+
+
+def _agents_by_branch(agents: list[dict[str, object]]) -> dict[str, list[str]]:
+    by_branch: dict[str, list[str]] = defaultdict(list)
+    for agent in agents:
+        by_branch[str(agent["branch_id"])].append(str(agent["agent_id"]))
+    return by_branch
+
+
+def _select_agent_id(agents_by_branch: dict[str, list[str]], branch_id: object | None, rng: random.Random) -> str | None:
+    if branch_id is None:
+        return None
+    candidates = agents_by_branch.get(str(branch_id), [])
+    if not candidates:
+        return None
+    return rng.choice(candidates)
+
+
+def _select_external_account(
+    account: dict[str, object],
+    pool: list[dict[str, object]],
+    txn_type: str,
+    member: dict[str, object] | None,
+    side: str,
+) -> dict[str, object]:
+    if not pool:
+        return account
+    if side == "dr" and account["account_type"] != "SOURCE_ACCOUNT":
+        return account
+    if side == "cr" and account["account_type"] != "SINK_ACCOUNT":
+        return account
+    key = f"{txn_type}:{member.get('member_id') if member else ''}:{side}"
+    index = int(IdFactory.hash_id("H", key).split("_", 1)[1][:8], 16) % len(pool)
+    return pool[index]
+
+
+def _counterparty_hash(counterparty_type: str, txn_type: str, member: dict[str, object] | None, debit_id: str, credit_id: str, branch_id: object | None, agent_id: str | None) -> str | None:
+    if counterparty_type in {"SOURCE", "SINK"}:
+        return None
+    member_id = member.get("member_id") if member else ""
+    if counterparty_type == "EMPLOYER":
+        seed = member.get("employer_id") if member else ""
+    elif counterparty_type == "AGENT":
+        seed = agent_id or branch_id or credit_id
+    elif counterparty_type == "SACCO":
+        seed = member.get("institution_id") if member else ""
+    else:
+        seed = f"{counterparty_type}:{txn_type}:{member_id}:{debit_id}:{credit_id}:{branch_id}"
+    return IdFactory.hash_id("CP", seed)
 
 
 def _first(accounts: list[dict[str, object]], account_types: set[str]) -> dict[str, object] | None:

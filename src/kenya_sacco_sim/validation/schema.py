@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 
 from kenya_sacco_sim.core.config import WorldConfig
@@ -158,6 +159,14 @@ def validate_schema(rows_by_file: dict[str, list[dict[str, object]]], config: Wo
 
 def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[ValidationFinding]) -> None:
     pk = PRIMARY_KEYS[filename]
+    patterns = {
+        "members.csv": re.compile(r"^MEM\d{7}$"),
+        "accounts.csv": re.compile(r"^ACC\d{8}$"),
+        "nodes.csv": re.compile(r"^NODE\d{8}$"),
+        "graph_edges.csv": re.compile(r"^EDGE\d{8}$"),
+        "transactions.csv": re.compile(r"^TXN\d{12}$"),
+    }
+    pattern = patterns.get(filename)
     seen: set[str] = set()
     for row in rows:
         value = str(row.get(pk) or "")
@@ -165,6 +174,8 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
             findings.append(_error("schema.pk_missing", f"Missing primary key {pk}", filename))
         elif value in seen:
             findings.append(_error("schema.pk_duplicate", f"Duplicate primary key {value}", filename, value))
+        elif pattern and not pattern.fullmatch(value):
+            findings.append(_error("schema.id_format_invalid", f"{pk}={value!r} does not match required format", filename, value))
         seen.add(value)
 
 
@@ -202,8 +213,20 @@ def _validate_dates(filename: str, rows: list[dict[str, object]], config: WorldC
                 findings.append(_error("schema.timestamp_missing", "timestamp is required", filename, _row_id(row)))
                 continue
             parsed_dt = datetime.fromisoformat(str(value))
+            if parsed_dt.utcoffset() is None:
+                findings.append(_error("schema.timezone_missing", "timestamp must include Africa/Nairobi +03:00 offset", filename, _row_id(row)))
+            elif parsed_dt.utcoffset().total_seconds() != 10_800:
+                findings.append(_error("schema.timezone_invalid", "timestamp must use Africa/Nairobi +03:00 offset", filename, _row_id(row)))
             if not start <= parsed_dt.date() <= end:
                 findings.append(_error("schema.date_out_of_window", f"timestamp={value} outside simulation window", filename, _row_id(row)))
+    if rows and "created_at" in rows[0]:
+        for row in rows:
+            value = row.get("created_at")
+            if value in (None, ""):
+                continue
+            parsed_dt = datetime.fromisoformat(str(value))
+            if parsed_dt.utcoffset() is None:
+                findings.append(_error("schema.timezone_missing", "created_at must include Africa/Nairobi +03:00 offset", filename, _row_id(row)))
 
 
 def _validate_account_product_codes(rows: list[dict[str, object]], findings: list[ValidationFinding]) -> None:

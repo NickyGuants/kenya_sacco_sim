@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -44,7 +45,7 @@ def generate(args: argparse.Namespace) -> int:
     institution_world = generate_institution_world(config)
     members = generate_members(config, institution_world)
     accounts = generate_accounts(config, members, institution_world)
-    transactions = generate_transactions(config, members, accounts) if args.with_transactions else None
+    transactions = generate_transactions(config, members, accounts, institution_world) if args.with_transactions else None
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes)
 
@@ -60,14 +61,14 @@ def generate(args: argparse.Namespace) -> int:
 
     write_csvs(args.output, rows_by_file)
     write_json(args.output / "validation_report.json", report)
-    write_json(args.output / "manifest.json", _manifest(config, rows_by_file, report))
+    write_json(args.output / "manifest.json", _manifest(config, rows_by_file, report, args.output))
 
     error_count = len(report["errors"])
     print(json.dumps({"output": str(args.output), "errors": error_count, "warnings": len(report["warnings"])}, indent=2))
     return 1 if error_count else 0
 
 
-def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object]]], report: dict[str, object]) -> dict[str, object]:
+def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object]]], report: dict[str, object], output_dir: Path) -> dict[str, object]:
     return {
         "dataset_name": "KENYA_SACCO_SIM",
         "version": "0.1.0",
@@ -79,11 +80,21 @@ def _manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object
         "suspicious_ratio": config.suspicious_ratio,
         "difficulty": config.difficulty,
         "files": list(rows_by_file) + ["manifest.json", "validation_report.json"],
+        "file_hashes_md5": _file_hashes(output_dir, list(rows_by_file) + ["validation_report.json"]),
         "validation": {
             "error_count": len(report["errors"]),
             "warning_count": len(report["warnings"]),
         },
     }
+
+
+def _file_hashes(output_dir: Path, filenames: list[str]) -> dict[str, str]:
+    hashes: dict[str, str] = {}
+    for filename in filenames:
+        path = output_dir / filename
+        if path.exists():
+            hashes[filename] = hashlib.md5(path.read_bytes()).hexdigest()
+    return hashes
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -22,6 +22,11 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
     total_txns = len(transactions)
     cash_share = cash_count / total_txns if total_txns else 0.0
     active_member_share = len(active_members) / len(members) if members else 0.0
+    counterparty_hash_eligible = [row for row in transactions if row.get("counterparty_type") not in {"SOURCE", "SINK"}]
+    counterparty_hash_count = sum(1 for row in counterparty_hash_eligible if row.get("counterparty_id_hash"))
+    counterparty_hash_coverage = counterparty_hash_count / len(counterparty_hash_eligible) if counterparty_hash_eligible else 1.0
+    source_concentration = _max_external_concentration(transactions, "account_id_dr", "SOURCE_ACCOUNT", rows_by_file)
+    sink_concentration = _max_external_concentration(transactions, "account_id_cr", "SINK_ACCOUNT", rows_by_file)
 
     persona_summary = _persona_summary(transactions, member_by_id)
     if cash_share < 0.10:
@@ -30,6 +35,12 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
         findings.append(ValidationFinding("warning", "distribution.cash_share_high", f"Cash rail share {cash_share:.3f} is above 0.20 target", "transactions.csv"))
     if active_member_share < 0.60:
         findings.append(ValidationFinding("warning", "distribution.active_member_share_low", f"Active member share {active_member_share:.3f} is below 0.60 review threshold", "transactions.csv"))
+    if counterparty_hash_coverage < 0.70:
+        findings.append(ValidationFinding("error", "distribution.counterparty_id_coverage_low", f"Counterparty hash coverage {counterparty_hash_coverage:.3f} is below 0.70", "transactions.csv"))
+    if source_concentration > 0.80:
+        findings.append(ValidationFinding("warning", "distribution.source_concentration_high", f"One source account handles {source_concentration:.3f} of source-funded txns", "transactions.csv"))
+    if sink_concentration > 0.80:
+        findings.append(ValidationFinding("warning", "distribution.sink_concentration_high", f"One sink account handles {sink_concentration:.3f} of sink-credit txns", "transactions.csv"))
 
     return findings, {
         "transaction_count": total_txns,
@@ -37,11 +48,23 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
         "active_member_share": round(active_member_share, 4),
         "cash_rail_count": cash_count,
         "cash_rail_share": round(cash_share, 4),
+        "counterparty_id_hash_coverage": round(counterparty_hash_coverage, 4),
+        "source_account_max_concentration": round(source_concentration, 4),
+        "sink_account_max_concentration": round(sink_concentration, 4),
         "rail_counts": dict(sorted(rail_counts.items())),
         "txn_type_counts": dict(sorted(txn_type_counts.items())),
         "monthly_transaction_counts": {str(month): month_counts[month] for month in range(1, 13)},
         "persona_summary": persona_summary,
     }
+
+
+def _max_external_concentration(transactions: list[dict[str, object]], column: str, account_type: str, rows_by_file: dict[str, list[dict[str, object]]]) -> float:
+    account_types = {str(row["account_id"]): str(row["account_type"]) for row in rows_by_file.get("accounts.csv", [])}
+    counts = Counter(str(row[column]) for row in transactions if account_types.get(str(row[column])) == account_type)
+    total = sum(counts.values())
+    if not total:
+        return 0.0
+    return max(counts.values()) / total
 
 
 def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:

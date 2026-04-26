@@ -40,6 +40,8 @@ def validate_foreign_keys(rows_by_file: dict[str, list[dict[str, object]]]) -> l
         if str(edge["dst_node_id"]) not in node_ids:
             findings.append(_error("foreign_key.edge_dst_missing", "Edge dst_node_id must resolve to nodes.node_id", "graph_edges.csv", row_id))
 
+    _check_infrastructure_graph(rows_by_file, node_ids, findings)
+
     for txn in rows_by_file.get("transactions.csv", []):
         row_id = str(txn["txn_id"])
         for column in ("account_id_dr", "account_id_cr"):
@@ -53,9 +55,36 @@ def validate_foreign_keys(rows_by_file: dict[str, list[dict[str, object]]]) -> l
         _check_txn_entity(txn, "branch_id", entity_to_types, {"BRANCH"}, findings, nullable=True)
         _check_txn_entity(txn, "agent_id", entity_to_types, {"AGENT"}, findings, nullable=True)
         _check_txn_entity(txn, "device_id", entity_to_types, {"DEVICE"}, findings, nullable=True)
+        if txn.get("rail") == "CASH_AGENT" and not txn.get("agent_id"):
+            findings.append(_error("foreign_key.cash_agent_missing_agent", "CASH_AGENT transactions must have agent_id", "transactions.csv", row_id))
 
     _check_required_accounts(rows_by_file.get("members.csv", []), rows_by_file.get("accounts.csv", []), findings)
     return findings
+
+
+def _check_infrastructure_graph(rows_by_file: dict[str, list[dict[str, object]]], node_ids: set[str], findings: list[ValidationFinding]) -> None:
+    degree: dict[str, int] = defaultdict(int)
+    entity_node: dict[str, str] = {}
+    node_type_by_id: dict[str, str] = {}
+    for node in rows_by_file.get("nodes.csv", []):
+        entity_node[str(node["entity_id"])] = str(node["node_id"])
+        node_type_by_id[str(node["node_id"])] = str(node["node_type"])
+    for edge in rows_by_file.get("graph_edges.csv", []):
+        degree[str(edge["src_node_id"])] += 1
+        degree[str(edge["dst_node_id"])] += 1
+    for node in rows_by_file.get("nodes.csv", []):
+        if node["node_type"] in {"INSTITUTION", "BRANCH"} and degree[str(node["node_id"])] < 1:
+            findings.append(_error("foreign_key.infrastructure_node_isolated", f"{node['node_type']} node has no graph edges", "nodes.csv", str(node["node_id"])))
+
+    account_edges = {(str(edge["src_node_id"]), str(edge["dst_node_id"]), str(edge["edge_type"])) for edge in rows_by_file.get("graph_edges.csv", [])}
+    for account in rows_by_file.get("accounts.csv", []):
+        account_node = entity_node.get(str(account["account_id"]))
+        branch_node = entity_node.get(str(account.get("branch_id") or ""))
+        institution_node = entity_node.get(str(account.get("institution_id") or ""))
+        if account_node and branch_node and (account_node, branch_node, "ACCOUNT_AT_BRANCH") not in account_edges:
+            findings.append(_error("foreign_key.account_branch_edge_missing", "Account branch_id must have ACCOUNT_AT_BRANCH graph edge", "accounts.csv", str(account["account_id"])))
+        if account_node and institution_node and (account_node, institution_node, "ACCOUNT_BELONGS_TO_INSTITUTION") not in account_edges:
+            findings.append(_error("foreign_key.account_institution_edge_missing", "Account institution_id must have ACCOUNT_BELONGS_TO_INSTITUTION graph edge", "accounts.csv", str(account["account_id"])))
 
 
 def _check_entity_type(

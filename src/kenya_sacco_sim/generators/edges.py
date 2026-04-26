@@ -38,6 +38,17 @@ def generate_edges(
             {},
         )
 
+    for agent in world.agents:
+        _append_edge(
+            ids,
+            edges,
+            node_by_entity[str(agent["agent_id"])],
+            node_by_entity[str(agent["branch_id"])],
+            "USES_AGENT",
+            str(agent["created_at"])[:10],
+            {},
+        )
+
     for account in accounts:
         member_id = account["member_id"]
         account_id = str(account["account_id"])
@@ -54,14 +65,14 @@ def generate_edges(
         if employer_id:
             _append_edge(ids, edges, node_by_entity[str(member["member_id"])], node_by_entity[str(employer_id)], "EMPLOYED_BY", str(member["join_date"]), {})
 
-    source_node = next((node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"), None)
-    sink_node = next((node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SINK_ACCOUNT"), None)
+    source_nodes = [node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"]
+    sink_nodes = [node_by_entity[str(account["account_id"])] for account in accounts if account["account_type"] == "SINK_ACCOUNT"]
     for account in accounts:
         if account["account_type"] in {"FOSA_SAVINGS", "FOSA_CURRENT", "MPESA_WALLET"}:
             account_node = node_by_entity[str(account["account_id"])]
-            if source_node:
+            for source_node in source_nodes:
                 _append_edge(ids, edges, source_node, account_node, "SOURCE_FUNDS_ACCOUNT", str(account["open_date"]), {"account_type": account["account_type"]})
-            if sink_node:
+            for sink_node in sink_nodes:
                 _append_edge(ids, edges, account_node, sink_node, "ACCOUNT_PAYS_SINK", str(account["open_date"]), {"account_type": account["account_type"]})
 
     return edges

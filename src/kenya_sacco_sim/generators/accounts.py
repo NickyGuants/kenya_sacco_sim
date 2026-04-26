@@ -73,26 +73,27 @@ def _account(
 
 def _external_accounts(ids: IdFactory, config: WorldConfig) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    for owner_type, account_type, product_code, label in [
-        ("SOURCE", "SOURCE_ACCOUNT", "EXTERNAL_SOURCE", "EXT_SRC_GENERIC"),
-        ("SINK", "SINK_ACCOUNT", "EXTERNAL_SINK", "EXT_SINK_GENERIC"),
-    ]:
-        rows.append(
-            {
-                "account_id": ids.next("ACCT"),
-                "member_id": None,
-                "institution_id": None,
-                "account_owner_type": owner_type,
-                "account_type": account_type,
-                "product_code": product_code,
-                "open_date": config.start_date,
-                "status": "ACTIVE",
-                "linked_wallet_id": None,
-                "branch_id": None,
-                "currency": config.currency,
-                "opening_balance_kes": 0,
-                "current_balance_kes": 0,
-                "external_account_label": label,
-            }
-        )
+    for index in range(1, 7):
+        rows.append(_external_account(ids, config, "SOURCE", "SOURCE_ACCOUNT", "EXTERNAL_SOURCE", f"EXT_SRC_{index:03d}"))
+    for index in range(1, 7):
+        rows.append(_external_account(ids, config, "SINK", "SINK_ACCOUNT", "EXTERNAL_SINK", f"EXT_SINK_{index:03d}"))
     return rows
+
+
+def _external_account(ids: IdFactory, config: WorldConfig, owner_type: str, account_type: str, product_code: str, label: str) -> dict[str, object]:
+    return {
+        "account_id": ids.next("ACCT"),
+        "member_id": None,
+        "institution_id": None,
+        "account_owner_type": owner_type,
+        "account_type": account_type,
+        "product_code": product_code,
+        "open_date": config.start_date,
+        "status": "ACTIVE",
+        "linked_wallet_id": None,
+        "branch_id": None,
+        "currency": config.currency,
+        "opening_balance_kes": 0,
+        "current_balance_kes": 0,
+        "external_account_label": label,
+    }

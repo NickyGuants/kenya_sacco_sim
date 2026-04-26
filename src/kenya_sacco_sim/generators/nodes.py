@@ -15,6 +15,8 @@ def generate_nodes(world: InstitutionWorld, members: list[dict[str, object]], ac
         _append_node(ids, nodes, seen, str(branch["branch_id"]), "BRANCH", str(branch["institution_id"]), branch["county"], branch["urban_rural"], branch["created_at"])
     for employer in world.employers:
         _append_node(ids, nodes, seen, str(employer["employer_id"]), "EMPLOYER", str(employer["institution_id"]), employer["county"], employer["urban_rural"], employer["created_at"])
+    for agent in world.agents:
+        _append_node(ids, nodes, seen, str(agent["agent_id"]), "AGENT", str(agent["institution_id"]), agent["county"], agent["urban_rural"], agent["created_at"])
     for member in members:
         _append_node(ids, nodes, seen, str(member["member_id"]), "MEMBER", str(member["institution_id"]), member["county"], member["urban_rural"], member["created_at"])
     for account in accounts:
