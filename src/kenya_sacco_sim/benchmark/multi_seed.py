@@ -24,6 +24,7 @@ STABILITY_THRESHOLD = 0.10
 
 
 def run_multi_seed_benchmark(config: WorldConfig, seeds: list[int], output_dir: Path, write_seed_datasets: bool = False) -> dict[str, object]:
+    seeds = _validate_seeds(seeds)
     output_dir.mkdir(parents=True, exist_ok=True)
     seed_results: list[dict[str, object]] = []
     for seed in seeds:
@@ -34,6 +35,16 @@ def run_multi_seed_benchmark(config: WorldConfig, seeds: list[int], output_dir: 
     result = _multi_seed_result(config, seeds, seed_results)
     write_json(output_dir / "multi_seed_results.json", result)
     return result
+
+
+def _validate_seeds(seeds: list[int]) -> list[int]:
+    if not seeds:
+        raise ValueError("At least one seed is required for multi-seed benchmarking")
+    duplicates = sorted({seed for seed in seeds if seeds.count(seed) > 1})
+    if duplicates:
+        duplicate_text = ", ".join(str(seed) for seed in duplicates)
+        raise ValueError(f"Duplicate seeds are not allowed: {duplicate_text}")
+    return list(seeds)
 
 
 def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, object]:

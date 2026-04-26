@@ -4,11 +4,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kenya_sacco_sim.benchmark.multi_seed import _stability_report, run_multi_seed_benchmark
+from kenya_sacco_sim.benchmark.multi_seed import _stability_report, _validate_seeds, run_multi_seed_benchmark
 from kenya_sacco_sim.core.config import load_world_config, with_cli_overrides
 
 
 class MultiSeedBenchmarkTests(unittest.TestCase):
+    def test_seed_validation_rejects_empty_seed_list(self) -> None:
+        with self.assertRaisesRegex(ValueError, "At least one seed"):
+            _validate_seeds([])
+
+    def test_seed_validation_rejects_duplicates(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Duplicate seeds"):
+            _validate_seeds([42, 1337, 42])
+
     def test_stability_report_flags_precision_recall_range(self) -> None:
         report = _stability_report(
             [

@@ -178,7 +178,10 @@ def benchmark(args: argparse.Namespace) -> int:
         suspicious_ratio=args.suspicious_ratio,
         difficulty=args.difficulty,
     )
-    result = run_multi_seed_benchmark(config, args.seeds, args.output, write_seed_datasets=args.write_seed_datasets)
+    try:
+        result = run_multi_seed_benchmark(config, args.seeds, args.output, write_seed_datasets=args.write_seed_datasets)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     failed = not result["acceptance"]["validation_error_free"] or not result["acceptance"]["precision_recall_variance_within_threshold"]
     print(
         json.dumps(

@@ -78,7 +78,9 @@ python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 3
 The harness writes `multi_seed_results.json` with per-seed validation status,
 baseline precision/recall, and distribution stability statistics. It fails if
 any seed has validation errors or if typology precision/recall ranges exceed
-the v0.2 stability threshold of `0.10`.
+the v0.2 stability threshold of `0.10`. Seed lists must be non-empty and unique;
+duplicate seeds are rejected so optional per-seed dataset exports cannot
+overwrite each other.
 
 If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
 
