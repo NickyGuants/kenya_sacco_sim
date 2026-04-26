@@ -129,7 +129,7 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
         }
     if total > 0 and config.member_count >= 100:
         total = max(total, 4 if include_fake_affordability else 3)
-    if config.member_count >= 10_000:
+    if total > 0 and config.member_count >= 10_000:
         total = max(total, 30 * (4 if include_fake_affordability else 3))
 
     base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
