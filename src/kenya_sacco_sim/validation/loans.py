@@ -55,7 +55,9 @@ def validate_loans(rows_by_file: dict[str, list[dict[str, object]]]) -> tuple[li
         outstanding = round(principal + penalty_by_account[loan_account_id] - repayment_by_account[loan_account_id], 2)
         if round(float(account["current_balance_kes"]), 2) != outstanding:
             findings.append(_error("loan.outstanding_balance_mismatch", "LOAN_ACCOUNT current balance must equal outstanding principal plus penalties", loan_id))
-        if loan["performing_status"] == "CLOSED" and outstanding != 0:
+        if outstanding <= 0.005 and loan["performing_status"] != "CLOSED":
+            findings.append(_error("loan.zero_balance_not_closed", "Zero-balance loans must have performing_status CLOSED", loan_id))
+        if loan["performing_status"] == "CLOSED" and outstanding > 0.005:
             findings.append(_error("loan.closed_positive_balance", "Closed loans must have zero outstanding balance", loan_id))
         if loan["performing_status"] == "CURRENT" and int(loan["arrears_days"]) != 0:
             findings.append(_error("loan.current_with_arrears", "CURRENT loans must have zero arrears_days", loan_id))
@@ -87,6 +89,7 @@ def validate_guarantors(rows_by_file: dict[str, list[dict[str, object]]]) -> tup
             edge_pairs.add((str(edge["src_node_id"]), str(edge["dst_node_id"])))
     node_by_entity = {str(node["entity_id"]): str(node["node_id"]) for node in rows_by_file.get("nodes.csv", [])}
     by_loan = defaultdict(list)
+    active_counts_by_guarantor = Counter()
     for guarantee in guarantors:
         loan_id = str(guarantee["loan_id"])
         by_loan[loan_id].append(guarantee)
@@ -102,6 +105,9 @@ def validate_guarantors(rows_by_file: dict[str, list[dict[str, object]]]) -> tup
         pair = (node_by_entity.get(guarantor), node_by_entity.get(borrower))
         if pair not in edge_pairs:
             findings.append(_error("guarantor.edge_missing", "GUARANTEES graph edge must exist", row_id))
+        loan = loans.get(loan_id)
+        if loan and loan["performing_status"] != "CLOSED":
+            active_counts_by_guarantor[guarantor] += 1
 
     guaranteed_loans = 0
     total_guarantors = 0
@@ -115,10 +121,19 @@ def validate_guarantors(rows_by_file: dict[str, list[dict[str, object]]]) -> tup
         if guaranteed_amount + 0.005 < float(loan["principal_kes"]) * 0.45:
             findings.append(_error("guarantor.coverage_low", "Guaranteed loan must have at least 45% guarantee coverage", str(loan["loan_id"])))
 
+    for guarantor_id, count in active_counts_by_guarantor.items():
+        if count > 10:
+            findings.append(ValidationFinding("error", "guarantor.concentration_error", f"Guarantor backs {count} active loans; clean maximum is 10", "guarantors.csv", guarantor_id))
+        elif count > 5:
+            findings.append(ValidationFinding("warning", "guarantor.concentration_warning", f"Guarantor backs {count} active loans; normal review threshold is 5", "guarantors.csv", guarantor_id))
+
     return findings, {
         "guarantor_row_count": len(guarantors),
         "guaranteed_loan_count": guaranteed_loans,
         "avg_guarantors_per_guaranteed_loan": round(total_guarantors / guaranteed_loans, 3) if guaranteed_loans else 0,
+        "max_active_guarantees_per_member": max(active_counts_by_guarantor.values(), default=0),
+        "guarantors_backing_gt5_active_loans": sum(1 for count in active_counts_by_guarantor.values() if count > 5),
+        "guarantors_backing_gt10_active_loans": sum(1 for count in active_counts_by_guarantor.values() if count > 10),
     }
 
 
@@ -142,7 +157,7 @@ def validate_credit_distribution(rows_by_file: dict[str, list[dict[str, object]]
     arrears_count = status_counts["IN_ARREARS"] + status_counts["DEFAULTED"]
     arrears_share = arrears_count / total_loans if total_loans else 0.0
     default_share = status_counts["DEFAULTED"] / total_loans if total_loans else 0.0
-    repayment_success_rate = status_counts["CURRENT"] / total_loans if total_loans else 0.0
+    repayment_success_rate = (status_counts["CURRENT"] + status_counts["CLOSED"]) / total_loans if total_loans else 0.0
     avg_guarantors = len(guarantors) / len(guaranteed_loan_ids) if guaranteed_loan_ids else 0.0
 
     _warn_range(findings, "credit.loan_active_member_ratio", active_member_ratio, 0.18, 0.40, "loans.csv")

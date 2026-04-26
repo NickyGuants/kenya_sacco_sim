@@ -34,7 +34,7 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         counterparty_type: str = "EXTERNAL_UNKNOWN",
         branch_id: object | None = None,
     ) -> None:
-        amount = round(float(amount), 2)
+        amount = _realistic_amount(round(float(amount), 2), txn_type, rail, rng)
         if amount <= 0:
             return
         timestamp = _bounded_timestamp(timestamp, config)
@@ -103,6 +103,8 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
 
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _recompute_balances(transactions, accounts)
+    if loans:
+        _finalize_loan_statuses(loans, accounts)
     return transactions
 
 
@@ -439,6 +441,22 @@ def _narrative(txn_type: str) -> str:
     return txn_type.replace("_", " ").title()
 
 
+def _realistic_amount(amount: float, txn_type: str, rail: str, rng: random.Random) -> float:
+    if txn_type in {"SALARY_IN", "CHECKOFF_DEPOSIT", "CHECKOFF_LOAN_RECOVERY", "LOAN_REPAYMENT", "LOAN_DISBURSEMENT", "PENALTY_POST"}:
+        return amount
+    if txn_type == "SCHOOL_FEES_PAYMENT_OUT" and rng.random() < 0.75:
+        return _round_to_nearest(amount, 500)
+    if rail in {"CASH_AGENT", "CASH_BRANCH"} and rng.random() < 0.55:
+        return _round_to_nearest(amount, rng.choice([50, 100]))
+    if txn_type == "BUSINESS_SETTLEMENT_IN" and rng.random() < 0.25:
+        return _round_to_nearest(amount, 100)
+    return amount
+
+
+def _round_to_nearest(amount: float, increment: int) -> float:
+    return round(max(increment, round(amount / increment) * increment), 2)
+
+
 def _bounded_timestamp(timestamp: datetime, config: WorldConfig) -> datetime:
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=EAT)
@@ -466,6 +484,17 @@ def _recompute_balances(transactions: list[dict[str, object]], accounts: list[di
         txn["balance_after_cr_kes"] = round(balances[credit_id], 2)
     for account in accounts:
         account["current_balance_kes"] = round(balances[str(account["account_id"])], 2)
+
+
+def _finalize_loan_statuses(loans: list[dict[str, object]], accounts: list[dict[str, object]]) -> None:
+    account_by_id = {str(account["account_id"]): account for account in accounts}
+    for loan in loans:
+        account = account_by_id[str(loan["loan_account_id"])]
+        if round(float(account["current_balance_kes"]), 2) <= 0.0:
+            loan["performing_status"] = "CLOSED"
+            loan["arrears_days"] = 0
+            loan["default_flag"] = False
+            account["status"] = "CLOSED"
 
 
 def _apply_movement(balances: dict[str, float], account_by_id: dict[str, dict[str, object]], account_id: str, side: str, amount: float) -> None:

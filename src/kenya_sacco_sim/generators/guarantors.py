@@ -6,6 +6,7 @@ from kenya_sacco_sim.core.id_factory import IdFactory
 
 
 GUARANTEED_PRODUCTS = {"DEVELOPMENT_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE"}
+MAX_ACTIVE_GUARANTEES_PER_MEMBER = 5
 
 
 def select_guarantors(
@@ -15,12 +16,15 @@ def select_guarantors(
     borrower: dict[str, object],
     members_by_institution: dict[str, list[dict[str, object]]],
     member_accounts: dict[str, list[dict[str, object]]],
+    active_guarantee_counts: dict[str, int],
 ) -> list[dict[str, object]]:
     principal = float(loan["principal_kes"])
     required = principal * 0.60
     candidates: list[tuple[dict[str, object], dict[str, object], float]] = []
     for candidate in members_by_institution[str(borrower["institution_id"])]:
         if candidate["member_id"] == borrower["member_id"] or candidate["member_type"] != "INDIVIDUAL":
+            continue
+        if active_guarantee_counts[str(candidate["member_id"])] >= MAX_ACTIVE_GUARANTEES_PER_MEMBER:
             continue
         bosa = _first(member_accounts[str(candidate["member_id"])], {"BOSA_DEPOSIT"})
         if not bosa:
@@ -41,6 +45,7 @@ def select_guarantors(
         if amount <= 0:
             continue
         covered += amount
+        active_guarantee_counts[str(candidate["member_id"])] += 1
         selected.append(
             {
                 "guarantee_id": guarantee_ids.next("GUA"),

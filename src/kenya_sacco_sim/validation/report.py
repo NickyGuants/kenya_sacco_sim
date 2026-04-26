@@ -3,6 +3,7 @@ from __future__ import annotations
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.core.models import ValidationFinding
 from kenya_sacco_sim.validation.balances import validate_balances
+from kenya_sacco_sim.validation.clean_baseline import clean_baseline_metrics
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.foreign_keys import validate_foreign_keys
 from kenya_sacco_sim.validation.loan_validator import validate_credit_distribution, validate_guarantors, validate_loans
@@ -33,6 +34,7 @@ def build_validation_report(rows_by_file: dict[str, list[dict[str, object]]], co
         "loan_validation": loan_section,
         "guarantor_validation": guarantor_section,
         "credit_distribution_validation": credit_section,
+        "clean_baseline_aml_metrics": clean_baseline_metrics(rows_by_file),
         "distribution_validation": distribution_section,
         "typology_validation": {"status": "not_applicable_milestone_1"},
         "errors": [_finding_to_dict(f) for f in findings if f.severity == "error"],

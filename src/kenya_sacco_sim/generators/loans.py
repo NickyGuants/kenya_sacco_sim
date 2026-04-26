@@ -40,6 +40,7 @@ def generate_loans_and_guarantors(
     loans: list[dict[str, object]] = []
     guarantors: list[dict[str, object]] = []
     guarantee_ids = IdFactory()
+    active_guarantee_counts: dict[str, int] = defaultdict(int)
 
     for member in members:
         persona = str(member["persona_type"])
@@ -65,26 +66,7 @@ def generate_loans_and_guarantors(
         approval_date = application_date + timedelta(days=rng.randint(1, 7))
         disbursement_date = approval_date + timedelta(days=rng.randint(1, 5))
         branch = rng.choice(branches_by_institution[str(member["institution_id"])])
-        next_account_id += 1
-        loan_account_id = f"ACC{next_account_id:08d}"
-        accounts.append(
-            {
-                "account_id": loan_account_id,
-                "member_id": member["member_id"],
-                "institution_id": member["institution_id"],
-                "account_owner_type": "MEMBER",
-                "account_type": "LOAN_ACCOUNT",
-                "product_code": product_code,
-                "open_date": disbursement_date.isoformat(),
-                "status": "ACTIVE",
-                "linked_wallet_id": None,
-                "branch_id": branch["branch_id"],
-                "currency": config.currency,
-                "opening_balance_kes": 0,
-                "current_balance_kes": 0,
-                "external_account_label": None,
-            }
-        )
+        loan_account_id = f"ACC{next_account_id + 1:08d}"
 
         arrears_roll = rng.random()
         if arrears_roll < _default_probability(persona):
@@ -123,11 +105,36 @@ def generate_loans_and_guarantors(
             "restructure_flag": False,
             "default_flag": default_flag,
         }
-        loans.append(loan)
-
+        loan_guarantors: list[dict[str, object]] = []
         if product_code in GUARANTEED_PRODUCTS:
-            guarantors.extend(select_guarantors(rng, guarantee_ids, loan, member, members_by_institution, member_accounts))
+            loan_guarantors = select_guarantors(rng, guarantee_ids, loan, member, members_by_institution, member_accounts, active_guarantee_counts)
+            guaranteed_amount = sum(float(guarantee["guarantee_amount_kes"]) for guarantee in loan_guarantors)
+            if guaranteed_amount + 0.005 < principal * 0.45:
+                for guarantee in loan_guarantors:
+                    active_guarantee_counts[str(guarantee["guarantor_member_id"])] -= 1
+                continue
 
+        next_account_id += 1
+        accounts.append(
+            {
+                "account_id": loan_account_id,
+                "member_id": member["member_id"],
+                "institution_id": member["institution_id"],
+                "account_owner_type": "MEMBER",
+                "account_type": "LOAN_ACCOUNT",
+                "product_code": product_code,
+                "open_date": disbursement_date.isoformat(),
+                "status": "ACTIVE",
+                "linked_wallet_id": None,
+                "branch_id": branch["branch_id"],
+                "currency": config.currency,
+                "opening_balance_kes": 0,
+                "current_balance_kes": 0,
+                "external_account_label": None,
+            }
+        )
+        loans.append(loan)
+        guarantors.extend(loan_guarantors)
     return loans, guarantors
 
 
@@ -238,4 +245,3 @@ def _default_probability(persona: str) -> float:
         "BODA_BODA_OPERATOR": 0.035,
         "DIASPORA_SUPPORTED": 0.015,
     }.get(persona, 0.02)
-
