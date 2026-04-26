@@ -8,6 +8,9 @@ from kenya_sacco_sim.core.enums import (
     ACCOUNT_OWNER_TYPES,
     ACCOUNT_STATUSES,
     ACCOUNT_TYPES,
+    ALERT_ENTITY_TYPES,
+    ALERT_SEVERITIES,
+    ALERT_STAGES,
     CHANNELS,
     COUNTERPARTY_TYPES,
     EDGE_TYPES,
@@ -18,6 +21,7 @@ from kenya_sacco_sim.core.enums import (
     RAILS,
     RISK_SEGMENTS,
     TXN_TYPES,
+    TYPOLOGIES,
 )
 from kenya_sacco_sim.core.models import ValidationFinding
 
@@ -124,6 +128,23 @@ REQUIRED_COLUMNS = {
         "relationship_type",
         "guarantor_capacity_remaining_kes",
     ],
+    "alerts_truth.csv": [
+        "alert_id",
+        "pattern_id",
+        "typology",
+        "entity_type",
+        "entity_id",
+        "member_id",
+        "account_id",
+        "txn_id",
+        "edge_id",
+        "start_timestamp",
+        "end_timestamp",
+        "severity",
+        "truth_label",
+        "stage",
+        "explanation_code",
+    ],
 }
 
 PRIMARY_KEYS = {
@@ -134,6 +155,7 @@ PRIMARY_KEYS = {
     "transactions.csv": "txn_id",
     "loans.csv": "loan_id",
     "guarantors.csv": "guarantee_id",
+    "alerts_truth.csv": "alert_id",
 }
 
 STRICT_ENUMS = {
@@ -158,6 +180,12 @@ STRICT_ENUMS = {
     ("loans.csv", "purpose_code"): {"SCHOOL_FEES", "BUSINESS_WORKING_CAPITAL", "ASSET_PURCHASE", "MEDICAL_EMERGENCY", "HOUSEHOLD_NEED", "AGRICULTURE_INPUTS", "DEVELOPMENT_PROJECT", "OTHER"},
     ("loans.csv", "performing_status"): {"CURRENT", "IN_ARREARS", "RESTRUCTURED", "DEFAULTED", "CLOSED", "WRITTEN_OFF"},
     ("guarantors.csv", "relationship_type"): {"COWORKER", "FAMILY", "FRIEND", "SACCO_MEMBER", "CHURCH_MEMBER", "BUSINESS_ASSOCIATE", "UNKNOWN"},
+    ("alerts_truth.csv", "typology"): TYPOLOGIES,
+    ("alerts_truth.csv", "entity_type"): ALERT_ENTITY_TYPES,
+    ("alerts_truth.csv", "severity"): ALERT_SEVERITIES,
+    ("alerts_truth.csv", "truth_label"): {True},
+    ("alerts_truth.csv", "stage"): ALERT_STAGES,
+    ("alerts_truth.csv", "explanation_code"): {"STRUCTURED_SUB_THRESHOLD_DEPOSITS", "RAPID_IN_OUT_MOVEMENT", "HIGH_EXIT_RATIO", "MULTIPLE_OUTBOUND_COUNTERPARTIES", "SUSPICIOUS_PATTERN_SUMMARY"},
 }
 
 RECOMMENDED_ENUMS = {
@@ -183,7 +211,7 @@ def validate_schema(rows_by_file: dict[str, list[dict[str, object]]], config: Wo
     for filename, columns in REQUIRED_COLUMNS.items():
         rows = rows_by_file.get(filename)
         if rows is None:
-            if filename in {"transactions.csv", "loans.csv", "guarantors.csv"}:
+            if filename in {"transactions.csv", "loans.csv", "guarantors.csv", "alerts_truth.csv"}:
                 continue
             findings.append(_error("schema.missing_file", f"Missing required file {filename}", filename))
             continue
@@ -211,6 +239,7 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
         "transactions.csv": re.compile(r"^TXN\d{12}$"),
         "loans.csv": re.compile(r"^LOAN\d{6}$"),
         "guarantors.csv": re.compile(r"^GUA\d{6}$"),
+        "alerts_truth.csv": re.compile(r"^ALT\d{8}$"),
     }
     pattern = patterns.get(filename)
     seen: set[str] = set()
@@ -273,6 +302,20 @@ def _validate_dates(filename: str, rows: list[dict[str, object]], config: WorldC
             parsed_dt = datetime.fromisoformat(str(value))
             if parsed_dt.utcoffset() is None:
                 findings.append(_error("schema.timezone_missing", "created_at must include Africa/Nairobi +03:00 offset", filename, _row_id(row)))
+    for timestamp_column in ("start_timestamp", "end_timestamp"):
+        if rows and timestamp_column in rows[0]:
+            for row in rows:
+                value = row.get(timestamp_column)
+                if value in (None, ""):
+                    findings.append(_error("schema.timestamp_missing", f"{timestamp_column} is required", filename, _row_id(row)))
+                    continue
+                parsed_dt = datetime.fromisoformat(str(value))
+                if parsed_dt.utcoffset() is None:
+                    findings.append(_error("schema.timezone_missing", f"{timestamp_column} must include Africa/Nairobi +03:00 offset", filename, _row_id(row)))
+                elif parsed_dt.utcoffset().total_seconds() != 10_800:
+                    findings.append(_error("schema.timezone_invalid", f"{timestamp_column} must use Africa/Nairobi +03:00 offset", filename, _row_id(row)))
+                if not start <= parsed_dt.date() <= end:
+                    findings.append(_error("schema.date_out_of_window", f"{timestamp_column}={value} outside simulation window", filename, _row_id(row)))
 
 
 def _validate_account_product_codes(rows: list[dict[str, object]], findings: list[ValidationFinding]) -> None:
@@ -307,7 +350,7 @@ def _validate_transaction_amounts(rows: list[dict[str, object]], findings: list[
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for key in ("member_id", "account_id", "node_id", "edge_id", "txn_id", "guarantee_id", "loan_id"):
+    for key in ("alert_id", "member_id", "account_id", "node_id", "edge_id", "txn_id", "guarantee_id", "loan_id"):
         if row.get(key):
             return str(row[key])
     return None
