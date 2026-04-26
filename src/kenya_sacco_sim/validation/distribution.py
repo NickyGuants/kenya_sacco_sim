@@ -4,10 +4,11 @@ from collections import Counter, defaultdict
 from datetime import datetime
 from statistics import median
 
+from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.core.models import ValidationFinding
 
 
-def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> tuple[list[ValidationFinding], dict[str, object]]:
+def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]], config: WorldConfig) -> tuple[list[ValidationFinding], dict[str, object]]:
     transactions = rows_by_file.get("transactions.csv")
     members = rows_by_file.get("members.csv", [])
     if not transactions:
@@ -29,7 +30,7 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
     source_concentration = _max_external_concentration(transactions, "account_id_dr", "SOURCE_ACCOUNT", rows_by_file)
     sink_concentration = _max_external_concentration(transactions, "account_id_cr", "SINK_ACCOUNT", rows_by_file)
 
-    persona_summary = _persona_summary(transactions, member_by_id)
+    persona_summary = _persona_summary(transactions, member_by_id, max(1, config.months))
     if cash_share < 0.10:
         findings.append(ValidationFinding("warning", "distribution.cash_share_low", f"Cash rail share {cash_share:.3f} is below 0.10 target", "transactions.csv"))
     elif cash_share > 0.20:
@@ -46,8 +47,8 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]]) -> t
     if church_summary and int(church_summary["member_count"]) > 0:
         if float(church_summary["active_member_share"]) < 0.60:
             findings.append(ValidationFinding("error", "distribution.church_org_active_share_low", f"CHURCH_ORG active share {church_summary['active_member_share']:.3f} is below 0.60", "transactions.csv"))
-        if float(church_summary["median_txns_per_member"]) < 20:
-            findings.append(ValidationFinding("error", "distribution.church_org_median_txns_low", f"CHURCH_ORG median txns/year {church_summary['median_txns_per_member']:.2f} is below 20", "transactions.csv"))
+        if float(church_summary["median_txns_per_member_annualized"]) < 20:
+            findings.append(ValidationFinding("error", "distribution.church_org_median_txns_low", f"CHURCH_ORG annualized median txns/member {church_summary['median_txns_per_member_annualized']:.2f} is below 20", "transactions.csv"))
 
     return findings, {
         "transaction_count": total_txns,
@@ -74,7 +75,7 @@ def _max_external_concentration(transactions: list[dict[str, object]], column: s
     return max(counts.values()) / total
 
 
-def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[str, dict[str, object]], months: int) -> dict[str, dict[str, object]]:
     by_persona: dict[str, dict[str, object]] = defaultdict(lambda: {"txns": 0, "members": set(), "cash_txns": 0, "wallet_txns": 0})
     member_counts = Counter(str(member["persona_type"]) for member in member_by_id.values())
     txns_by_member = Counter(str(txn.get("member_id_primary") or "") for txn in transactions if txn.get("member_id_primary"))
@@ -99,13 +100,15 @@ def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[s
         members = row["members"]
         member_count = member_counts[persona]
         member_txn_counts = [txns_by_member[member_id] for member_id, member in member_by_id.items() if str(member["persona_type"]) == persona]
+        median_txns = round(median(member_txn_counts), 2) if member_txn_counts else 0
         summary[persona] = {
             "member_count": member_count,
             "active_members": len(members),
             "active_member_share": round(len(members) / member_count, 4) if member_count else 0,
             "txns": txns,
             "txns_per_active_member": round(txns / len(members), 2) if members else 0,
-            "median_txns_per_member": round(median(member_txn_counts), 2) if member_txn_counts else 0,
+            "median_txns_per_member": median_txns,
+            "median_txns_per_member_annualized": round(median_txns * 12 / months, 2) if months else median_txns,
             "cash_share": round(int(row["cash_txns"]) / txns, 4) if txns else 0,
             "wallet_share": round(int(row["wallet_txns"]) / txns, 4) if txns else 0,
         }

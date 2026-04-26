@@ -21,7 +21,7 @@ def build_validation_report(
     findings.extend(validate_schema(rows_by_file, config))
     findings.extend(validate_foreign_keys(rows_by_file))
     findings.extend(validate_balances(rows_by_file))
-    distribution_findings, distribution_section = validate_distribution(rows_by_file)
+    distribution_findings, distribution_section = validate_distribution(rows_by_file, config)
     loan_findings, loan_section = validate_loans(rows_by_file)
     guarantor_findings, guarantor_section = validate_guarantors(rows_by_file)
     credit_findings, credit_section = validate_credit_distribution(rows_by_file)
@@ -31,6 +31,7 @@ def build_validation_report(
     findings.extend(guarantor_findings)
     findings.extend(credit_findings)
     findings.extend(label_findings)
+    findings.extend(_benchmark_findings(benchmark_validation))
     has_transactions = "transactions.csv" in rows_by_file
 
     return {
@@ -59,6 +60,25 @@ def _section(findings: list[ValidationFinding], prefix: str) -> dict[str, object
         "error_count": sum(1 for f in relevant if f.severity == "error"),
         "warning_count": sum(1 for f in relevant if f.severity == "warning"),
     }
+
+
+def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[ValidationFinding]:
+    if not benchmark_validation:
+        return []
+    findings: list[ValidationFinding] = []
+    if benchmark_validation.get("no_member_id_split_leakage") is False:
+        findings.append(ValidationFinding("error", "benchmark.member_split_leakage", "Benchmark member split leakage check failed", "split_manifest.json"))
+    if benchmark_validation.get("no_pattern_id_split_leakage") is False:
+        findings.append(ValidationFinding("error", "benchmark.pattern_split_leakage", "Benchmark pattern split leakage check failed", "split_manifest.json"))
+    reference_leakage = benchmark_validation.get("reference_leakage")
+    if isinstance(reference_leakage, dict) and int(reference_leakage.get("mirrored_reference_count") or 0) > 0:
+        findings.append(ValidationFinding("error", "benchmark.reference_leakage", "Benchmark reference mirroring check failed", "baseline_model_results.json"))
+    txn_id_leakage = benchmark_validation.get("txn_id_leakage")
+    if isinstance(txn_id_leakage, dict):
+        threshold_rule = txn_id_leakage.get("best_txn_id_threshold_rule")
+        if isinstance(threshold_rule, dict) and float(threshold_rule.get("precision") or 0) > 0.70 and float(threshold_rule.get("recall") or 0) > 0.70:
+            findings.append(ValidationFinding("error", "benchmark.txn_id_threshold_leakage", "Benchmark txn_id threshold leakage check failed", "baseline_model_results.json"))
+    return findings
 
 
 def _finding_to_dict(finding: ValidationFinding) -> dict[str, object]:

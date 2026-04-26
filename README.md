@@ -21,7 +21,7 @@ Implemented:
 - Rule reconstruction output in `rule_results.json`
 - Near-miss disclosure metrics for unlabeled suspicious-looking behavior
 - Deterministic `manifest.json` metadata for reproducible seed/config reruns
-- Validation for schema, foreign keys, balances, graph completeness, distributions, credit, guarantors, labels, clean AML baselines, benchmark splits, and ID/reference leakage
+- Validation for schema, foreign keys, balances, graph completeness, distributions, credit, guarantors, labels, clean AML baselines, benchmark splits, and ID/reference leakage; benchmark leakage failures affect validation errors
 
 Deferred by the frozen v0.1 spec:
 
@@ -164,6 +164,8 @@ instead of wall clock time so identical seed/config runs are easier to compare.
 Suspicious-member targets are generated and validated with half-up count
 rounding plus a discrete count tolerance, avoiding Python banker-rounding edge
 cases in small runs.
+Persona median transaction metrics include an annualized value so shorter
+`--months` runs are evaluated against comparable yearly thresholds.
 
 The label validator also checks whether a simple transaction-ID threshold can
 recover suspicious transactions. The latest verified 10,000-member run reports:
