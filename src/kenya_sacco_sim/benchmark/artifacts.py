@@ -180,6 +180,7 @@ def _known_limitations() -> str:
     return """# Known Limitations
 
 - v0.2 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, and `FAKE_AFFORDABILITY_BEFORE_LOAN` suspicious typologies.
+- `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
 - Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse are deferred to v1.
 - Device identifiers are populated for normal digital activity, but device-sharing typologies are deferred to v1.
 - Baseline results are deterministic rule results, not trained machine-learning model scores.

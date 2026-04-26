@@ -265,6 +265,14 @@ fake affordability:  precision 0.2409 / recall 0.9706
 macro rule baseline: precision 0.6008 / recall 0.9296
 ```
 
+Known v0.2 benchmark behavior:
+
+```text
+FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
+Normal borrowers may receive legitimate large pre-loan inflows, so false
+positives are expected and make the benchmark less cartoon-clean.
+```
+
 ## Development Discipline
 
 Before committing changes:

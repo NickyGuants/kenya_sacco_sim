@@ -341,6 +341,15 @@ Insertion contract:
 5. Do not put typology labels in transactions.csv, accounts.csv, members.csv, loans.csv, or graph_edges.csv.
 ```
 
+Benchmark behavior:
+
+```text
+The deterministic fake-affordability rule is expected to have low precision.
+Normal borrowers may receive legitimate large external inflows before loan
+applications, so false positives are an intended ambiguity, not a validation
+failure.
+```
+
 Labeling:
 
 ```text
