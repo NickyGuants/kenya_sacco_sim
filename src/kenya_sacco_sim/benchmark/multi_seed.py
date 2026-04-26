@@ -149,7 +149,7 @@ def _seed_summary(
 def _multi_seed_result(config: WorldConfig, seeds: list[int], seed_results: list[dict[str, object]]) -> dict[str, object]:
     stability = _stability_report(seed_results)
     return {
-        "benchmark_name": "KENYA_SACCO_SIM_v0_2_multi_seed",
+        "benchmark_name": "KENYA_SACCO_SIM_v1_multi_seed",
         "created_at": start_timestamp(config),
         "member_count": config.member_count,
         "seed_count": len(seeds),
@@ -239,7 +239,7 @@ def _series_stats(values: list[float]) -> dict[str, object]:
 def _seed_manifest(config: WorldConfig, rows_by_file: dict[str, list[dict[str, object]]], report: dict[str, object], benchmark_artifacts: dict[str, object]) -> dict[str, object]:
     return {
         "dataset_name": "KENYA_SACCO_SIM",
-        "version": "0.2.0",
+        "version": "1.0.0-dev",
         "seed": config.seed,
         "start_date": config.start_date,
         "end_date": config.end_date,

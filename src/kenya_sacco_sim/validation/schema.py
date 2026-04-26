@@ -207,7 +207,7 @@ STRICT_ENUMS = {
     ("alerts_truth.csv", "severity"): ALERT_SEVERITIES,
     ("alerts_truth.csv", "truth_label"): {True},
     ("alerts_truth.csv", "stage"): ALERT_STAGES,
-    ("alerts_truth.csv", "explanation_code"): {"STRUCTURED_SUB_THRESHOLD_DEPOSITS", "RAPID_IN_OUT_MOVEMENT", "HIGH_EXIT_RATIO", "MULTIPLE_OUTBOUND_COUNTERPARTIES", "PRE_LOAN_AFFORDABILITY_BOOST", "SUSPICIOUS_PATTERN_SUMMARY"},
+    ("alerts_truth.csv", "explanation_code"): {"STRUCTURED_SUB_THRESHOLD_DEPOSITS", "RAPID_IN_OUT_MOVEMENT", "HIGH_EXIT_RATIO", "MULTIPLE_OUTBOUND_COUNTERPARTIES", "PRE_LOAN_AFFORDABILITY_BOOST", "SHARED_DEVICE_MULE_ACTIVITY", "SUSPICIOUS_PATTERN_SUMMARY"},
     ("institutions.csv", "archetype"): {"TEACHER_PUBLIC_SECTOR", "UNIFORMED_SERVICES", "UTILITY_PRIVATE_SECTOR", "COMMUNITY_CHURCH", "FARMER_COOPERATIVE", "SME_BIASHARA", "DIASPORA_FACING"},
     ("branches.csv", "branch_type"): {"HQ", "BRANCH", "AGENT_DESK"},
     ("employers.csv", "public_private"): {"PUBLIC", "PRIVATE"},

@@ -2,8 +2,8 @@
 
 Synthetic AML dataset generator for Kenyan SACCO behavior.
 
-The repository now carries the frozen v0.1 release-candidate spec plus the
-v0.2 foundation implementation from the deep research blueprint.
+The repository carries the frozen v0.1 release-candidate spec, the completed
+v0.2 benchmark foundation, and the first v1 typology implementation branch.
 
 ## Current Status
 
@@ -34,6 +34,18 @@ Implemented v0.2 foundation:
 - New suspicious typology and baseline rule: `FAKE_AFFORDABILITY_BEFORE_LOAN`
 - Fake-affordability injection respects configured simulation date windows
 - Member-level ML benchmark baseline using scikit-learn Logistic Regression and Random Forest models
+- Multi-seed stability, evaluation-density gates, rule-vs-ML comparison, and ML rule-proxy ablation diagnostics
+
+v0.2 benchmark release point:
+
+- Git tag: `v0.2-benchmark-final`
+
+In progress for v1:
+
+- First v1 typology: `DEVICE_SHARING_MULE_NETWORK`
+- Shared-device mule rule reconstruction in `rule_results.json`
+- Device-sharing mule validation summary in `validation_report.json`
+- Device-derived ML features and rule-proxy ablation coverage
 
 Deferred to v1:
 
@@ -41,7 +53,6 @@ Deferred to v1:
 - Wallet funneling
 - Dormant reactivation abuse
 - Remittance layering
-- Device-sharing typologies
 - Graph neural network benchmark and 100,000+ member scale
 
 ## Usage
@@ -64,16 +75,16 @@ Generate the credit system:
 python3 -m kenya_sacco_sim generate --members 1000 --with-loans
 ```
 
-Generate the full Milestone 5 benchmark package:
+Generate the full benchmark package:
 
 ```bash
-python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k
+python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
 ```
 
-Run the v0.2 multi-seed stability harness:
+Run the multi-seed stability harness:
 
 ```bash
-python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
+python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v1_multi_seed
 ```
 
 The harness writes `multi_seed_results.json` with per-seed validation status,
@@ -86,9 +97,13 @@ overwrite each other.
 If your environment has `python` mapped to Python 3, `python -m kenya_sacco_sim ...` is equivalent.
 
 `--with-typologies` injects suspicious labels into the transaction world. When
-combined with `--with-loans`, v0.2 also injects
-`FAKE_AFFORDABILITY_BEFORE_LOAN`; without loans, typology generation falls back
-to the v0.1 structuring and rapid-pass-through set.
+combined with `--with-loans`, the active set is `STRUCTURING`,
+`RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and
+`DEVICE_SHARING_MULE_NETWORK`. Without loans, fake-affordability is skipped and
+the non-credit typologies remain active.
+Sub-1,000-member smoke runs do not request partial device-sharing mule groups;
+that typology is either generated in groups of at least three members or left
+at zero for the run.
 
 `--with-benchmark` emits benchmark artifacts, including deterministic rule
 results and member-level ML baseline results. It requires `--with-typologies`.
@@ -160,6 +175,7 @@ support_entity_validation
 device_validation
 institution_archetype_metrics
 fake_affordability_validation
+device_sharing_mule_network_validation
 ```
 
 Support entity validation rejects institution archetype parameters outside
@@ -213,6 +229,7 @@ temporal bursts and rolling 24h/7d windows
 48h inflow-to-outflow exit ratios
 counterparty diversity and concentration
 device-sharing and digital-device coverage proxies
+shared-device transaction share and device peer counts
 loan-application proximity and pre-loan external credit share
 persona-relative transaction, inflow, outflow, and cash behavior
 graph/account/guarantor degree features
@@ -237,6 +254,11 @@ labeled transactions per typology split >= 10
 
 Smaller runs are marked `smoke_only`; full-size runs that miss these thresholds
 fail benchmark validation.
+
+With the v1 device-sharing typology active, the default 10,000-member benchmark
+emits at least 30 positive members per active typology. This can realize about
+120 suspicious members against the default `0.01` suspicious ratio; that remains
+inside the label-count tolerance used for full-size benchmark validation.
 
 Latest verified v0.1 10,000-member Milestone 5 run:
 
@@ -306,54 +328,57 @@ best threshold recall:              0.9825
 This prevents the benchmark from leaking injection phase through late `txn_id`
 or mirrored `reference` values.
 
-Latest verified v0.2 10,000-member gate run:
+Latest verified v1 10,000-member gate run:
 
 ```text
-command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v02_10k_review_fix
+command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
+manifest version:    1.0.0-dev
 validation errors:   0
 validation warnings: 0
 members:             10,000
 accounts:            41,003
-transactions:        510,980
+transactions:        511,026
 loans:               2,352
 guarantors:          3,372
-alerts_truth:        768
+alerts_truth:        796
 support files:       institutions / branches / agents / employers / devices
 devices:             10,000
-digital txns:         305,706
-device-required txns: 305,706
 missing devices:      0
 device coverage:      100.00% of digital transactions
-shared device share: 3.90% of active digital members
-shared devices:      330
-max members/device:  2
-institution split max share: 71.12%
-fake affordability:  precision 0.2409 / recall 0.9706
-macro rule baseline: precision 0.6008 / recall 0.9296
+shared device share: 4.35% of active digital members
+shared devices:      343
+max members/device:  5
+device mule rule:    precision 0.9091 / recall 1.0000
+fake affordability:  precision 0.2222 / recall 1.0000
+rapid pass-through:  precision 0.6000 / recall 0.8000
+structuring:         precision 0.7500 / recall 1.0000
 evaluation validity: valid
 min positive labels per split: 5
 min patterns per split: 5
 min labeled txns per typology split: 15
-ML feature count: 48
+ML feature count: 53
 rule-vs-ML comparison: available
 ```
 
-Latest v0.2 multi-seed stability gate:
+Latest v1 multi-seed stability gate:
 
 ```text
-command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/v02_multi_seed
+command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 min positive labels per split: 5 for all seeds
-STRUCTURING precision range: 0.0576
+DEVICE precision range:    0.0909
+DEVICE recall range:       0.0000
+STRUCTURING precision range: 0.0791
 STRUCTURING recall range:    0.0000
-RAPID precision range:       0.0241
+RAPID precision range:       0.0300
 RAPID recall range:          0.0000
-FAKE precision range:        0.0300
-FAKE recall range:           0.0882
+FAKE precision range:        0.0301
+FAKE recall range:           0.0333
 cash rail share mean:        0.1939
 digital device coverage:     1.0000
+shared-device share mean:    0.0434
 loan active member mean:     0.2385
 arrears share mean:          0.0927
 ```

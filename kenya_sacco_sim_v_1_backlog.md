@@ -30,6 +30,17 @@ PROCUREMENT_CORRUPTION_PARKING
 TILL_PAYBILL_SHELL_ACTIVITY
 ```
 
+## v1 Active Implementation Slice
+
+```text
+DEVICE_SHARING_MULE_NETWORK
+```
+
+This first v1 slice uses the v0.2 device layer rather than introducing a new
+support table. It must keep raw `device_id` out of model features, label only in
+`alerts_truth.csv`, export executable rule configuration and candidate IDs, and
+include unlabeled shared-device near-misses.
+
 ## v1 Benchmark Backlog
 
 ```text

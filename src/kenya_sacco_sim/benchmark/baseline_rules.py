@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from kenya_sacco_sim.core.rules import FAKE_AFFORDABILITY_RULE_CONFIG, RAPID_PASS_THROUGH_RULE_CONFIG, STRUCTURING_RULE_CONFIG
+from kenya_sacco_sim.core.rules import DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG, FAKE_AFFORDABILITY_RULE_CONFIG, RAPID_PASS_THROUGH_RULE_CONFIG, STRUCTURING_RULE_CONFIG
 
 
 def build_rule_results(transactions: list[dict[str, object]], accounts: list[dict[str, object]], alerts: list[dict[str, object]], loans: list[dict[str, object]] | None = None) -> dict[str, object]:
@@ -11,6 +11,7 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
     structuring = structuring_candidates(transactions, member_accounts)
     rapid = rapid_pass_through_candidates(transactions, member_accounts)
     fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
+    device_sharing = device_sharing_mule_candidates(transactions, member_accounts)
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -33,6 +34,12 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
             FAKE_AFFORDABILITY_RULE_CONFIG,
             fake_affordability,
             truth_by_typology["FAKE_AFFORDABILITY_BEFORE_LOAN"],
+        ),
+        "DEVICE_SHARING_MULE_NETWORK": rule_section(
+            "Shared digital device used by >=3 members in 30 days with coordinated inbound/outbound value",
+            DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
+            device_sharing,
+            truth_by_typology["DEVICE_SHARING_MULE_NETWORK"],
         ),
     }
 
@@ -92,6 +99,25 @@ def fake_affordability_candidates(transactions: list[dict[str, object]], member_
         rows = by_member.get(member_id, [])
         if has_fake_affordability_window(rows, member_accounts.get(member_id, set()), application_ts):
             candidates[member_id] = True
+    return candidates
+
+
+def device_sharing_mule_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> dict[str, object]:
+    by_device: dict[str, list[dict[str, object]]] = defaultdict(list)
+    digital_channels = set(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["digital_channels"])
+    for txn in transactions:
+        device_id = str(txn.get("device_id") or "")
+        member_id = str(txn.get("member_id_primary") or "")
+        if not device_id or not member_id or str(txn.get("channel") or "") not in digital_channels:
+            continue
+        by_device[device_id].append(txn)
+
+    candidates: dict[str, object] = {}
+    for rows in by_device.values():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        for members in _device_mule_windows(rows, member_accounts):
+            for member_id in members:
+                candidates[member_id] = True
     return candidates
 
 
@@ -167,6 +193,39 @@ def has_fake_affordability_window(rows: list[dict[str, object]], accounts: set[s
     return external_share >= float(FAKE_AFFORDABILITY_RULE_CONFIG["min_external_credit_share"]) and balance_growth >= float(FAKE_AFFORDABILITY_RULE_CONFIG["min_balance_growth_kes"])
 
 
+def _device_mule_windows(rows: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> list[set[str]]:
+    windows: list[set[str]] = []
+    window_days = int(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["window_days"])
+    inbound_types = set(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["inbound_txn_types"])
+    outbound_types = set(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["outbound_txn_types"])
+    min_members = int(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_members_per_device"])
+    min_txns = int(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_device_txn_count"])
+    min_total = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_total_value_kes"])
+    min_outbound_share = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_outbound_share"])
+    for start_index, start_row in enumerate(rows):
+        start_ts = datetime.fromisoformat(str(start_row["timestamp"]))
+        cutoff = start_ts + timedelta(days=window_days)
+        window = [row for row in rows[start_index:] if datetime.fromisoformat(str(row["timestamp"])) <= cutoff]
+        members = {str(row.get("member_id_primary") or "") for row in window if row.get("member_id_primary")}
+        if len(members) < min_members or len(window) < min_txns:
+            continue
+        inbound = 0.0
+        outbound = 0.0
+        for row in window:
+            member_id = str(row.get("member_id_primary") or "")
+            accounts = member_accounts.get(member_id, set())
+            amount = float(row.get("amount_kes") or 0)
+            txn_type = str(row.get("txn_type") or "")
+            if txn_type in inbound_types and str(row.get("account_id_cr") or "") in accounts:
+                inbound += amount
+            if txn_type in outbound_types and str(row.get("account_id_dr") or "") in accounts:
+                outbound += amount
+        total_value = inbound + outbound
+        if total_value >= min_total and inbound > 0 and outbound / inbound >= min_outbound_share:
+            windows.append(members)
+    return windows
+
+
 def rule_section(rule_definition: str, rule_config: dict[str, object], candidates: dict[str, object], truth_alerts: list[dict[str, object]]) -> dict[str, object]:
     truth_member_ids = sorted({str(alert["member_id"]) for alert in truth_alerts})
     detected = sorted(member_id for member_id in truth_member_ids if member_id in candidates)
@@ -201,6 +260,7 @@ __all__ = [
     "has_structuring_window",
     "member_account_ids",
     "fake_affordability_candidates",
+    "device_sharing_mule_candidates",
     "rapid_pass_through_candidates",
     "rule_section",
     "structuring_candidates",

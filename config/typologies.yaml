@@ -19,3 +19,11 @@ typologies:
     credit_count: [2, 5]
     credit_amount_kes: [25000, 150000]
     eligible_loan_products: [DEVELOPMENT_LOAN, SCHOOL_FEES_LOAN, BIASHARA_LOAN]
+  DEVICE_SHARING_MULE_NETWORK:
+    candidate_personas: [SME_OWNER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED, CHURCH_ORG]
+    group_size: [3, 5]
+    window_days: 30
+    min_members_per_device: 3
+    inbound_amount_kes: [100000, 160000]
+    outbound_share: [0.48, 0.68]
+    rails: [MPESA, PESALINK]
