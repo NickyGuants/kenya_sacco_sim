@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from kenya_sacco_sim.benchmark.ml_baseline import BLOCKED_FEATURE_TOKENS, build_member_feature_table, build_ml_baseline_artifacts, member_labels_by_typology
+from kenya_sacco_sim.benchmark.ml_baseline import (
+    BLOCKED_FEATURE_TOKENS,
+    build_member_feature_table,
+    build_ml_baseline_artifacts,
+    build_ml_leakage_ablation_artifact,
+    member_labels_by_typology,
+)
 from kenya_sacco_sim.core.config import WorldConfig
 
 
@@ -13,6 +19,10 @@ class MlBaselineTests(unittest.TestCase):
         for feature_name in feature_table["feature_names"]:
             lowered = feature_name.lower()
             self.assertFalse(any(token in lowered for token in BLOCKED_FEATURE_TOKENS), feature_name)
+        self.assertIn("max_txns_24h", feature_table["feature_names"])
+        self.assertIn("max_48h_exit_ratio", feature_table["feature_names"])
+        self.assertIn("distinct_counterparty_count", feature_table["feature_names"])
+        self.assertIn("persona_txn_count_ratio", feature_table["feature_names"])
 
     def test_member_labels_are_derived_from_alerts_truth(self) -> None:
         labels = member_labels_by_typology(_ml_rows()["alerts_truth.csv"])
@@ -43,6 +53,18 @@ class MlBaselineTests(unittest.TestCase):
         section = results["models"]["LogisticRegression"]["STRUCTURING"]
         self.assertEqual(section["status"], "skipped_insufficient_labels")
         self.assertEqual(importance["rankings"]["RandomForestClassifier"]["STRUCTURING"]["status"], "skipped_insufficient_labels")
+
+    def test_ml_leakage_ablation_reports_rule_proxy_drops(self) -> None:
+        rows = _ml_rows()
+        results, _ = build_ml_baseline_artifacts(rows, _split_manifest(), WorldConfig(seed=42))
+
+        ablation = build_ml_leakage_ablation_artifact(rows, _split_manifest(), WorldConfig(seed=42), results)
+
+        section = ablation["models"]["LogisticRegression"]["STRUCTURING"]
+        self.assertEqual(section["status"], "evaluated")
+        self.assertEqual(section["ablation"], "without_typology_rule_proxy_features")
+        self.assertIn("max_sub_100k_deposits_7d", ablation["rule_proxy_features_by_typology"]["STRUCTURING"])
+        self.assertIn("risk_summary", ablation)
 
 
 def _split_manifest() -> dict[str, object]:

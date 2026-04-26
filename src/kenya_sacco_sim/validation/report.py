@@ -97,6 +97,16 @@ def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[
                 "split_manifest.json",
             )
         )
+    evaluation_validity = benchmark_validation.get("evaluation_validity")
+    if isinstance(evaluation_validity, dict) and evaluation_validity.get("valid_for_ml_evaluation") is False and not evaluation_validity.get("smoke_only"):
+        findings.append(
+            ValidationFinding(
+                "error",
+                "benchmark.evaluation_label_density_low",
+                "Benchmark evaluation label density is below the v0.2 validity contract",
+                "split_manifest.json",
+            )
+        )
     return findings
 
 

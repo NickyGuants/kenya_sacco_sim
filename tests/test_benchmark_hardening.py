@@ -47,6 +47,70 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertEqual(checks["unassigned_member_reference_count"], 1)
         self.assertEqual(checks["unassigned_pattern_count"], 1)
 
+    def test_split_manifest_stratifies_labeled_members_for_valid_benchmark(self) -> None:
+        members = [{"member_id": f"MEM{index:07d}"} for index in range(1, 10_001)]
+        alerts = []
+        alert_index = 1
+        member_number = 1
+        for typology, typology_count in [
+            ("STRUCTURING", 34),
+            ("RAPID_PASS_THROUGH", 33),
+            ("FAKE_AFFORDABILITY_BEFORE_LOAN", 33),
+        ]:
+            for _ in range(typology_count):
+                member_id = f"MEM{member_number:07d}"
+                pattern_id = f"PAT{member_number:08d}"
+                alerts.append(
+                    {
+                        "alert_id": f"ALT{alert_index:08d}",
+                        "pattern_id": pattern_id,
+                        "typology": typology,
+                        "entity_type": "PATTERN_SUMMARY",
+                        "member_id": member_id,
+                    }
+                )
+                alert_index += 1
+                for txn_offset in range(10):
+                    alerts.append(
+                        {
+                            "alert_id": f"ALT{alert_index:08d}",
+                            "pattern_id": pattern_id,
+                            "typology": typology,
+                            "entity_type": "TRANSACTION",
+                            "member_id": member_id,
+                            "txn_id": f"TXN{member_number:08d}{txn_offset:04d}",
+                        }
+                    )
+                    alert_index += 1
+                member_number += 1
+
+        artifacts = build_benchmark_artifacts(
+            {"members.csv": members, "transactions.csv": [], "alerts_truth.csv": alerts},
+            {},
+            WorldConfig(member_count=10_000, suspicious_ratio=0.01),
+        )
+
+        validity = artifacts["split_manifest.json"]["checks"]["evaluation_validity"]
+
+        self.assertEqual(validity["status"], "valid")
+        self.assertGreaterEqual(validity["min_positive_labels_per_split"], 5)
+        self.assertGreaterEqual(validity["min_patterns_per_split"], 5)
+        self.assertGreaterEqual(validity["min_txns_per_typology_per_split"], 10)
+
+    def test_rule_vs_ml_comparison_artifact_is_emitted(self) -> None:
+        artifacts = build_benchmark_artifacts(
+            {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
+            {},
+            WorldConfig(member_count=0, suspicious_ratio=0),
+        )
+
+        comparison = artifacts["rule_vs_ml_comparison.json"]
+
+        self.assertEqual(comparison["status"], "available")
+        self.assertIn("ml_outperforms_rules", comparison)
+        self.assertIn("rules_dominate", comparison)
+        self.assertIn("ml_leakage_ablation.json", artifacts)
+
     def test_label_validation_uses_half_up_target_count(self) -> None:
         rows_by_file = {
             "members.csv": [{"member_id": f"MEM{i:07d}"} for i in range(1, 101)],
@@ -106,6 +170,25 @@ class BenchmarkHardeningTests(unittest.TestCase):
                 "benchmark.txn_id_threshold_leakage",
             },
         )
+
+    def test_benchmark_evaluation_density_failure_is_error_for_full_benchmark(self) -> None:
+        report = build_validation_report(
+            {
+                "members.csv": [],
+                "accounts.csv": [],
+                "nodes.csv": [],
+                "graph_edges.csv": [],
+            },
+            WorldConfig(member_count=10_000),
+            benchmark_validation={
+                "evaluation_validity": {
+                    "valid_for_ml_evaluation": False,
+                    "smoke_only": False,
+                }
+            },
+        )
+
+        self.assertIn("benchmark.evaluation_label_density_low", {error["code"] for error in report["errors"]})
 
 
 def _transaction(txn_id: str, timestamp: str) -> dict[str, object]:

@@ -28,6 +28,8 @@ split_manifest.json
 baseline_model_results.json
 ml_baseline_results.json
 feature_importance.json
+ml_leakage_ablation.json
+rule_vs_ml_comparison.json
 feature_documentation.json
 dataset_card.md
 known_limitations.md
@@ -416,8 +418,10 @@ v0.2 additions:
 3. baseline_model_results.json includes FAKE_AFFORDABILITY_BEFORE_LOAN rule results.
 4. ml_baseline_results.json reports member-level one-vs-rest ML baseline metrics.
 5. feature_importance.json reports Logistic Regression coefficient rankings and Random Forest importances.
-6. dataset_card.md documents v0.2 support files, benchmark task definitions, rule baseline performance, ML baseline performance, known biases, and known device limitations.
-7. known_limitations.md clearly defers v1 typologies.
+6. ml_leakage_ablation.json reports ML performance after removing typology-specific rule-proxy features.
+7. rule_vs_ml_comparison.json reports rule-vs-ML precision, recall, and F1 deltas by typology/model/split.
+8. dataset_card.md documents v0.2 support files, benchmark task definitions, rule baseline performance, ML baseline performance, known biases, and known device limitations.
+9. known_limitations.md clearly defers v1 typologies.
 ```
 
 ML baseline contract:
@@ -448,6 +452,11 @@ loan count
 has loan application
 days from latest activity to loan application
 external-credit share before loan
+temporal burst counts
+rolling inflow/outflow aggregates
+48h inflow-to-outflow exit ratio
+counterparty diversity and concentration
+persona-relative behavior ratios
 graph degree
 account degree
 guarantor out-degree
@@ -480,6 +489,19 @@ reference
 support entity identifiers
 loan application timing
 device_id
+```
+
+Benchmark validity contract:
+
+```text
+1. 100-member and 1,000-member benchmark runs are smoke tests only.
+2. A valid v0.2 benchmark evaluation requires at least 10,000 members.
+3. A valid v0.2 benchmark evaluation requires at least 100 suspicious members.
+4. Each active typology requires at least 30 positive members.
+5. Each active typology requires at least 5 positive members in train, validation, and test.
+6. Each active typology requires at least 5 patterns in train, validation, and test.
+7. Each active typology requires at least 10 labeled transactions in each split.
+8. Full-size runs that miss these thresholds fail benchmark validation.
 ```
 
 ---
@@ -576,6 +598,7 @@ updated split_manifest.json
 updated baseline_model_results.json
 ml_baseline_results.json
 feature_importance.json
+rule_vs_ml_comparison.json
 updated feature_documentation.json
 updated dataset_card.md
 updated known_limitations.md
@@ -594,6 +617,9 @@ multi-seed harness runs configured seeds without validation errors.
 typology precision/recall ranges stay within 0.10 across accepted v0.2 seeds.
 ML baseline metrics are reported per typology and split, or explicitly skipped for insufficient labels.
 Feature importance rankings are emitted for both model families when training succeeds.
+rule_vs_ml_comparison.json reports where rules dominate and where ML outperforms rules.
+ml_leakage_ablation.json reports rule-proxy dependence and validation/test F1 drops.
+split_manifest.json reports evaluation_validity.status = valid for accepted 10,000-member runs.
 ```
 
 Stability command:
