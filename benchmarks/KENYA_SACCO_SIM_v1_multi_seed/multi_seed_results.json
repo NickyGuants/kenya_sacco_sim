@@ -1,0 +1,1958 @@
+{
+  "acceptance": {
+    "precision_recall_variance_within_threshold": true,
+    "threshold": 0.1,
+    "validation_error_free": true
+  },
+  "benchmark_name": "KENYA_SACCO_SIM_v1_multi_seed",
+  "created_at": "2024-01-01T00:00:00+03:00",
+  "member_count": 10000,
+  "seed_count": 5,
+  "seed_results": [
+    {
+      "baseline_metrics": {
+        "macro_precision": 0.6514,
+        "macro_recall": 0.95,
+        "per_typology": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "candidate_count": 134,
+            "f1": 0.3659,
+            "false_negative_count": 0,
+            "false_positive_count": 104,
+            "precision": 0.2239,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "RAPID_PASS_THROUGH": {
+            "candidate_count": 38,
+            "f1": 0.7059,
+            "false_negative_count": 6,
+            "false_positive_count": 14,
+            "precision": 0.6316,
+            "recall": 0.8,
+            "truth_member_count": 30
+          },
+          "STRUCTURING": {
+            "candidate_count": 40,
+            "f1": 0.8571,
+            "false_negative_count": 0,
+            "false_positive_count": 10,
+            "precision": 0.75,
+            "recall": 1.0,
+            "truth_member_count": 30
+          }
+        }
+      },
+      "confounder_diagnostics": {
+        "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+        "persona_confounding_review_required": false,
+        "review_required": false,
+        "temporal_confounding_review_required": false
+      },
+      "credit_metrics": {
+        "arrears_share": 0.0829,
+        "default_share": 0.0179,
+        "loan_active_member_ratio": 0.2352,
+        "repayment_success_rate": 0.9171
+      },
+      "device_metrics": {
+        "device_required_missing_device_id_count": 0,
+        "digital_device_coverage": 1.0,
+        "max_members_per_device": 5,
+        "shared_device_member_share": 0.0435
+      },
+      "distribution_metrics": {
+        "active_member_share": 1.0,
+        "cash_rail_share": 0.1951,
+        "counterparty_id_hash_coverage": 1.0
+      },
+      "evaluation_validity": {
+        "member_count": 10000,
+        "min_patterns_per_split": 5,
+        "min_positive_labels_per_split": 5,
+        "min_txns_per_typology_per_split": 15,
+        "pattern_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "positive_member_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "required_member_count": 10000,
+        "required_patterns_per_split": 5,
+        "required_positive_labels_per_split": 5,
+        "required_suspicious_member_count": 100,
+        "required_txns_per_typology_per_split": 10,
+        "required_typology_member_count": 30,
+        "smoke_only": false,
+        "split_minimums_met": true,
+        "status": "valid",
+        "suspicious_member_count": 120,
+        "txn_label_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 15,
+            "total": 87,
+            "train": 57,
+            "validation": 15
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 19,
+            "total": 117,
+            "train": 75,
+            "validation": 23
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 31,
+            "total": 171,
+            "train": 111,
+            "validation": 29
+          },
+          "STRUCTURING": {
+            "test": 48,
+            "total": 248,
+            "train": 162,
+            "validation": 38
+          }
+        },
+        "typology_member_minimum_met": true,
+        "valid_for_ml_evaluation": true
+      },
+      "ml_ablation_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.4286,
+            "train": 0.6897,
+            "validation": 0.6667
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.4211,
+            "train": 0.5882,
+            "validation": 0.4706
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8333,
+            "train": 0.8889,
+            "validation": 0.8333
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.8889,
+            "validation": 0.6667
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.75
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.75
+          }
+        }
+      },
+      "ml_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.6667,
+            "train": 0.9091,
+            "validation": 0.8
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5714,
+            "train": 0.9524,
+            "validation": 0.7692
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8,
+            "train": 0.9302,
+            "validation": 0.8333
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.9302,
+            "validation": 0.6667
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 0.75
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 1.0
+          }
+        }
+      },
+      "row_counts": {
+        "accounts.csv": 41003,
+        "agents.csv": 50,
+        "alerts_truth.csv": 803,
+        "branches.csv": 10,
+        "devices.csv": 10000,
+        "employers.csv": 60,
+        "graph_edges.csv": 363371,
+        "guarantors.csv": 3372,
+        "institutions.csv": 5,
+        "loans.csv": 2352,
+        "members.csv": 10000,
+        "nodes.csv": 61128,
+        "transactions.csv": 511033
+      },
+      "seed": 42,
+      "validation_error_count": 0,
+      "validation_warning_count": 0
+    },
+    {
+      "baseline_metrics": {
+        "macro_precision": 0.6356,
+        "macro_recall": 0.95,
+        "per_typology": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "candidate_count": 145,
+            "f1": 0.3429,
+            "false_negative_count": 0,
+            "false_positive_count": 115,
+            "precision": 0.2069,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "RAPID_PASS_THROUGH": {
+            "candidate_count": 41,
+            "f1": 0.6761,
+            "false_negative_count": 6,
+            "false_positive_count": 17,
+            "precision": 0.5854,
+            "recall": 0.8,
+            "truth_member_count": 30
+          },
+          "STRUCTURING": {
+            "candidate_count": 40,
+            "f1": 0.8571,
+            "false_negative_count": 0,
+            "false_positive_count": 10,
+            "precision": 0.75,
+            "recall": 1.0,
+            "truth_member_count": 30
+          }
+        }
+      },
+      "confounder_diagnostics": {
+        "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+        "persona_confounding_review_required": false,
+        "review_required": false,
+        "temporal_confounding_review_required": false
+      },
+      "credit_metrics": {
+        "arrears_share": 0.0985,
+        "default_share": 0.0188,
+        "loan_active_member_ratio": 0.2446,
+        "repayment_success_rate": 0.9015
+      },
+      "device_metrics": {
+        "device_required_missing_device_id_count": 0,
+        "digital_device_coverage": 1.0,
+        "max_members_per_device": 5,
+        "shared_device_member_share": 0.0434
+      },
+      "distribution_metrics": {
+        "active_member_share": 1.0,
+        "cash_rail_share": 0.1928,
+        "counterparty_id_hash_coverage": 1.0
+      },
+      "evaluation_validity": {
+        "member_count": 10000,
+        "min_patterns_per_split": 5,
+        "min_positive_labels_per_split": 5,
+        "min_txns_per_typology_per_split": 13,
+        "pattern_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "positive_member_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "required_member_count": 10000,
+        "required_patterns_per_split": 5,
+        "required_positive_labels_per_split": 5,
+        "required_suspicious_member_count": 100,
+        "required_txns_per_typology_per_split": 10,
+        "required_typology_member_count": 30,
+        "smoke_only": false,
+        "split_minimums_met": true,
+        "status": "valid",
+        "suspicious_member_count": 120,
+        "txn_label_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 13,
+            "total": 93,
+            "train": 66,
+            "validation": 14
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 19,
+            "total": 111,
+            "train": 71,
+            "validation": 21
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 25,
+            "total": 162,
+            "train": 111,
+            "validation": 26
+          },
+          "STRUCTURING": {
+            "test": 40,
+            "total": 272,
+            "train": 181,
+            "validation": 51
+          }
+        },
+        "typology_member_minimum_met": true,
+        "valid_for_ml_evaluation": true
+      },
+      "ml_ablation_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.6154,
+            "train": 0.8889,
+            "validation": 0.8333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5714,
+            "train": 0.5797,
+            "validation": 0.5263
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 1.0,
+            "train": 0.9091,
+            "validation": 0.9091
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.9302,
+            "validation": 0.7692
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 0.0
+          },
+          "STRUCTURING": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.75
+          }
+        }
+      },
+      "ml_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 1.0,
+            "train": 0.9524,
+            "validation": 0.9091
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.7273,
+            "train": 0.9756,
+            "validation": 0.8333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8889,
+            "train": 0.9524,
+            "validation": 0.9091
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.9756,
+            "validation": 0.8333
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 1.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.0
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.75
+          }
+        }
+      },
+      "row_counts": {
+        "accounts.csv": 41051,
+        "agents.csv": 50,
+        "alerts_truth.csv": 818,
+        "branches.csv": 10,
+        "devices.csv": 10000,
+        "employers.csv": 60,
+        "graph_edges.csv": 363439,
+        "guarantors.csv": 3468,
+        "institutions.csv": 5,
+        "loans.csv": 2446,
+        "members.csv": 10000,
+        "nodes.csv": 61176,
+        "transactions.csv": 513863
+      },
+      "seed": 1337,
+      "validation_error_count": 0,
+      "validation_warning_count": 0
+    },
+    {
+      "baseline_metrics": {
+        "macro_precision": 0.6579,
+        "macro_recall": 0.95,
+        "per_typology": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "candidate_count": 155,
+            "f1": 0.3243,
+            "false_negative_count": 0,
+            "false_positive_count": 125,
+            "precision": 0.1935,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "RAPID_PASS_THROUGH": {
+            "candidate_count": 37,
+            "f1": 0.7164,
+            "false_negative_count": 6,
+            "false_positive_count": 13,
+            "precision": 0.6486,
+            "recall": 0.8,
+            "truth_member_count": 30
+          },
+          "STRUCTURING": {
+            "candidate_count": 38,
+            "f1": 0.8824,
+            "false_negative_count": 0,
+            "false_positive_count": 8,
+            "precision": 0.7895,
+            "recall": 1.0,
+            "truth_member_count": 30
+          }
+        }
+      },
+      "confounder_diagnostics": {
+        "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+        "persona_confounding_review_required": false,
+        "review_required": false,
+        "temporal_confounding_review_required": false
+      },
+      "credit_metrics": {
+        "arrears_share": 0.0949,
+        "default_share": 0.0251,
+        "loan_active_member_ratio": 0.235,
+        "repayment_success_rate": 0.9051
+      },
+      "device_metrics": {
+        "device_required_missing_device_id_count": 0,
+        "digital_device_coverage": 1.0,
+        "max_members_per_device": 5,
+        "shared_device_member_share": 0.0431
+      },
+      "distribution_metrics": {
+        "active_member_share": 1.0,
+        "cash_rail_share": 0.1932,
+        "counterparty_id_hash_coverage": 1.0
+      },
+      "evaluation_validity": {
+        "member_count": 10000,
+        "min_patterns_per_split": 5,
+        "min_positive_labels_per_split": 5,
+        "min_txns_per_typology_per_split": 14,
+        "pattern_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "positive_member_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "required_member_count": 10000,
+        "required_patterns_per_split": 5,
+        "required_positive_labels_per_split": 5,
+        "required_suspicious_member_count": 100,
+        "required_txns_per_typology_per_split": 10,
+        "required_typology_member_count": 30,
+        "smoke_only": false,
+        "split_minimums_met": true,
+        "status": "valid",
+        "suspicious_member_count": 120,
+        "txn_label_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 14,
+            "total": 91,
+            "train": 61,
+            "validation": 16
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 19,
+            "total": 99,
+            "train": 64,
+            "validation": 16
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 29,
+            "total": 172,
+            "train": 114,
+            "validation": 29
+          },
+          "STRUCTURING": {
+            "test": 44,
+            "total": 271,
+            "train": 183,
+            "validation": 44
+          }
+        },
+        "typology_member_minimum_met": true,
+        "valid_for_ml_evaluation": true
+      },
+      "ml_ablation_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.7273,
+            "train": 0.8333,
+            "validation": 0.7143
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.3529,
+            "train": 0.5634,
+            "validation": 0.2308
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.7273,
+            "train": 0.9756,
+            "validation": 0.9091
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.9756,
+            "validation": 0.9091
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 0.5714
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.8889
+          }
+        }
+      },
+      "ml_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.9091,
+            "train": 1.0,
+            "validation": 0.9091
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.5556
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.9091,
+            "train": 0.9756,
+            "validation": 0.9091
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 0.9756,
+            "validation": 0.9091
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.6667
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
+          }
+        }
+      },
+      "row_counts": {
+        "accounts.csv": 40981,
+        "agents.csv": 50,
+        "alerts_truth.csv": 813,
+        "branches.csv": 10,
+        "devices.csv": 10000,
+        "employers.csv": 60,
+        "graph_edges.csv": 363815,
+        "guarantors.csv": 3498,
+        "institutions.csv": 5,
+        "loans.csv": 2350,
+        "members.csv": 10000,
+        "nodes.csv": 61106,
+        "transactions.csv": 515196
+      },
+      "seed": 2026,
+      "validation_error_count": 0,
+      "validation_warning_count": 0
+    },
+    {
+      "baseline_metrics": {
+        "macro_precision": 0.6637,
+        "macro_recall": 0.9667,
+        "per_typology": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "candidate_count": 137,
+            "f1": 0.3593,
+            "false_negative_count": 0,
+            "false_positive_count": 107,
+            "precision": 0.219,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "RAPID_PASS_THROUGH": {
+            "candidate_count": 39,
+            "f1": 0.7536,
+            "false_negative_count": 4,
+            "false_positive_count": 13,
+            "precision": 0.6667,
+            "recall": 0.8667,
+            "truth_member_count": 30
+          },
+          "STRUCTURING": {
+            "candidate_count": 39,
+            "f1": 0.8696,
+            "false_negative_count": 0,
+            "false_positive_count": 9,
+            "precision": 0.7692,
+            "recall": 1.0,
+            "truth_member_count": 30
+          }
+        }
+      },
+      "confounder_diagnostics": {
+        "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+        "persona_confounding_review_required": false,
+        "review_required": false,
+        "temporal_confounding_review_required": false
+      },
+      "credit_metrics": {
+        "arrears_share": 0.0897,
+        "default_share": 0.0227,
+        "loan_active_member_ratio": 0.2374,
+        "repayment_success_rate": 0.9103
+      },
+      "device_metrics": {
+        "device_required_missing_device_id_count": 0,
+        "digital_device_coverage": 1.0,
+        "max_members_per_device": 5,
+        "shared_device_member_share": 0.0429
+      },
+      "distribution_metrics": {
+        "active_member_share": 1.0,
+        "cash_rail_share": 0.1948,
+        "counterparty_id_hash_coverage": 1.0
+      },
+      "evaluation_validity": {
+        "member_count": 10000,
+        "min_patterns_per_split": 5,
+        "min_positive_labels_per_split": 5,
+        "min_txns_per_typology_per_split": 14,
+        "pattern_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "positive_member_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "required_member_count": 10000,
+        "required_patterns_per_split": 5,
+        "required_positive_labels_per_split": 5,
+        "required_suspicious_member_count": 100,
+        "required_txns_per_typology_per_split": 10,
+        "required_typology_member_count": 30,
+        "smoke_only": false,
+        "split_minimums_met": true,
+        "status": "valid",
+        "suspicious_member_count": 120,
+        "txn_label_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 16,
+            "total": 90,
+            "train": 60,
+            "validation": 14
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 23,
+            "total": 101,
+            "train": 61,
+            "validation": 17
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 27,
+            "total": 198,
+            "train": 138,
+            "validation": 33
+          },
+          "STRUCTURING": {
+            "test": 43,
+            "total": 276,
+            "train": 183,
+            "validation": 50
+          }
+        },
+        "typology_member_minimum_met": true,
+        "valid_for_ml_evaluation": true
+      },
+      "ml_ablation_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.8333,
+            "train": 0.8163,
+            "validation": 0.9091
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5882,
+            "train": 0.5263,
+            "validation": 0.4
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8889,
+            "train": 0.9756,
+            "validation": 1.0
+          },
+          "STRUCTURING": {
+            "test": 0.9091,
+            "train": 1.0,
+            "validation": 1.0
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.75
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.75
+          }
+        }
+      },
+      "ml_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.9091,
+            "train": 1.0,
+            "validation": 0.7692
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.7692,
+            "train": 0.9302,
+            "validation": 0.8333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.75,
+            "train": 0.9756,
+            "validation": 1.0
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.8
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.75
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.8889
+          }
+        }
+      },
+      "row_counts": {
+        "accounts.csv": 41034,
+        "agents.csv": 50,
+        "alerts_truth.csv": 845,
+        "branches.csv": 10,
+        "devices.csv": 10000,
+        "employers.csv": 60,
+        "graph_edges.csv": 363658,
+        "guarantors.csv": 3405,
+        "institutions.csv": 5,
+        "loans.csv": 2374,
+        "members.csv": 10000,
+        "nodes.csv": 61159,
+        "transactions.csv": 509049
+      },
+      "seed": 9001,
+      "validation_error_count": 0,
+      "validation_warning_count": 0
+    },
+    {
+      "baseline_metrics": {
+        "macro_precision": 0.6551,
+        "macro_recall": 0.95,
+        "per_typology": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "candidate_count": 148,
+            "f1": 0.3371,
+            "false_negative_count": 0,
+            "false_positive_count": 118,
+            "precision": 0.2027,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "RAPID_PASS_THROUGH": {
+            "candidate_count": 37,
+            "f1": 0.7164,
+            "false_negative_count": 6,
+            "false_positive_count": 13,
+            "precision": 0.6486,
+            "recall": 0.8,
+            "truth_member_count": 30
+          },
+          "STRUCTURING": {
+            "candidate_count": 39,
+            "f1": 0.8696,
+            "false_negative_count": 0,
+            "false_positive_count": 9,
+            "precision": 0.7692,
+            "recall": 1.0,
+            "truth_member_count": 30
+          }
+        }
+      },
+      "confounder_diagnostics": {
+        "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+        "persona_confounding_review_required": false,
+        "review_required": false,
+        "temporal_confounding_review_required": false
+      },
+      "credit_metrics": {
+        "arrears_share": 0.0974,
+        "default_share": 0.0187,
+        "loan_active_member_ratio": 0.2403,
+        "repayment_success_rate": 0.9026
+      },
+      "device_metrics": {
+        "device_required_missing_device_id_count": 0,
+        "digital_device_coverage": 1.0,
+        "max_members_per_device": 4,
+        "shared_device_member_share": 0.044
+      },
+      "distribution_metrics": {
+        "active_member_share": 1.0,
+        "cash_rail_share": 0.1935,
+        "counterparty_id_hash_coverage": 1.0
+      },
+      "evaluation_validity": {
+        "member_count": 10000,
+        "min_patterns_per_split": 5,
+        "min_positive_labels_per_split": 5,
+        "min_txns_per_typology_per_split": 14,
+        "pattern_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "positive_member_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          },
+          "STRUCTURING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
+          }
+        },
+        "required_member_count": 10000,
+        "required_patterns_per_split": 5,
+        "required_positive_labels_per_split": 5,
+        "required_suspicious_member_count": 100,
+        "required_txns_per_typology_per_split": 10,
+        "required_typology_member_count": 30,
+        "smoke_only": false,
+        "split_minimums_met": true,
+        "status": "valid",
+        "suspicious_member_count": 120,
+        "txn_label_counts_by_typology_split": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 15,
+            "total": 87,
+            "train": 58,
+            "validation": 14
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 14,
+            "total": 105,
+            "train": 72,
+            "validation": 19
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 20,
+            "total": 161,
+            "train": 111,
+            "validation": 30
+          },
+          "STRUCTURING": {
+            "test": 45,
+            "total": 262,
+            "train": 176,
+            "validation": 41
+          }
+        },
+        "typology_member_minimum_met": true,
+        "valid_for_ml_evaluation": true
+      },
+      "ml_ablation_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.6667,
+            "train": 0.7143,
+            "validation": 0.7692
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5,
+            "train": 0.6897,
+            "validation": 0.625
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8,
+            "train": 0.8333,
+            "validation": 0.6667
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 1.0
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.75
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "STRUCTURING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.75
+          }
+        }
+      },
+      "ml_metrics": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 1.0,
+            "train": 0.8511,
+            "validation": 0.8333
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 1.0,
+            "train": 0.9302,
+            "validation": 0.7692
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.8889,
+            "train": 0.8696,
+            "validation": 0.7143
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 1.0
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.3333,
+            "train": 1.0,
+            "validation": 0.3333
+          },
+          "STRUCTURING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.8889
+          }
+        }
+      },
+      "row_counts": {
+        "accounts.csv": 40981,
+        "agents.csv": 50,
+        "alerts_truth.csv": 795,
+        "branches.csv": 10,
+        "devices.csv": 10000,
+        "employers.csv": 60,
+        "graph_edges.csv": 362809,
+        "guarantors.csv": 3429,
+        "institutions.csv": 5,
+        "loans.csv": 2403,
+        "members.csv": 10000,
+        "nodes.csv": 61106,
+        "transactions.csv": 515961
+      },
+      "seed": 314159,
+      "validation_error_count": 0,
+      "validation_warning_count": 0
+    }
+  ],
+  "seeds": [
+    42,
+    1337,
+    2026,
+    9001,
+    314159
+  ],
+  "stability_report": {
+    "acceptance": {
+      "precision_recall_variance_within_threshold": true,
+      "threshold": 0.1
+    },
+    "distribution_stability": {
+      "active_member_share": {
+        "count": 5,
+        "max": 1.0,
+        "mean": 1.0,
+        "min": 1.0,
+        "range": 0.0,
+        "std": 0.0
+      },
+      "arrears_share": {
+        "count": 5,
+        "max": 0.0985,
+        "mean": 0.0927,
+        "min": 0.0829,
+        "range": 0.0156,
+        "std": 0.0058
+      },
+      "cash_rail_share": {
+        "count": 5,
+        "max": 0.1951,
+        "mean": 0.1939,
+        "min": 0.1928,
+        "range": 0.0023,
+        "std": 0.0009
+      },
+      "default_share": {
+        "count": 5,
+        "max": 0.0251,
+        "mean": 0.0206,
+        "min": 0.0179,
+        "range": 0.0072,
+        "std": 0.0028
+      },
+      "digital_device_coverage": {
+        "count": 5,
+        "max": 1.0,
+        "mean": 1.0,
+        "min": 1.0,
+        "range": 0.0,
+        "std": 0.0
+      },
+      "loan_active_member_ratio": {
+        "count": 5,
+        "max": 0.2446,
+        "mean": 0.2385,
+        "min": 0.235,
+        "range": 0.0096,
+        "std": 0.0036
+      },
+      "shared_device_member_share": {
+        "count": 5,
+        "max": 0.044,
+        "mean": 0.0434,
+        "min": 0.0429,
+        "range": 0.0011,
+        "std": 0.0004
+      }
+    },
+    "ml_stability": {
+      "ablated_feature_f1": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 0.8333,
+              "mean": 0.6543,
+              "min": 0.4286,
+              "range": 0.4047,
+              "std": 0.1341
+            },
+            "train": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.7885,
+              "min": 0.6897,
+              "range": 0.1992,
+              "std": 0.075
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.9091,
+              "mean": 0.7785,
+              "min": 0.6667,
+              "range": 0.2424,
+              "std": 0.0858
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 0.5882,
+              "mean": 0.4867,
+              "min": 0.3529,
+              "range": 0.2353,
+              "std": 0.0893
+            },
+            "train": {
+              "count": 5,
+              "max": 0.6897,
+              "mean": 0.5895,
+              "min": 0.5263,
+              "range": 0.1634,
+              "std": 0.0544
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.625,
+              "mean": 0.4505,
+              "min": 0.2308,
+              "range": 0.3942,
+              "std": 0.1322
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8499,
+              "min": 0.7273,
+              "range": 0.2727,
+              "std": 0.0915
+            },
+            "train": {
+              "count": 5,
+              "max": 0.9756,
+              "mean": 0.9165,
+              "min": 0.8333,
+              "range": 0.1423,
+              "std": 0.0543
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8636,
+              "min": 0.6667,
+              "range": 0.3333,
+              "std": 0.1117
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9818,
+              "min": 0.9091,
+              "range": 0.0909,
+              "std": 0.0364
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9589,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0433
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.869,
+              "min": 0.6667,
+              "range": 0.3333,
+              "std": 0.1318
+            }
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 0.3333,
+              "mean": 0.1333,
+              "min": 0.0,
+              "range": 0.3333,
+              "std": 0.1633
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.3333,
+              "mean": 0.2666,
+              "min": 0.0,
+              "range": 0.3333,
+              "std": 0.1333
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 0.75,
+              "mean": 0.2833,
+              "min": 0.0,
+              "range": 0.75,
+              "std": 0.2769
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.75,
+              "mean": 0.4166,
+              "min": 0.3333,
+              "range": 0.4167,
+              "std": 0.1667
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 0.5714,
+              "mean": 0.4285,
+              "min": 0.3333,
+              "range": 0.2381,
+              "std": 0.1166
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.75,
+              "mean": 0.4809,
+              "min": 0.0,
+              "range": 0.75,
+              "std": 0.285
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.8611,
+              "min": 0.75,
+              "range": 0.1389,
+              "std": 0.0556
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.7778,
+              "min": 0.75,
+              "range": 0.1389,
+              "std": 0.0556
+            }
+          }
+        }
+      },
+      "full_feature_f1": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.897,
+              "min": 0.6667,
+              "range": 0.3333,
+              "std": 0.1221
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9425,
+              "min": 0.8511,
+              "range": 0.1489,
+              "std": 0.0569
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.9091,
+              "mean": 0.8441,
+              "min": 0.7692,
+              "range": 0.1399,
+              "std": 0.0568
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8136,
+              "min": 0.5714,
+              "range": 0.4286,
+              "std": 0.1659
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9577,
+              "min": 0.9302,
+              "range": 0.0698,
+              "std": 0.027
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.8333,
+              "mean": 0.7521,
+              "min": 0.5556,
+              "range": 0.2777,
+              "std": 0.1024
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 0.9091,
+              "mean": 0.8474,
+              "min": 0.75,
+              "range": 0.1591,
+              "std": 0.0616
+            },
+            "train": {
+              "count": 5,
+              "max": 0.9756,
+              "mean": 0.9407,
+              "min": 0.8696,
+              "range": 0.106,
+              "std": 0.0393
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8732,
+              "min": 0.7143,
+              "range": 0.2857,
+              "std": 0.0954
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9763,
+              "min": 0.9302,
+              "range": 0.0698,
+              "std": 0.0255
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8418,
+              "min": 0.6667,
+              "range": 0.3333,
+              "std": 0.1114
+            }
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.7976,
+              "min": 0.5714,
+              "range": 0.3175,
+              "std": 0.1253
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9278,
+              "min": 0.75,
+              "range": 0.25,
+              "std": 0.0988
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.7722,
+              "min": 0.3333,
+              "range": 0.6667,
+              "std": 0.2333
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.7556,
+              "min": 0.3333,
+              "range": 0.6667,
+              "std": 0.2373
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.5754,
+              "min": 0.3333,
+              "range": 0.5556,
+              "std": 0.2218
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.5722,
+              "min": 0.0,
+              "range": 0.8889,
+              "std": 0.3512
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9556,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0544
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9056,
+              "min": 0.75,
+              "range": 0.25,
+              "std": 0.0923
+            }
+          }
+        }
+      },
+      "interpretation": "Single-seed ML scores are anecdotal; use these ranges to assess seed sensitivity."
+    },
+    "typology_precision_recall": {
+      "DEVICE_SHARING_MULE_NETWORK": {
+        "precision": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 1.0,
+          "min": 1.0,
+          "range": 0.0,
+          "std": 0.0
+        },
+        "recall": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 1.0,
+          "min": 1.0,
+          "range": 0.0,
+          "std": 0.0
+        },
+        "within_threshold": true
+      },
+      "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+        "precision": {
+          "count": 5,
+          "max": 0.2239,
+          "mean": 0.2092,
+          "min": 0.1935,
+          "range": 0.0304,
+          "std": 0.011
+        },
+        "recall": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 1.0,
+          "min": 1.0,
+          "range": 0.0,
+          "std": 0.0
+        },
+        "within_threshold": true
+      },
+      "RAPID_PASS_THROUGH": {
+        "precision": {
+          "count": 5,
+          "max": 0.6667,
+          "mean": 0.6362,
+          "min": 0.5854,
+          "range": 0.0813,
+          "std": 0.0277
+        },
+        "recall": {
+          "count": 5,
+          "max": 0.8667,
+          "mean": 0.8133,
+          "min": 0.8,
+          "range": 0.0667,
+          "std": 0.0267
+        },
+        "within_threshold": true
+      },
+      "STRUCTURING": {
+        "precision": {
+          "count": 5,
+          "max": 0.7895,
+          "mean": 0.7656,
+          "min": 0.75,
+          "range": 0.0395,
+          "std": 0.0147
+        },
+        "recall": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 1.0,
+          "min": 1.0,
+          "range": 0.0,
+          "std": 0.0
+        },
+        "within_threshold": true
+      }
+    }
+  }
+}

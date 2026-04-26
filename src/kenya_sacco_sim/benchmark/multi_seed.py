@@ -88,7 +88,7 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, 
         write_json(output_dir / "validation_report.json", report)
         write_json(output_dir / "manifest.json", _seed_manifest(config, rows_by_file, report, benchmark_artifacts))
 
-    return _seed_summary(config, rows_by_file, report, rule_results, benchmark_artifacts["baseline_model_results.json"])
+    return _seed_summary(config, rows_by_file, report, rule_results, benchmark_artifacts)
 
 
 def _seed_summary(
@@ -96,8 +96,9 @@ def _seed_summary(
     rows_by_file: dict[str, list[dict[str, object]]],
     report: dict[str, object],
     rule_results: dict[str, object],
-    baseline_results: dict[str, object],
+    benchmark_artifacts: dict[str, object],
 ) -> dict[str, object]:
+    baseline_results = benchmark_artifacts["baseline_model_results.json"]
     distribution = report.get("distribution_validation", {})
     device = report.get("device_validation", {})
     credit = report.get("credit_distribution_validation", {})
@@ -143,6 +144,9 @@ def _seed_summary(
             "per_typology": typologies,
         },
         "evaluation_validity": baseline_results.get("benchmark_checks", {}).get("evaluation_validity", {}),
+        "confounder_diagnostics": baseline_results.get("benchmark_checks", {}).get("confounder_diagnostics", {}).get("risk_summary", {}),
+        "ml_metrics": _ml_metric_summary(benchmark_artifacts.get("ml_baseline_results.json", {}), metric_key="f1"),
+        "ml_ablation_metrics": _ml_metric_summary(benchmark_artifacts.get("ml_leakage_ablation.json", {}), metric_key="ablated_f1"),
     }
 
 
@@ -199,11 +203,66 @@ def _stability_report(seed_results: list[dict[str, object]]) -> dict[str, object
     return {
         "typology_precision_recall": per_typology,
         "distribution_stability": metric_stability,
+        "ml_stability": _ml_stability_report(seed_results),
         "acceptance": {
             "precision_recall_variance_within_threshold": all_precision_recall_stable,
             "threshold": STABILITY_THRESHOLD,
         },
     }
+
+
+def _ml_metric_summary(artifact: object, metric_key: str) -> dict[str, object]:
+    if not isinstance(artifact, dict):
+        return {}
+    models = artifact.get("models", {})
+    if not isinstance(models, dict):
+        return {}
+    summary: dict[str, object] = {}
+    for model_name, typologies in models.items():
+        if not isinstance(typologies, dict):
+            continue
+        summary[str(model_name)] = {}
+        for typology, section in typologies.items():
+            if not isinstance(section, dict) or section.get("status") not in {"trained", "evaluated"}:
+                continue
+            splits = section.get("splits", {})
+            if not isinstance(splits, dict):
+                continue
+            summary[str(model_name)][str(typology)] = {
+                split: split_metrics.get(metric_key)
+                for split, split_metrics in splits.items()
+                if isinstance(split_metrics, dict) and split_metrics.get("status") == "evaluated"
+            }
+    return summary
+
+
+def _ml_stability_report(seed_results: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "full_feature_f1": _nested_ml_stability(seed_results, "ml_metrics"),
+        "ablated_feature_f1": _nested_ml_stability(seed_results, "ml_ablation_metrics"),
+        "interpretation": "Single-seed ML scores are anecdotal; use these ranges to assess seed sensitivity.",
+    }
+
+
+def _nested_ml_stability(seed_results: list[dict[str, object]], key: str) -> dict[str, object]:
+    bucket: dict[tuple[str, str, str], list[float]] = {}
+    for seed in seed_results:
+        models = seed.get(key, {})
+        if not isinstance(models, dict):
+            continue
+        for model_name, typologies in models.items():
+            if not isinstance(typologies, dict):
+                continue
+            for typology, splits in typologies.items():
+                if not isinstance(splits, dict):
+                    continue
+                for split, value in splits.items():
+                    if isinstance(value, (int, float)):
+                        bucket.setdefault((str(model_name), str(typology), str(split)), []).append(float(value))
+    rows: dict[str, object] = {}
+    for (model_name, typology, split), values in sorted(bucket.items()):
+        rows.setdefault(model_name, {}).setdefault(typology, {})[split] = _series_stats(values)
+    return rows
 
 
 def _per_typology(seed_result: dict[str, object]) -> dict[str, Any]:

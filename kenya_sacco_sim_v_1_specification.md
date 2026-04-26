@@ -43,6 +43,7 @@ ml_baseline_results.json
 feature_importance.json
 ml_leakage_ablation.json
 rule_vs_ml_comparison.json
+benchmark_confounder_diagnostics.json
 feature_documentation.json
 dataset_card.md
 known_limitations.md
@@ -217,6 +218,8 @@ Injection contract:
 4. devices.csv must explain every multi-member device through shared_device_group.
 5. Raw device_id must not be a model input feature.
 6. alerts_truth.csv must contain PATTERN, MEMBER, TRANSACTION, and EDGE context where applicable.
+7. Suspicious start windows must be randomized across the simulation year so month-of-year is not a stable typology shortcut.
+8. Candidate selection should avoid fixed persona-only assignment where the behavior can plausibly occur across broader member segments.
 ```
 
 Small-run policy:
@@ -330,6 +333,7 @@ ml_baseline_results.json
 feature_importance.json
 ml_leakage_ablation.json
 rule_vs_ml_comparison.json
+benchmark_confounder_diagnostics.json
 feature_documentation.json
 dataset_card.md
 known_limitations.md
@@ -347,6 +351,8 @@ Rules:
 5. False-positive and false-negative member IDs must be exported where relevant.
 6. ML features must exclude raw identifiers and label-bearing fields.
 7. Leakage ablation must remove typology-specific rule-proxy features and rerun ML baselines.
+8. Confounder diagnostics must report temporal label concentration and persona/static-attribute label concentration.
+9. Rule-vs-ML comparison is descriptive and must not be framed as ML superiority evidence without ablation and confounder support.
 ```
 
 Blocked ML input fields:
@@ -431,6 +437,8 @@ Warnings:
 2. Shared-device baseline outside expected range.
 3. Institution split drift above threshold.
 4. Rule precision for intentionally ambiguous typologies is low but documented.
+5. Suspicious labels are concentrated in narrow time windows.
+6. Suspicious labels are concentrated by persona/static attributes.
 ```
 
 ---

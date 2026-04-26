@@ -65,6 +65,7 @@ When it finishes, inspect these first:
 - `manifest.json` - seed, config, files, and MD5 hashes.
 - `rule_results.json` - executable rule results and candidate IDs.
 - `ml_leakage_ablation.json` - ML rule-proxy ablation diagnostics.
+- `benchmark_confounder_diagnostics.json` - temporal/persona shortcut diagnostics.
 
 If `errors` is nonzero, the run still writes files, but the dataset should not
 be used as a benchmark. Read the top-level `errors` array in

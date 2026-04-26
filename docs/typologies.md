@@ -26,11 +26,12 @@ under the KES 100,000 reporting threshold.
 
 Injector behavior:
 
-- Picks members from `SME_OWNER`, `BODA_BODA_OPERATOR`, or
-  `DIASPORA_SUPPORTED` personas.
+- Can use any persona with a suitable member account, so persona alone is not a
+  stable label shortcut.
 - Posts 5 to 12 inbound deposits.
 - Spreads them across 2 to 7 days.
 - Uses cash, M-Pesa, and bank-like inbound rails.
+- Randomizes pattern start windows across the simulation year.
 - Mixes in near-miss normal behavior so the rule is not perfectly clean.
 
 Rule contract:
@@ -54,10 +55,11 @@ counterparties.
 
 Injector behavior:
 
-- Picks members from `DIASPORA_SUPPORTED`, `SME_OWNER`, or `CHURCH_ORG`.
+- Can use any persona with a suitable member account.
 - Plants inbound value between KES 100,000 and KES 750,000.
 - Exits 75% to 98% of value within 1 to 48 hours.
 - Uses 2 to 8 outbound transfers.
+- Randomizes pattern start windows across the simulation year.
 - Leaves false positives and false negatives in the rule baseline.
 
 Rule contract:
@@ -124,6 +126,7 @@ Injector behavior:
 - Forms suspicious groups of 3 to 5 members.
 - Reuses a real shared `device_id` across the group.
 - Creates inbound and outbound digital activity in a 30-day window.
+- Randomizes group start windows across the simulation year.
 - Keeps every suspicious member above the normal-activity blending threshold.
 - Leaves normal shared-device usage in the dataset as near-miss behavior.
 

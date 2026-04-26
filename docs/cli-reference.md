@@ -36,7 +36,7 @@ python3 -m kenya_sacco_sim generate [options]
 | `--with-transactions` | flag | off | Emit `transactions.csv` and run balance validation. |
 | `--with-loans` | flag | off | Emit `loans.csv`, `guarantors.csv`, and loan-lifecycle transactions. Implies `--with-transactions`. |
 | `--with-typologies` | flag | off | Inject suspicious typologies and emit `alerts_truth.csv` plus `rule_results.json`. Combine with `--with-loans` to enable fake-affordability. |
-| `--with-benchmark` | flag | off | Emit the benchmark package: splits, rule baseline, ML baseline, feature docs, dataset card, known limitations, comparison, and ablation artifacts. Requires `--with-typologies`. |
+| `--with-benchmark` | flag | off | Emit the benchmark package: splits, rule baseline, ML baseline, feature docs, dataset card, known limitations, descriptive comparison, leakage ablation, and confounder diagnostics. Requires `--with-typologies`. |
 
 CLI flags always win over `world.yaml`. Anything not passed on the command line
 takes its value from the loaded config, which in turn falls back to a built-in

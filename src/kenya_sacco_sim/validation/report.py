@@ -108,6 +108,28 @@ def _benchmark_findings(benchmark_validation: dict[str, object] | None) -> list[
                 "split_manifest.json",
             )
         )
+    confounders = benchmark_validation.get("confounder_diagnostics")
+    smoke_only = isinstance(evaluation_validity, dict) and bool(evaluation_validity.get("smoke_only"))
+    if isinstance(confounders, dict):
+        risk = confounders.get("risk_summary")
+        if isinstance(risk, dict) and risk.get("temporal_confounding_review_required") and not smoke_only:
+            findings.append(
+                ValidationFinding(
+                    "warning",
+                    "benchmark.temporal_label_concentration",
+                    "Suspicious labels are temporally concentrated; ML scores may reflect time-window shortcuts",
+                    "benchmark_confounder_diagnostics.json",
+                )
+            )
+        if isinstance(risk, dict) and risk.get("persona_confounding_review_required") and not smoke_only:
+            findings.append(
+                ValidationFinding(
+                    "warning",
+                    "benchmark.persona_label_concentration",
+                    "Suspicious labels are concentrated by persona/static attributes; ML scores may reflect generator assignment shortcuts",
+                    "benchmark_confounder_diagnostics.json",
+                )
+            )
     return findings
 
 

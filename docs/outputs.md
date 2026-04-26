@@ -70,7 +70,8 @@ These files require `--with-typologies`.
 | `ml_baseline_results.json` | Member-level Logistic Regression and Random Forest metrics by typology and split. |
 | `feature_importance.json` | Logistic Regression coefficient rankings and Random Forest importances. |
 | `ml_leakage_ablation.json` | ML baselines retrained with rule-proxy features removed. |
-| `rule_vs_ml_comparison.json` | Rule-vs-ML precision, recall, and F1 deltas. |
+| `rule_vs_ml_comparison.json` | Descriptive rule-vs-ML precision, recall, and F1 deltas. This is not a superiority claim. |
+| `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. |
 | `feature_documentation.json` | Per-file feature dictionary and split guidance. |
 | `dataset_card.md` | Human-readable run summary, intended use, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |

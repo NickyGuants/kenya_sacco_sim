@@ -58,6 +58,12 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `device_sharing_mule_network_validation` | Shared-device mule candidate IDs, precision/recall, and misses are reported. |
 | `benchmark_validation` | Whether benchmark artifacts form a valid evaluation or only a smoke run. |
 
+`benchmark_validation` also embeds confounder diagnostics from
+`benchmark_confounder_diagnostics.json`. These do not look for explicit label
+columns. They look for benchmark shortcuts such as suspicious labels clustering
+in a narrow time window or being heavily predictable from persona/static
+attributes.
+
 ## Device Validation
 
 Digital channels requiring `device_id`:
@@ -124,6 +130,10 @@ loan_active_member_ratio
 arrears_share
 default_share
 ```
+
+The multi-seed report also summarizes full-feature and ablated ML F1 stability.
+Those numbers are diagnostic only; they should be read together with
+`ml_leakage_ablation.json` and `benchmark_confounder_diagnostics.json`.
 
 ## Reading Errors And Warnings
 

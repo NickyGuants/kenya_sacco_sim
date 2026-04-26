@@ -30,7 +30,8 @@ Implemented:
 - Member-level ML baseline using scikit-learn Logistic Regression and Random
   Forest models.
 - Rule-proxy leakage ablation in `ml_leakage_ablation.json`.
-- Rule-vs-ML comparison in `rule_vs_ml_comparison.json`.
+- Descriptive rule-vs-ML comparison in `rule_vs_ml_comparison.json`.
+- Temporal/persona shortcut diagnostics in `benchmark_confounder_diagnostics.json`.
 - Benchmark split artifacts, dataset card, feature documentation, and known
   limitations.
 - Multi-seed stability harness.
@@ -144,6 +145,7 @@ Depending on selected options, the generator writes:
 - `feature_importance.json`
 - `ml_leakage_ablation.json`
 - `rule_vs_ml_comparison.json`
+- `benchmark_confounder_diagnostics.json`
 - `feature_documentation.json`
 - `dataset_card.md`
 - `known_limitations.md`
@@ -208,6 +210,18 @@ fake_affordability_validation
 device_sharing_mule_network_validation
 benchmark_validation
 ```
+
+`benchmark_confounder_diagnostics.json` reports two ML-specific risks that are
+not direct label leakage:
+
+```text
+temporal concentration of suspicious labels
+persona/static-attribute concentration of suspicious labels
+```
+
+If either review flag is true, `rule_vs_ml_comparison.json` must be read only
+as a descriptive score table, not as evidence that ML outperforms deterministic
+rules.
 
 Benchmark validity is explicit in `split_manifest.json` under
 `checks.evaluation_validity`. A valid benchmark evaluation requires:
@@ -275,6 +289,8 @@ Known benchmark behavior:
 FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
 Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
+Rule-vs-ML comparison is descriptive. Use ablation and confounder diagnostics
+before making ML superiority claims.
 100-member runs are smoke tests only, not valid benchmark evaluations.
 ```
 
