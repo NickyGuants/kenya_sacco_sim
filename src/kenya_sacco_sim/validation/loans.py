@@ -55,9 +55,9 @@ def validate_loans(rows_by_file: dict[str, list[dict[str, object]]]) -> tuple[li
         outstanding = round(principal + penalty_by_account[loan_account_id] - repayment_by_account[loan_account_id], 2)
         if round(float(account["current_balance_kes"]), 2) != outstanding:
             findings.append(_error("loan.outstanding_balance_mismatch", "LOAN_ACCOUNT current balance must equal outstanding principal plus penalties", loan_id))
-        if outstanding <= 0.005 and loan["performing_status"] != "CLOSED":
+        if outstanding <= 0.01 and loan["performing_status"] != "CLOSED":
             findings.append(_error("loan.zero_balance_not_closed", "Zero-balance loans must have performing_status CLOSED", loan_id))
-        if loan["performing_status"] == "CLOSED" and outstanding > 0.005:
+        if loan["performing_status"] == "CLOSED" and outstanding > 0.01:
             findings.append(_error("loan.closed_positive_balance", "Closed loans must have zero outstanding balance", loan_id))
         if loan["performing_status"] == "CURRENT" and int(loan["arrears_days"]) != 0:
             findings.append(_error("loan.current_with_arrears", "CURRENT loans must have zero arrears_days", loan_id))

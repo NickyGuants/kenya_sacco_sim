@@ -340,7 +340,7 @@ def _loan_lifecycle_transactions(
             if pay_month > 12:
                 break
             remaining = principal - paid_total
-            amount = min(installment, remaining)
+            amount = remaining if index == paid_count - 1 and remaining <= installment + 0.01 else min(installment, remaining)
             paid_total += amount
             pay_ts = datetime(2024, pay_month, min(28, rng.choice([24, 25, 26, 27, 28])), 9, rng.choice([0, 15, 30]))
             if loan["repayment_mode"] == "PAYROLL_CHECKOFF":
@@ -490,7 +490,7 @@ def _finalize_loan_statuses(loans: list[dict[str, object]], accounts: list[dict[
     account_by_id = {str(account["account_id"]): account for account in accounts}
     for loan in loans:
         account = account_by_id[str(loan["loan_account_id"])]
-        if round(float(account["current_balance_kes"]), 2) <= 0.0:
+        if round(float(account["current_balance_kes"]), 2) <= 0.01:
             loan["performing_status"] = "CLOSED"
             loan["arrears_days"] = 0
             loan["default_flag"] = False
