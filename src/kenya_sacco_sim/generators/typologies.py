@@ -156,7 +156,7 @@ def inject_typologies(
         next_txn,
         max(1, targets["DEVICE_SHARING_MULE_NETWORK"] // 6) if targets["DEVICE_SHARING_MULE_NETWORK"] else 0,
     )
-    decoy_target = max(2, sum(targets.values()) // 12) if sum(targets.values()) else 0
+    decoy_target = max(2, sum(targets.values()) // 9) if sum(targets.values()) else 0
     next_txn, near_miss_stats = _inject_decoys(
         rng,
         members,
@@ -635,12 +635,10 @@ def _inject_device_sharing_mule_network(
     cursor = 0
     while inserted < target_count and cursor < len(candidates):
         remaining = target_count - inserted
-        if remaining <= 5:
+        if remaining in {3, 4, 5}:
             group_size = remaining
         else:
-            group_size = rng.randint(3, 5)
-            if remaining - group_size in {1, 2}:
-                group_size = 3 if remaining - 3 not in {1, 2} else 4
+            group_size = 3
         if group_size < 3:
             break
         group = candidates[cursor : cursor + group_size]
@@ -656,7 +654,7 @@ def _inject_device_sharing_mule_network(
             continue
         group_index += 1
         expected_group_count = max(1, (target_count + 2) // 3)
-        start = _distributed_pattern_start(config, rng, current_group_index, expected_group_count, max_duration_days=32)
+        start = _distributed_pattern_start(config, rng, current_group_index, expected_group_count, max_duration_days=3)
         for member_offset, member in enumerate(group):
             if inserted >= target_count:
                 break
@@ -1120,7 +1118,7 @@ def _inject_decoys(
 
 
 def _inject_legitimate_structuring_like(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], agents_by_branch: dict[str, list[str]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
-    start = datetime(2024, 9, 1, 9, 0, tzinfo=EAT) + timedelta(days=index)
+    start = datetime(2024, 9, 1, 9, 0, tzinfo=EAT) + timedelta(days=index % 90)
     for offset, amount in enumerate([58_000.0, 62_000.0, 65_000.0, 71_000.0, 78_000.0]):
         rail = ["CASH_BRANCH", "MPESA", "CASH_AGENT"][offset % 3]
         txn_id = _txn_id(next_txn)
@@ -1147,7 +1145,7 @@ def _inject_legitimate_structuring_like(rng: random.Random, member: dict[str, ob
 
 
 def _inject_incomplete_structuring(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
-    start = datetime(2024, 9, 20, 10, 0, tzinfo=EAT) + timedelta(days=index)
+    start = datetime(2024, 9, 20, 10, 0, tzinfo=EAT) + timedelta(days=index % 80)
     for offset in range(4):
         txn_id = _txn_id(next_txn)
         next_txn += 1
@@ -1156,7 +1154,7 @@ def _inject_incomplete_structuring(rng: random.Random, member: dict[str, object]
 
 
 def _inject_legitimate_rapid_like(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
-    start = datetime(2024, 10, 2, 11, 0, tzinfo=EAT) + timedelta(days=index)
+    start = datetime(2024, 10, 2, 11, 0, tzinfo=EAT) + timedelta(days=index % 75)
     amount = float(rng.randrange(160_000, 420_000, 20_000))
     inbound_id = _txn_id(next_txn)
     next_txn += 1
@@ -1169,7 +1167,7 @@ def _inject_legitimate_rapid_like(rng: random.Random, member: dict[str, object],
 
 
 def _inject_near_rapid(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
-    start = datetime(2024, 10, 18, 12, 0, tzinfo=EAT) + timedelta(days=index)
+    start = datetime(2024, 10, 18, 12, 0, tzinfo=EAT) + timedelta(days=index % 60)
     amount = float(rng.randrange(130_000, 300_000, 10_000))
     inbound_id = _txn_id(next_txn)
     next_txn += 1
@@ -1183,16 +1181,17 @@ def _inject_near_rapid(rng: random.Random, member: dict[str, object], fosa: dict
 def _inject_legitimate_chama_wallet_collection(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
     start = datetime(2024, 6, 3, 9, 0, tzinfo=EAT) + timedelta(days=(index * 2) % 90)
     inbound_total = 0.0
-    for offset in range(6):
+    inbound_count = rng.randint(6, 8)
+    for offset in range(inbound_count):
         txn_id = _txn_id(next_txn)
         next_txn += 1
         txn_type, rail, channel, provider = _wallet_funnel_inbound_shape(offset)
-        amount = float(rng.randrange(45_000, 85_000, 5_000))
+        amount = float(rng.randrange(60_000, 95_000, 5_000))
         inbound_total += amount
         transactions.append(
             _txn_row(
                 txn_id,
-                start + timedelta(hours=offset * 10),
+                start + timedelta(hours=offset * 8),
                 rng.choice(source_accounts),
                 fosa,
                 member,
@@ -1206,22 +1205,31 @@ def _inject_legitimate_chama_wallet_collection(rng: random.Random, member: dict[
                 f"LEGIT_CHAMA_WALLET_IN:{member['member_id']}:{index}:{offset}",
             )
         )
-    for offset, share in enumerate([0.16, 0.12]):
+    payout_total = round(inbound_total * rng.uniform(0.58, 0.70), 2)
+    payout_amounts = _allocate_amounts(payout_total, 3, rng)
+    payout_shapes = [
+        ("SUPPLIER_PAYMENT_OUT", "MPESA", "PAYBILL", "MPESA", "MERCHANT"),
+        ("PESALINK_OUT", "PESALINK", "BANK_TRANSFER", "BANK_PARTNER", "BANK"),
+        ("WALLET_P2P_OUT", "MPESA", "MOBILE_APP", "MPESA", "WALLET_USER"),
+    ]
+    last_inbound = start + timedelta(hours=(inbound_count - 1) * 8)
+    for offset, amount in enumerate(payout_amounts):
         txn_id = _txn_id(next_txn)
         next_txn += 1
+        txn_type, rail, channel, provider, counterparty_type = payout_shapes[offset]
         transactions.append(
             _txn_row(
                 txn_id,
-                start + timedelta(days=8, hours=offset * 5),
+                last_inbound + timedelta(hours=8 + offset * 9),
                 fosa,
                 sink_accounts[(index + offset) % len(sink_accounts)],
                 member,
-                "BOSA_DEP_TOPUP" if offset == 0 else "SUPPLIER_PAYMENT_OUT",
-                "SACCO_INTERNAL" if offset == 0 else "MPESA",
-                "SYSTEM" if offset == 0 else "PAYBILL",
-                round(inbound_total * share, 2),
-                "SACCO_CORE" if offset == 0 else "MPESA",
-                "SACCO" if offset == 0 else "MERCHANT",
+                txn_type,
+                rail,
+                channel,
+                amount,
+                provider,
+                counterparty_type,
                 fosa.get("branch_id"),
                 f"LEGIT_CHAMA_WALLET_OUT:{member['member_id']}:{index}:{offset}",
             )
@@ -1277,7 +1285,7 @@ def _inject_near_wallet_funnel_low_fanout(rng: random.Random, member: dict[str, 
 
 
 def _inject_church_family_bulk(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
-    start = datetime(2024, 8, 4, 10, 0, tzinfo=EAT) + timedelta(days=index)
+    start = datetime(2024, 8, 4, 10, 0, tzinfo=EAT) + timedelta(days=index % 110)
     persona = str(member.get("persona_type") or "")
     if persona == "CHURCH_ORG":
         for offset in range(4):
@@ -1620,8 +1628,8 @@ def _empty_near_miss_families() -> dict[str, dict[str, object]]:
         },
         "legitimate_chama_wallet_collection": {
             "target_typology": "WALLET_FUNNELING",
-            "description": "Normal chama, welfare, or project collection credits from many wallets with low/late dispersion.",
-            "expected_rule_effect": "negative_control",
+            "description": "Normal chama, welfare, or project collection credits from many wallets followed by legitimate vendor or member payouts.",
+            "expected_rule_effect": "false_positive_pressure",
         },
         "near_wallet_funnel_low_fanout": {
             "target_typology": "WALLET_FUNNELING",
@@ -1934,9 +1942,36 @@ def _random_pattern_start(config: WorldConfig, rng: random.Random, max_duration_
 
 def _distributed_pattern_start(config: WorldConfig, rng: random.Random, sequence_index: int, sequence_total: int, max_duration_days: int) -> datetime:
     simulation_start = _simulation_datetime(config.start_date, 7, 0)
-    latest_start = _simulation_datetime(config.end_date, 18, 0) - timedelta(days=max_duration_days)
+    simulation_end = _simulation_datetime(config.end_date, 18, 0)
+    latest_start = simulation_end - timedelta(days=max_duration_days)
     if latest_start <= simulation_start:
         return simulation_start
+
+    month_count = _simulation_month_count(simulation_start, simulation_end)
+    if month_count > 1 and sequence_total > 1:
+        if sequence_total >= month_count:
+            month_offset = (sequence_index - 1) % month_count
+            cycle_index = (sequence_index - 1) // month_count
+            cycle_count = max(1, (sequence_total + month_count - 1) // month_count)
+        else:
+            month_offset = round((sequence_index - 1) * (month_count - 1) / max(1, sequence_total - 1))
+            cycle_index = 0
+            cycle_count = 1
+        month_start = _add_months(simulation_start, month_offset).replace(day=1, hour=7, minute=0, second=0, microsecond=0)
+        if month_start < simulation_start:
+            month_start = simulation_start
+        month_end = min(_month_end(month_start).replace(hour=18, minute=0, second=0, microsecond=0), latest_start)
+        if month_end >= month_start:
+            available_days = max(0, (month_end.date() - month_start.date()).days)
+            slot_width = max(1, (available_days + 1) // cycle_count)
+            slot_start = min(available_days, cycle_index * slot_width)
+            slot_end = min(available_days, slot_start + slot_width - 1)
+            return month_start + timedelta(
+                days=rng.randint(slot_start, max(slot_start, slot_end)),
+                hours=rng.randint(1, 10),
+                minutes=rng.choice([0, 10, 20, 30, 40, 50]),
+            )
+
     total_days = max(1, (latest_start.date() - simulation_start.date()).days)
     slots = max(1, sequence_total)
     slot_width = max(1, total_days // slots)
@@ -1947,6 +1982,25 @@ def _distributed_pattern_start(config: WorldConfig, rng: random.Random, sequence
         hours=rng.randint(1, 10),
         minutes=rng.choice([0, 10, 20, 30, 40, 50]),
     )
+
+
+def _simulation_month_count(start: datetime, end: datetime) -> int:
+    return max(1, (end.year - start.year) * 12 + end.month - start.month + 1)
+
+
+def _add_months(value: datetime, offset: int) -> datetime:
+    month_index = value.month - 1 + offset
+    year = value.year + month_index // 12
+    month = month_index % 12 + 1
+    month_start = datetime(year, month, 1, value.hour, value.minute, value.second, value.microsecond, tzinfo=value.tzinfo)
+    day = min(value.day, _month_end(month_start).day)
+    return month_start.replace(day=day)
+
+
+def _month_end(value: datetime) -> datetime:
+    if value.month == 12:
+        return value.replace(month=12, day=31)
+    return value.replace(month=value.month + 1, day=1) - timedelta(days=1)
 
 
 def _allocate_amounts(total: float, count: int, rng: random.Random) -> list[float]:

@@ -19,6 +19,7 @@ MIN_VALID_PATTERNS_PER_SPLIT = 5
 MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT = 10
 TEMPORAL_MAX_MONTH_SHARE_THRESHOLD = 0.40
 TEMPORAL_MIN_WINDOW_SPAN_DAYS = 120.0
+TEMPORAL_MIN_ACTIVE_MONTHS = 10
 
 
 def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
@@ -253,6 +254,7 @@ def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]
         and (
             float(metrics.get("max_month_share") or 0.0) > TEMPORAL_MAX_MONTH_SHARE_THRESHOLD
             or float(metrics.get("window_span_days") or 0.0) < TEMPORAL_MIN_WINDOW_SPAN_DAYS
+            or int(metrics.get("active_month_count") or 0) < TEMPORAL_MIN_ACTIVE_MONTHS
         )
     ]
     return {
@@ -260,7 +262,8 @@ def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]
         "review_rule": (
             "Flag typologies with >=10 suspicious transactions and "
             f"max_month_share > {TEMPORAL_MAX_MONTH_SHARE_THRESHOLD:.2f} or "
-            f"window_span_days < {TEMPORAL_MIN_WINDOW_SPAN_DAYS:.0f}."
+            f"window_span_days < {TEMPORAL_MIN_WINDOW_SPAN_DAYS:.0f} or "
+            f"active_month_count < {TEMPORAL_MIN_ACTIVE_MONTHS}."
         ),
         "flagged_typologies": flagged,
         "overall": _temporal_distribution(all_suspicious),
@@ -669,6 +672,7 @@ def _known_limitations() -> str:
 
 - v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
+- `WALLET_FUNNELING` includes legitimate chama, welfare, church, and project collection near-misses, so deterministic wallet fan-in/fan-out rules can produce false positives even when the ledger behavior is legitimate.
 - Dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.

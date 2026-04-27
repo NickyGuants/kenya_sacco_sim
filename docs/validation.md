@@ -76,6 +76,7 @@ suspicious transactions and either:
 ```text
 max_month_share > 0.40
 window_span_days < 120
+active_month_count < 10
 ```
 
 ## Device Validation
@@ -133,6 +134,11 @@ near_wallet_funnel_low_fanout
 Families marked `false_positive_pressure` are allowed to be rule candidates.
 Families marked `negative_control` should look superficially similar while
 staying below at least one rule threshold.
+
+For `WALLET_FUNNELING`, `legitimate_chama_wallet_collection` is false-positive
+pressure: normal chama, welfare, church, or project collections can have many
+wallet/paybill payers and fast legitimate payouts. `near_wallet_funnel_low_fanout`
+remains the wallet-funneling negative control.
 
 ## Benchmark Validity
 

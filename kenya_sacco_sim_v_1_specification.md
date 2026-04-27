@@ -334,6 +334,12 @@ legitimate_chama_wallet_collection
 near_wallet_funnel_low_fanout
 ```
 
+`legitimate_chama_wallet_collection` is intentional false-positive pressure for
+`WALLET_FUNNELING`: normal chama, welfare, church, or project collections may
+receive many wallet/paybill credits and make quick legitimate vendor or member
+payouts. `near_wallet_funnel_low_fanout` remains a negative control that should
+miss the executable rule through too few source or destination counterparties.
+
 Near-misses must not appear in `alerts_truth.csv`, but their counts should be
 reported in validation or rule artifacts when applicable.
 
@@ -543,7 +549,7 @@ Warnings:
 2. Shared-device baseline outside expected range.
 3. Institution split drift above threshold.
 4. Rule precision for intentionally ambiguous typologies is low but documented.
-5. Suspicious labels are concentrated in narrow time windows: `max_month_share > 0.40` or `window_span_days < 120`.
+5. Suspicious labels are concentrated in narrow time windows: `max_month_share > 0.40`, `window_span_days < 120`, or `active_month_count < 10`.
 6. Suspicious labels are concentrated by persona/static attributes.
 ```
 
@@ -593,18 +599,18 @@ validation warnings: 0
 digital device coverage: 100%
 max members per device: 5
 near-miss families: 12
-near-miss members: 172
-near-miss transactions: 632
-near-miss guarantees: 18
+near-miss members: 216
+near-miss transactions: 865
+near-miss guarantees: 17
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000
 DEVICE_SHARING_MULE_NETWORK recall: 1.0000
 GUARANTOR_FRAUD_RING precision: 1.0000
 GUARANTOR_FRAUD_RING recall: 1.0000
-WALLET_FUNNELING precision: 1.0000
-WALLET_FUNNELING recall: 1.0000
-FAKE_AFFORDABILITY precision: 0.1974
-RAPID_PASS_THROUGH precision: 0.4800
-STRUCTURING precision: 0.4286
+WALLET_FUNNELING precision: 0.6042
+WALLET_FUNNELING recall: 0.9667
+FAKE_AFFORDABILITY precision: 0.1899
+RAPID_PASS_THROUGH precision: 0.4528
+STRUCTURING precision: 0.3750
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
 ```

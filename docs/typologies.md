@@ -305,7 +305,7 @@ trusted_guarantor_star
 
 legitimate_chama_wallet_collection
   Target: WALLET_FUNNELING
-  Effect: negative_control
+  Effect: false_positive_pressure
 
 near_wallet_funnel_low_fanout
   Target: WALLET_FUNNELING

@@ -238,10 +238,13 @@ threshold:
 
 ```text
 max_month_share > 0.40
+window_span_days < 120
+active_month_count < 10
 ```
 
 This is intended to catch typologies that cluster just below an obvious
-single-month majority, including ambiguous loan-window behavior.
+single-month majority, have too short a calendar span, or are absent from too
+many simulation months.
 
 Benchmark validity is explicit in `split_manifest.json` under
 `checks.evaluation_validity`. A valid benchmark evaluation requires:
@@ -269,19 +272,19 @@ validation errors:   0
 validation warnings: 0
 members:             10,000
 accounts:            41,003
-transactions:        511,897
+transactions:        512,133
 loans:               2,352
-guarantors:          3,420
-alerts_truth:        1,335
+guarantors:          3,419
+alerts_truth:        1,338
 devices:             10,000
 device coverage:     100.00% of digital transactions
-shared devices:      345
-max members/device:  5
+shared devices:      346
+max members/device:  3
 evaluation validity: valid
 near-miss families:  12
-near-miss members:   172
-near-miss txns:      632
-near-miss guarantees: 18
+near-miss members:   216
+near-miss txns:      865
+near-miss guarantees: 17
 ```
 
 Rule-baseline metrics from that run:
@@ -289,10 +292,10 @@ Rule-baseline metrics from that run:
 ```text
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
 GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
-WALLET_FUNNELING precision:            1.0000 / recall: 1.0000
-FAKE_AFFORDABILITY precision:          0.1974 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.4800 / recall: 0.8000
-STRUCTURING precision:                 0.4286 / recall: 1.0000
+WALLET_FUNNELING precision:            0.6042 / recall: 0.9667
+FAKE_AFFORDABILITY precision:          0.1899 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.4528 / recall: 0.8000
+STRUCTURING precision:                 0.3750 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
@@ -304,12 +307,12 @@ precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
 shared-device member share mean: 0.0434
-cash rail share mean: 0.1936
+cash rail share mean: 0.1935
 loan active member mean: 0.2385
 arrears share mean: 0.0927
-near-miss member count mean: 172.2
-near-miss transaction count mean: 631.2
-near-miss guarantee count mean: 17.4
+near-miss member count mean: 217.6
+near-miss transaction count mean: 869.4
+near-miss guarantee count mean: 17.8
 ```
 
 Known benchmark behavior:

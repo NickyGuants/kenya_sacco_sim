@@ -80,6 +80,41 @@ class BenchmarkHardeningTests(unittest.TestCase):
 
         self.assertEqual(candidates, {})
 
+    def test_wallet_funneling_rule_flags_legitimate_chama_payout_false_positive(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(7):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-06-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": ["MPESA_PAYBILL_IN", "WALLET_P2P_IN", "BUSINESS_SETTLEMENT_IN"][index % 3],
+                    "amount_kes": 75_000,
+                    "counterparty_id_hash": f"CHAMA_PAYER_{index}",
+                }
+            )
+        for index in range(3):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 8:012d}",
+                    "timestamp": f"2024-06-08T1{index}:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": account_id,
+                    "account_id_cr": "SINK",
+                    "txn_type": ["SUPPLIER_PAYMENT_OUT", "PESALINK_OUT", "WALLET_P2P_OUT"][index],
+                    "amount_kes": 110_000,
+                    "counterparty_id_hash": f"LEGIT_PAYOUT_{index}",
+                }
+            )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {"MEM0000001": True})
+
     def test_guarantor_fraud_ring_rule_detects_directed_cycle(self) -> None:
         loans = [
             _loan("LOAN000001", "MEM0000001"),
@@ -279,6 +314,52 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertTrue(temporal["review_required"])
         self.assertIn("max_month_share > 0.40", temporal["review_rule"])
         self.assertIn("STRUCTURING", temporal["flagged_typologies"])
+
+    def test_temporal_confounder_flags_too_few_active_months(self) -> None:
+        transactions = []
+        for index, month in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2], start=1):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index:012d}",
+                    "member_id_primary": "MEM0000001",
+                    "timestamp": f"2024-{month:02d}-05T10:00:00+03:00",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": "ACC00000001",
+                    "amount_kes": 50_000,
+                    "rail": "MPESA",
+                    "channel": "PAYBILL",
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "counterparty_id_hash": f"CP{index:04d}",
+                }
+            )
+        alerts = [
+            {
+                "alert_id": f"ALT{index:08d}",
+                "typology": "WALLET_FUNNELING",
+                "member_id": "MEM0000001",
+                "txn_id": transaction["txn_id"],
+                "pattern_id": "PAT00000001",
+                "entity_type": "TRANSACTION",
+            }
+            for index, transaction in enumerate(transactions, start=1)
+        ]
+
+        artifacts = build_benchmark_artifacts(
+            {
+                "members.csv": [{"member_id": "MEM0000001", "persona_type": "SME_OWNER"}],
+                "accounts.csv": [{"account_id": "ACC00000001", "member_id": "MEM0000001"}],
+                "transactions.csv": transactions,
+                "alerts_truth.csv": alerts,
+            },
+            {},
+            WorldConfig(member_count=1, suspicious_ratio=1),
+        )
+
+        temporal = artifacts["benchmark_confounder_diagnostics.json"]["temporal_label_concentration"]
+
+        self.assertTrue(temporal["review_required"])
+        self.assertIn("active_month_count < 10", temporal["review_rule"])
+        self.assertIn("WALLET_FUNNELING", temporal["flagged_typologies"])
 
     def test_label_validation_uses_half_up_target_count(self) -> None:
         rows_by_file = {
