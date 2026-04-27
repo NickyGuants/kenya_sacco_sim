@@ -115,10 +115,16 @@ python3 -m kenya_sacco_sim benchmark --seeds 42 1337 2026 [options]
 | `--config-dir` | path | `./config` | Same semantics as `generate`. |
 | `--output` | path | `./benchmarks/v1_multi_seed` | Where the multi-seed report is written. |
 | `--write-seed-datasets` | flag | off | Also write each seed's full generated package under the output directory. |
+| `--jobs` | int | auto | Parallel seed workers. Auto is `min(seed count, CPU count - 1, 4)`. Use `1` for serial execution. |
+| `--quiet` | flag | off | Suppress benchmark progress logs on stderr. |
 
 There is no `--seed` flag; the loop owns the seed choice. There are also no
 `--with-loans`, `--with-typologies`, or `--with-benchmark` flags because the
 benchmark loop always runs the full pipeline.
+
+Each seed is independent, so the benchmark runner executes seeds in parallel
+worker processes by default. The final JSON summary is still printed on stdout;
+progress logs go to stderr.
 
 ### Output Summary
 

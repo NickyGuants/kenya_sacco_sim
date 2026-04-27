@@ -7,7 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
-from kenya_sacco_sim.benchmark.multi_seed import run_multi_seed_benchmark
+from kenya_sacco_sim.benchmark.multi_seed import run_multi_seed_benchmark, stderr_progress
 from kenya_sacco_sim.core.config import WorldConfig, load_world_config, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
@@ -49,6 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--difficulty", default=None)
     benchmark.add_argument("--config-dir", type=Path, default=Path("./config"))
     benchmark.add_argument("--write-seed-datasets", action="store_true", help="Also write each seed's full generated package under the benchmark output directory")
+    benchmark.add_argument("--jobs", type=int, default=None, help="Parallel seed workers. Defaults to min(seed count, CPU count - 1, 4). Use 1 for serial execution.")
+    benchmark.add_argument("--quiet", action="store_true", help="Suppress benchmark progress logs on stderr")
     return parser
 
 
@@ -179,7 +181,14 @@ def benchmark(args: argparse.Namespace) -> int:
         difficulty=args.difficulty,
     )
     try:
-        result = run_multi_seed_benchmark(config, args.seeds, args.output, write_seed_datasets=args.write_seed_datasets)
+        result = run_multi_seed_benchmark(
+            config,
+            args.seeds,
+            args.output,
+            write_seed_datasets=args.write_seed_datasets,
+            max_workers=args.jobs,
+            progress=None if args.quiet else stderr_progress,
+        )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     failed = not result["acceptance"]["validation_error_free"] or not result["acceptance"]["precision_recall_variance_within_threshold"]

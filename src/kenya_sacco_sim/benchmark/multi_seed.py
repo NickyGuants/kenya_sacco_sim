@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
+import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 from statistics import mean, pstdev
-from typing import Any
+from time import perf_counter
+from typing import Any, Callable
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
 from kenya_sacco_sim.core.config import WorldConfig, start_timestamp, with_cli_overrides
@@ -23,14 +27,22 @@ from kenya_sacco_sim.validation.report import build_validation_report
 STABILITY_THRESHOLD = 0.10
 
 
-def run_multi_seed_benchmark(config: WorldConfig, seeds: list[int], output_dir: Path, write_seed_datasets: bool = False) -> dict[str, object]:
+ProgressCallback = Callable[[str], None]
+
+
+def run_multi_seed_benchmark(
+    config: WorldConfig,
+    seeds: list[int],
+    output_dir: Path,
+    write_seed_datasets: bool = False,
+    max_workers: int | None = None,
+    progress: ProgressCallback | None = None,
+) -> dict[str, object]:
     seeds = _validate_seeds(seeds)
     output_dir.mkdir(parents=True, exist_ok=True)
-    seed_results: list[dict[str, object]] = []
-    for seed in seeds:
-        seed_config = with_cli_overrides(config, seed=seed)
-        seed_output = output_dir / f"seed_{seed}" if write_seed_datasets else None
-        seed_results.append(_run_seed(seed_config, seed_output))
+    worker_count = _worker_count(max_workers, len(seeds))
+    _emit_progress(progress, f"running {len(seeds)} seeds with {worker_count} worker(s)")
+    seed_results = _run_seeds_parallel(config, seeds, output_dir, write_seed_datasets, worker_count, progress)
 
     result = _multi_seed_result(config, seeds, seed_results)
     write_json(output_dir / "multi_seed_results.json", result)
@@ -45,6 +57,70 @@ def _validate_seeds(seeds: list[int]) -> list[int]:
         duplicate_text = ", ".join(str(seed) for seed in duplicates)
         raise ValueError(f"Duplicate seeds are not allowed: {duplicate_text}")
     return list(seeds)
+
+
+def _worker_count(max_workers: int | None, seed_count: int) -> int:
+    if max_workers is not None and max_workers < 1:
+        raise ValueError("--jobs must be at least 1")
+    if seed_count <= 1:
+        return 1
+    if max_workers is not None:
+        return min(max_workers, seed_count)
+    cpu_count = os.cpu_count() or 2
+    return min(seed_count, max(1, cpu_count - 1), 4)
+
+
+def _run_seeds_parallel(
+    config: WorldConfig,
+    seeds: list[int],
+    output_dir: Path,
+    write_seed_datasets: bool,
+    worker_count: int,
+    progress: ProgressCallback | None,
+) -> list[dict[str, object]]:
+    if worker_count == 1:
+        results_by_seed = {}
+        for seed in seeds:
+            _emit_progress(progress, f"seed {seed} started")
+            started_at = perf_counter()
+            results_by_seed[seed] = _run_seed_job(config, seed, output_dir, write_seed_datasets)
+            _emit_progress(progress, f"seed {seed} finished in {perf_counter() - started_at:.1f}s")
+        return [results_by_seed[seed] for seed in seeds]
+
+    started_at_by_seed: dict[int, float] = {}
+    results_by_seed: dict[int, dict[str, object]] = {}
+    with ProcessPoolExecutor(max_workers=worker_count) as executor:
+        futures = {}
+        for seed in seeds:
+            _emit_progress(progress, f"seed {seed} queued")
+            future = executor.submit(_run_seed_job, config, seed, output_dir, write_seed_datasets)
+            futures[future] = seed
+            started_at_by_seed[seed] = perf_counter()
+        for future in as_completed(futures):
+            seed = futures[future]
+            try:
+                results_by_seed[seed] = future.result()
+            except Exception as exc:
+                for pending in futures:
+                    pending.cancel()
+                raise RuntimeError(f"Benchmark seed {seed} failed") from exc
+            _emit_progress(progress, f"seed {seed} finished in {perf_counter() - started_at_by_seed[seed]:.1f}s")
+    return [results_by_seed[seed] for seed in seeds]
+
+
+def _run_seed_job(config: WorldConfig, seed: int, output_dir: Path, write_seed_datasets: bool) -> dict[str, object]:
+    seed_config = with_cli_overrides(config, seed=seed)
+    seed_output = output_dir / f"seed_{seed}" if write_seed_datasets else None
+    return _run_seed(seed_config, seed_output)
+
+
+def _emit_progress(progress: ProgressCallback | None, message: str) -> None:
+    if progress is not None:
+        progress(message)
+
+
+def stderr_progress(message: str) -> None:
+    print(f"[benchmark] {message}", file=sys.stderr, flush=True)
 
 
 def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, object]:

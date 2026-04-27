@@ -358,6 +358,9 @@
         }
       },
       "near_miss_metrics": {
+        "device_sharing_near_miss_group_count": 5,
+        "device_sharing_near_miss_member_count": 15,
+        "device_sharing_near_miss_transaction_count": 30,
         "family_counts": {
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
@@ -817,6 +820,9 @@
         }
       },
       "near_miss_metrics": {
+        "device_sharing_near_miss_group_count": 5,
+        "device_sharing_near_miss_member_count": 15,
+        "device_sharing_near_miss_transaction_count": 30,
         "family_counts": {
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
@@ -1276,6 +1282,9 @@
         }
       },
       "near_miss_metrics": {
+        "device_sharing_near_miss_group_count": 5,
+        "device_sharing_near_miss_member_count": 15,
+        "device_sharing_near_miss_transaction_count": 30,
         "family_counts": {
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
@@ -1735,6 +1744,9 @@
         }
       },
       "near_miss_metrics": {
+        "device_sharing_near_miss_group_count": 5,
+        "device_sharing_near_miss_member_count": 15,
+        "device_sharing_near_miss_transaction_count": 30,
         "family_counts": {
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
@@ -2194,6 +2206,9 @@
         }
       },
       "near_miss_metrics": {
+        "device_sharing_near_miss_group_count": 5,
+        "device_sharing_near_miss_member_count": 15,
+        "device_sharing_near_miss_transaction_count": 30,
         "family_counts": {
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",

@@ -130,10 +130,12 @@ The benchmark layer is downstream of generation. It produces:
 - temporal/persona confounder diagnostics
 - dataset card and limitations
 
-The `benchmark` command wraps the full generation pipeline in a multi-seed loop
-and writes `multi_seed_results.json`, including near-miss stability,
-full-feature ML stability, ablated ML stability, ablation F1-drop stability,
-and per-seed confounder flags.
+The `benchmark` command wraps the full generation pipeline in a multi-seed loop,
+executes independent seeds in parallel worker processes, and writes
+`multi_seed_results.json`, including near-miss stability, full-feature ML
+stability, ablated ML stability, ablation F1-drop stability, and per-seed
+confounder flags. Use `--jobs 1` to force serial execution when debugging a
+single seed path.
 
 ## Adding A New Typology
 

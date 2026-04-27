@@ -90,6 +90,7 @@ Run the multi-seed stability harness:
 python3 -m kenya_sacco_sim benchmark \
   --members 10000 \
   --seeds 42 1337 2026 9001 314159 \
+  --jobs 4 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
@@ -97,6 +98,9 @@ The harness writes `multi_seed_results.json` with per-seed validation status,
 rule precision/recall, evaluation-validity status, and distribution stability
 statistics. It fails if any seed has validation errors or if typology
 precision/recall ranges exceed the stability threshold of `0.10`.
+Seed runs execute in parallel by default with up to four worker processes. Use
+`--jobs 1` for serial debugging or pass a larger `--jobs` value when the host
+has enough CPU and memory headroom.
 
 If your environment maps `python` to Python 3, `python -m kenya_sacco_sim ...`
 is equivalent.
@@ -301,7 +305,7 @@ STRUCTURING precision:                 0.3750 / recall: 1.0000
 Latest multi-seed stability gate:
 
 ```text
-command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --jobs 4 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds

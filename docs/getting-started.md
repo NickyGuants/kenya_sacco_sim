@@ -80,12 +80,14 @@ For a stronger guarantee that the benchmark is not seed-fragile:
 python3 -m kenya_sacco_sim benchmark \
   --members 10000 \
   --seeds 42 1337 2026 9001 314159 \
+  --jobs 4 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
 This writes `multi_seed_results.json`. The command exits nonzero if any seed
 has validation errors or if typology precision/recall ranges drift by more than
-`0.10` across seeds. Seeds must be unique.
+`0.10` across seeds. Seeds must be unique. Seed runs execute in parallel by
+default; use `--jobs 1` when debugging a single serial path.
 
 ## Sanity Tests
 
