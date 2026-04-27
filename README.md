@@ -25,6 +25,7 @@ Implemented:
   - `FAKE_AFFORDABILITY_BEFORE_LOAN`
   - `DEVICE_SHARING_MULE_NETWORK`
   - `GUARANTOR_FRAUD_RING`
+  - `WALLET_FUNNELING`
 - Rich near-miss and negative-control families for active typologies, reported
   in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
 - Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
@@ -40,7 +41,8 @@ Implemented:
 - Multi-seed stability harness.
 - Validation for schema, foreign keys, balances, distributions, credit,
   guarantors, support entities, devices, labels, typology metrics, benchmark
-  validity, split leakage, ID/reference leakage, and device-sharing mule rules.
+  validity, split leakage, ID/reference leakage, device-sharing mule rules, and
+  wallet-funneling rules.
 
 Current specification:
 
@@ -112,6 +114,7 @@ RAPID_PASS_THROUGH
 FAKE_AFFORDABILITY_BEFORE_LOAN
 DEVICE_SHARING_MULE_NETWORK
 GUARANTOR_FRAUD_RING
+WALLET_FUNNELING
 ```
 
 Sub-1,000-member smoke runs do not request partial device-sharing mule groups.
@@ -214,6 +217,7 @@ near_miss_validation
 fake_affordability_validation
 device_sharing_mule_network_validation
 guarantor_fraud_ring_validation
+wallet_funneling_validation
 benchmark_validation
 ```
 
@@ -262,22 +266,22 @@ Latest verified 10,000-member benchmark run:
 command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
 manifest version:    1.0.0-dev
 validation errors:   0
-validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
+validation warnings: 0
 members:             10,000
 accounts:            41,003
-transactions:        511,243
+transactions:        511,897
 loans:               2,352
-guarantors:          3,418
-alerts_truth:        923
+guarantors:          3,420
+alerts_truth:        1,335
 devices:             10,000
 device coverage:     100.00% of digital transactions
-shared devices:      343
+shared devices:      345
 max members/device:  5
 evaluation validity: valid
-near-miss families:  10
-near-miss members:   120
-near-miss txns:      330
-near-miss guarantees: 16
+near-miss families:  12
+near-miss members:   172
+near-miss txns:      632
+near-miss guarantees: 18
 ```
 
 Rule-baseline metrics from that run:
@@ -285,9 +289,10 @@ Rule-baseline metrics from that run:
 ```text
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
 GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
-FAKE_AFFORDABILITY precision:          0.2083 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.5455 / recall: 0.8000
-STRUCTURING precision:                 0.6818 / recall: 1.0000
+WALLET_FUNNELING precision:            1.0000 / recall: 1.0000
+FAKE_AFFORDABILITY precision:          0.1974 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.4800 / recall: 0.8000
+STRUCTURING precision:                 0.4286 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
@@ -299,12 +304,12 @@ precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
 shared-device member share mean: 0.0434
-cash rail share mean: 0.1938
+cash rail share mean: 0.1936
 loan active member mean: 0.2385
 arrears share mean: 0.0927
-near-miss member count mean: 121.8
-near-miss transaction count mean: 330.4
-near-miss guarantee count mean: 18.0
+near-miss member count mean: 172.2
+near-miss transaction count mean: 631.2
+near-miss guarantee count mean: 17.4
 ```
 
 Known benchmark behavior:

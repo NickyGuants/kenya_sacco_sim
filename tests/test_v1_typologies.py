@@ -18,6 +18,7 @@ class V1TypologyTargetTests(unittest.TestCase):
                 "FAKE_AFFORDABILITY_BEFORE_LOAN": 0,
                 "DEVICE_SHARING_MULE_NETWORK": 0,
                 "GUARANTOR_FRAUD_RING": 0,
+                "WALLET_FUNNELING": 0,
             },
         )
 
@@ -33,11 +34,12 @@ class V1TypologyTargetTests(unittest.TestCase):
         self.assertEqual(sum(counts.values()), 10)
         self.assertGreaterEqual(counts["DEVICE_SHARING_MULE_NETWORK"], 3)
 
-    def test_full_benchmark_allocates_minimum_labels_for_five_typologies(self) -> None:
+    def test_full_benchmark_allocates_minimum_labels_for_six_typologies(self) -> None:
         counts = _target_counts(WorldConfig(member_count=10_000, suspicious_ratio=0.01))
 
-        self.assertEqual(sum(counts.values()), 150)
+        self.assertEqual(sum(counts.values()), 180)
         self.assertEqual(counts["GUARANTOR_FRAUD_RING"], 30)
+        self.assertEqual(counts["WALLET_FUNNELING"], 30)
 
 
 if __name__ == "__main__":

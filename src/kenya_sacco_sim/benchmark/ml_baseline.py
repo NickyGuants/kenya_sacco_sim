@@ -10,7 +10,9 @@ from kenya_sacco_sim.core.config import WorldConfig
 
 DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
-TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING")
+WALLET_FUNNEL_INBOUND_TYPES = {"MPESA_PAYBILL_IN", "WALLET_P2P_IN", "BUSINESS_SETTLEMENT_IN"}
+WALLET_FUNNEL_OUTBOUND_TYPES = {"MPESA_WALLET_TOPUP", "WALLET_P2P_OUT", "PESALINK_OUT", "SUPPLIER_PAYMENT_OUT"}
+TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING", "WALLET_FUNNELING")
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
@@ -46,6 +48,13 @@ RULE_PROXY_FEATURES_BY_TYPOLOGY = {
         "guarantor_out_degree",
         "guarantor_in_degree",
         "graph_degree",
+    },
+    "WALLET_FUNNELING": {
+        "wallet_inbound_count",
+        "max_wallet_fan_in_counterparties_7d",
+        "max_wallet_fan_in_value_7d_kes",
+        "max_wallet_funnel_exit_ratio_7d",
+        "counterparty_diversity_ratio",
     },
 }
 
@@ -132,6 +141,10 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         "account_degree",
         "guarantor_out_degree",
         "guarantor_in_degree",
+        "wallet_inbound_count",
+        "max_wallet_fan_in_counterparties_7d",
+        "max_wallet_fan_in_value_7d_kes",
+        "max_wallet_funnel_exit_ratio_7d",
         "persona_txn_count_ratio",
         "persona_inflow_ratio",
         "persona_outflow_ratio",
@@ -169,6 +182,8 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
                 salary_income_totals[member_id] += amount
             if str(txn.get("txn_type") or "") in EXTERNAL_CREDIT_TYPES:
                 external_credit_totals[member_id] += amount
+            if str(txn.get("txn_type") or "") in WALLET_FUNNEL_INBOUND_TYPES:
+                features["wallet_inbound_count"] += 1.0
             if _is_counted_deposit(txn) and amount < 100_000:
                 features["sub_100k_inbound_deposit_count"] += 1.0
         if debit_owned:
@@ -210,6 +225,8 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
                     "credit_owned": credit_owned,
                     "debit_owned": debit_owned,
                     "counted_deposit": credit_owned and _is_counted_deposit(txn) and amount < 100_000,
+                    "wallet_funnel_inbound": credit_owned and str(txn.get("txn_type") or "") in WALLET_FUNNEL_INBOUND_TYPES,
+                    "wallet_funnel_outbound": debit_owned and str(txn.get("txn_type") or "") in WALLET_FUNNEL_OUTBOUND_TYPES,
                 }
             )
         except ValueError:
@@ -371,6 +388,7 @@ def _temporal_features(events: list[dict[str, object]]) -> dict[str, float]:
         "min_inbound_to_outbound_hours": _min_inbound_to_outbound_hours(events),
         "max_outbound_counterparties_48h": float(_max_outbound_counterparties(events, timedelta(hours=48))),
         "max_sub_100k_deposits_7d": float(_max_flagged_count_window(events, timedelta(days=7), "counted_deposit")),
+        **_wallet_funnel_features(events, timedelta(days=7), timedelta(hours=72)),
     }
 
 
@@ -464,6 +482,44 @@ def _max_outbound_counterparties(events: list[dict[str, object]], window: timede
         }
         max_count = max(max_count, len(counterparties))
     return max_count
+
+
+def _wallet_funnel_features(events: list[dict[str, object]], fan_in_window: timedelta, dispersion_window: timedelta) -> dict[str, float]:
+    max_counterparties = 0
+    max_value = 0.0
+    max_exit_ratio = 0.0
+    for start_event in events:
+        start_ts = start_event["timestamp"]
+        fan_in = [
+            event
+            for event in events
+            if event.get("wallet_funnel_inbound")
+            and start_ts <= event["timestamp"] <= start_ts + fan_in_window
+        ]
+        if not fan_in:
+            continue
+        inbound_value = sum(float(event["amount"]) for event in fan_in)
+        inbound_counterparties = {
+            str(event.get("counterparty") or "")
+            for event in fan_in
+            if event.get("counterparty")
+        }
+        last_inbound_ts = max(event["timestamp"] for event in fan_in)
+        outflow = [
+            event
+            for event in events
+            if event.get("wallet_funnel_outbound")
+            and last_inbound_ts <= event["timestamp"] <= last_inbound_ts + dispersion_window
+        ]
+        outbound_value = sum(float(event["amount"]) for event in outflow)
+        max_counterparties = max(max_counterparties, len(inbound_counterparties))
+        max_value = max(max_value, inbound_value)
+        max_exit_ratio = max(max_exit_ratio, _safe_ratio(outbound_value, inbound_value))
+    return {
+        "max_wallet_fan_in_counterparties_7d": float(max_counterparties),
+        "max_wallet_fan_in_value_7d_kes": max_value,
+        "max_wallet_funnel_exit_ratio_7d": max_exit_ratio,
+    }
 
 
 def _persona_baselines(features_by_member: dict[str, dict[str, float]], persona_by_member: dict[str, str]) -> dict[str, dict[str, float]]:

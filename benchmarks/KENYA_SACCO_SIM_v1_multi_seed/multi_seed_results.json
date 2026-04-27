@@ -11,8 +11,8 @@
   "seed_results": [
     {
       "baseline_metrics": {
-        "macro_precision": 0.6871,
-        "macro_recall": 0.96,
+        "macro_precision": 0.6843,
+        "macro_recall": 0.9667,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "candidate_count": 30,
@@ -24,11 +24,11 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 144,
-            "f1": 0.3448,
+            "candidate_count": 152,
+            "f1": 0.3297,
             "false_negative_count": 0,
-            "false_positive_count": 114,
-            "precision": 0.2083,
+            "false_positive_count": 122,
+            "precision": 0.1974,
             "recall": 1.0,
             "truth_member_count": 30
           },
@@ -42,20 +42,29 @@
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 44,
-            "f1": 0.6486,
+            "candidate_count": 50,
+            "f1": 0.6,
             "false_negative_count": 6,
-            "false_positive_count": 20,
-            "precision": 0.5455,
+            "false_positive_count": 26,
+            "precision": 0.48,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 44,
-            "f1": 0.8108,
+            "candidate_count": 70,
+            "f1": 0.6,
             "false_negative_count": 0,
-            "false_positive_count": 14,
-            "precision": 0.6818,
+            "false_positive_count": 40,
+            "precision": 0.4286,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "WALLET_FUNNELING": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -64,8 +73,8 @@
       "confounder_diagnostics": {
         "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
         "persona_confounding_review_required": false,
-        "review_required": true,
-        "temporal_confounding_review_required": true
+        "review_required": false,
+        "temporal_confounding_review_required": false
       },
       "credit_metrics": {
         "arrears_share": 0.0829,
@@ -81,7 +90,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1951,
+        "cash_rail_share": 0.1949,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -119,6 +128,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "positive_member_counts_by_typology_split": {
@@ -151,6 +166,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "required_member_count": 10000,
@@ -162,19 +183,19 @@
         "smoke_only": false,
         "split_minimums_met": true,
         "status": "valid",
-        "suspicious_member_count": 150,
+        "suspicious_member_count": 180,
         "txn_label_counts_by_typology_split": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 15,
-            "total": 87,
-            "train": 57,
-            "validation": 15
+            "test": 12,
+            "total": 91,
+            "train": 63,
+            "validation": 16
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 19,
-            "total": 117,
-            "train": 75,
-            "validation": 23
+            "test": 23,
+            "total": 108,
+            "train": 67,
+            "validation": 18
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 10,
@@ -193,6 +214,12 @@
             "total": 248,
             "train": 162,
             "validation": 38
+          },
+          "WALLET_FUNNELING": {
+            "test": 62,
+            "total": 357,
+            "train": 240,
+            "validation": 55
           }
         },
         "typology_member_minimum_met": true,
@@ -201,41 +228,46 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.5333,
-            "train": 0.7018,
-            "validation": 0.6667
+            "test": 0.5882,
+            "train": 0.8333,
+            "validation": 0.8333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.4,
-            "train": 0.5556,
-            "validation": 0.4444
+            "test": 0.6667,
+            "train": 0.5882,
+            "validation": 0.4211
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.013,
-            "train": 0.0531,
-            "validation": 0.0126
+            "test": 0.0194,
+            "train": 0.0698,
+            "validation": 0.0163
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.6667,
+            "test": 0.5882,
             "train": 0.8333,
-            "validation": 0.5455
+            "validation": 0.5714
           },
           "STRUCTURING": {
-            "test": 0.8333,
-            "train": 0.8889,
-            "validation": 0.6154
+            "test": 0.6667,
+            "train": 0.8696,
+            "validation": 0.6667
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
+            "train": 0.9524,
+            "validation": 0.9091
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.3333,
+            "test": 0.5714,
             "train": 1.0,
             "validation": 0.3333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.0,
+            "test": 0.75,
             "train": 1.0,
-            "validation": 0.2857
+            "validation": 0.0
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 0.0,
@@ -248,65 +280,80 @@
             "validation": 0.75
           },
           "STRUCTURING": {
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.5714
+          },
+          "WALLET_FUNNELING": {
             "test": 0.8889,
             "train": 1.0,
-            "validation": 0.75
+            "validation": 0.5714
           }
         }
       },
       "ml_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.6667,
-            "train": 0.9524,
-            "validation": 0.8333
+            "test": 0.7692,
+            "train": 0.9091,
+            "validation": 0.7273
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.6154,
-            "train": 0.8,
-            "validation": 0.625
+            "test": 0.8333,
+            "train": 0.8333,
+            "validation": 0.6154
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 0.8333,
+            "train": 0.7692,
+            "validation": 0.7273
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": 0.7692,
             "train": 0.8696,
             "validation": 0.5714
           },
-          "RAPID_PASS_THROUGH": {
-            "test": 0.6667,
-            "train": 0.8889,
-            "validation": 0.6667
-          },
           "STRUCTURING": {
-            "test": 0.8333,
-            "train": 0.9091,
-            "validation": 0.6154
+            "test": 0.7692,
+            "train": 0.8696,
+            "validation": 1.0
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.9091
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 1.0,
             "train": 1.0,
-            "validation": 0.9091
-          },
-          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.75,
-            "train": 1.0,
             "validation": 0.8889
           },
-          "GUARANTOR_FRAUD_RING": {
-            "test": 0.8,
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.8889,
             "train": 1.0,
-            "validation": 0.5714
+            "validation": 0.3333
+          },
+          "GUARANTOR_FRAUD_RING": {
+            "test": 0.0,
+            "train": 1.0,
+            "validation": 0.2857
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.5714,
+            "test": 0.3333,
             "train": 1.0,
             "validation": 0.75
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.8889,
             "train": 1.0,
             "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
           }
         }
       },
@@ -315,58 +362,72 @@
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 62
           },
           "incomplete_structuring": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 48
+            "transaction_count": 60
+          },
+          "legitimate_chama_wallet_collection": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 120
           },
           "legitimate_preloan_affordability_candidate": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "legitimate_sme_liquidity_sweep": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "legitimate_structuring_like": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 60
+            "transaction_count": 75
           },
           "legitimate_two_member_reciprocal_guarantee": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 8,
-            "member_count": 8,
+            "guarantee_count": 10,
+            "member_count": 10,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           },
           "near_affordability_low_growth": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "near_rapid_low_exit": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 24
+            "transaction_count": 30
+          },
+          "near_wallet_funnel_low_fanout": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 105
           },
           "normal_shared_device_low_value": {
             "expected_rule_effect": "negative_control",
@@ -378,39 +439,39 @@
           "trusted_guarantor_star": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 8,
-            "member_count": 13,
+            "member_count": 12,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           }
         },
-        "near_miss_guarantee_count": 16,
-        "near_miss_member_count": 120,
-        "near_miss_transaction_count": 330,
+        "near_miss_guarantee_count": 18,
+        "near_miss_member_count": 172,
+        "near_miss_transaction_count": 632,
         "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41003,
         "agents.csv": 50,
-        "alerts_truth.csv": 923,
+        "alerts_truth.csv": 1335,
         "branches.csv": 10,
         "devices.csv": 10000,
         "employers.csv": 60,
-        "graph_edges.csv": 363417,
-        "guarantors.csv": 3418,
+        "graph_edges.csv": 363433,
+        "guarantors.csv": 3420,
         "institutions.csv": 5,
         "loans.csv": 2352,
         "members.csv": 10000,
         "nodes.csv": 61128,
-        "transactions.csv": 511243
+        "transactions.csv": 511897
       },
       "seed": 42,
       "validation_error_count": 0,
-      "validation_warning_count": 1
+      "validation_warning_count": 0
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6728,
-        "macro_recall": 0.96,
+        "macro_precision": 0.6942,
+        "macro_recall": 0.9667,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "candidate_count": 30,
@@ -422,11 +483,11 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 158,
-            "f1": 0.3191,
+            "candidate_count": 163,
+            "f1": 0.3109,
             "false_negative_count": 0,
-            "false_positive_count": 128,
-            "precision": 0.1899,
+            "false_positive_count": 133,
+            "precision": 0.184,
             "recall": 1.0,
             "truth_member_count": 30
           },
@@ -440,20 +501,29 @@
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 46,
-            "f1": 0.6316,
+            "candidate_count": 45,
+            "f1": 0.64,
             "false_negative_count": 6,
-            "false_positive_count": 22,
-            "precision": 0.5217,
+            "false_positive_count": 21,
+            "precision": 0.5333,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 46,
-            "f1": 0.7895,
+            "candidate_count": 67,
+            "f1": 0.6186,
             "false_negative_count": 0,
-            "false_positive_count": 16,
-            "precision": 0.6522,
+            "false_positive_count": 37,
+            "precision": 0.4478,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "WALLET_FUNNELING": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -479,7 +549,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1927,
+        "cash_rail_share": 0.1925,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -517,6 +587,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "positive_member_counts_by_typology_split": {
@@ -549,6 +625,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "required_member_count": 10000,
@@ -560,19 +642,19 @@
         "smoke_only": false,
         "split_minimums_met": true,
         "status": "valid",
-        "suspicious_member_count": 150,
+        "suspicious_member_count": 180,
         "txn_label_counts_by_typology_split": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 13,
-            "total": 93,
-            "train": 66,
-            "validation": 14
+            "test": 16,
+            "total": 87,
+            "train": 58,
+            "validation": 13
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 19,
-            "total": 111,
-            "train": 71,
-            "validation": 21
+            "test": 15,
+            "total": 112,
+            "train": 77,
+            "validation": 20
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 10,
@@ -591,6 +673,12 @@
             "total": 272,
             "train": 181,
             "validation": 51
+          },
+          "WALLET_FUNNELING": {
+            "test": 59,
+            "total": 337,
+            "train": 224,
+            "validation": 54
           }
         },
         "typology_member_minimum_met": true,
@@ -599,41 +687,46 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.5333,
-            "train": 0.8333,
+            "test": 0.8333,
+            "train": 0.7407,
             "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5,
-            "train": 0.4878,
-            "validation": 0.5263
+            "test": 0.2,
+            "train": 0.6897,
+            "validation": 0.8333
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.0276,
-            "train": 0.0567,
-            "validation": 0.0526
+            "test": 0.0143,
+            "train": 0.0625,
+            "validation": 0.0299
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.9091,
-            "train": 0.7692,
-            "validation": 1.0
+            "test": 0.6667,
+            "train": 0.8163,
+            "validation": 0.5882
           },
           "STRUCTURING": {
-            "test": 1.0,
-            "train": 0.9756,
+            "test": 0.8889,
+            "train": 0.9302,
+            "validation": 1.0
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8333,
+            "train": 0.9524,
             "validation": 0.9091
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.0,
+            "test": 0.8889,
             "train": 1.0,
-            "validation": 0.0
+            "validation": 0.3333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
             "train": 1.0,
-            "validation": 0.0
+            "validation": 0.3333
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 0.0,
@@ -641,7 +734,7 @@
             "validation": 0.0
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.3333,
+            "test": 0.0,
             "train": 1.0,
             "validation": 0.0
           },
@@ -649,52 +742,62 @@
             "test": 0.75,
             "train": 1.0,
             "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.5714
           }
         }
       },
       "ml_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.8333,
-            "train": 0.9524,
-            "validation": 1.0
+            "test": 1.0,
+            "train": 0.9091,
+            "validation": 0.7273
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.6154,
-            "train": 0.9091,
-            "validation": 0.8333
+            "test": 0.6,
+            "train": 0.8889,
+            "validation": 0.9091
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.6667,
-            "train": 0.7547,
+            "test": 0.7692,
+            "train": 0.7407,
             "validation": 0.7692
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8,
-            "train": 0.8,
-            "validation": 1.0
+            "test": 0.6667,
+            "train": 0.8333,
+            "validation": 0.7143
           },
           "STRUCTURING": {
             "test": 1.0,
             "train": 0.9756,
             "validation": 1.0
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.9091,
+            "train": 1.0,
+            "validation": 1.0
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.6667,
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 1.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5,
             "train": 1.0,
             "validation": 0.8889
           },
-          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.75,
-            "train": 1.0,
-            "validation": 0.5714
-          },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.75,
+            "test": 0.3333,
             "train": 1.0,
-            "validation": 0.75
+            "validation": 0.3333
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.5714,
@@ -705,6 +808,11 @@
             "test": 0.75,
             "train": 1.0,
             "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 0.8889
           }
         }
       },
@@ -713,37 +821,44 @@
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
-            "transaction_count": 50
+            "transaction_count": 62
           },
           "incomplete_structuring": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 48
+            "transaction_count": 60
+          },
+          "legitimate_chama_wallet_collection": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 120
           },
           "legitimate_preloan_affordability_candidate": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "legitimate_sme_liquidity_sweep": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "legitimate_structuring_like": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 60
+            "transaction_count": 75
           },
           "legitimate_two_member_reciprocal_guarantee": {
             "expected_rule_effect": "negative_control",
@@ -755,16 +870,23 @@
           "near_affordability_low_growth": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "near_rapid_low_exit": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 24
+            "transaction_count": 30
+          },
+          "near_wallet_funnel_low_fanout": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 105
           },
           "normal_shared_device_low_value": {
             "expected_rule_effect": "negative_control",
@@ -782,24 +904,24 @@
           }
         },
         "near_miss_guarantee_count": 20,
-        "near_miss_member_count": 124,
-        "near_miss_transaction_count": 332,
+        "near_miss_member_count": 175,
+        "near_miss_transaction_count": 632,
         "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41051,
         "agents.csv": 50,
-        "alerts_truth.csv": 938,
+        "alerts_truth.csv": 1330,
         "branches.csv": 10,
         "devices.csv": 10000,
         "employers.csv": 60,
-        "graph_edges.csv": 363489,
+        "graph_edges.csv": 363473,
         "guarantors.csv": 3518,
         "institutions.csv": 5,
         "loans.csv": 2446,
         "members.csv": 10000,
         "nodes.csv": 61176,
-        "transactions.csv": 514075
+        "transactions.csv": 514707
       },
       "seed": 1337,
       "validation_error_count": 0,
@@ -807,24 +929,24 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6757,
-        "macro_recall": 0.96,
+        "macro_precision": 0.674,
+        "macro_recall": 0.9611,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "candidate_count": 30,
-            "f1": 1.0,
+            "candidate_count": 33,
+            "f1": 0.9524,
             "false_negative_count": 0,
-            "false_positive_count": 0,
-            "precision": 1.0,
+            "false_positive_count": 3,
+            "precision": 0.9091,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 166,
-            "f1": 0.3061,
+            "candidate_count": 164,
+            "f1": 0.3093,
             "false_negative_count": 0,
-            "false_positive_count": 136,
-            "precision": 0.1807,
+            "false_positive_count": 134,
+            "precision": 0.1829,
             "recall": 1.0,
             "truth_member_count": 30
           },
@@ -838,21 +960,30 @@
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 44,
-            "f1": 0.6486,
+            "candidate_count": 47,
+            "f1": 0.6234,
             "false_negative_count": 6,
-            "false_positive_count": 20,
-            "precision": 0.5455,
+            "false_positive_count": 23,
+            "precision": 0.5106,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 46,
-            "f1": 0.7895,
+            "candidate_count": 68,
+            "f1": 0.6122,
             "false_negative_count": 0,
-            "false_positive_count": 16,
-            "precision": 0.6522,
+            "false_positive_count": 38,
+            "precision": 0.4412,
             "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "WALLET_FUNNELING": {
+            "candidate_count": 29,
+            "f1": 0.9831,
+            "false_negative_count": 1,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 0.9667,
             "truth_member_count": 30
           }
         }
@@ -877,7 +1008,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1931,
+        "cash_rail_share": 0.1929,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -915,6 +1046,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "positive_member_counts_by_typology_split": {
@@ -947,6 +1084,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "required_member_count": 10000,
@@ -958,18 +1101,18 @@
         "smoke_only": false,
         "split_minimums_met": true,
         "status": "valid",
-        "suspicious_member_count": 150,
+        "suspicious_member_count": 180,
         "txn_label_counts_by_typology_split": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 14,
-            "total": 91,
-            "train": 61,
-            "validation": 16
+            "test": 15,
+            "total": 83,
+            "train": 56,
+            "validation": 12
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 19,
-            "total": 99,
-            "train": 64,
+            "test": 15,
+            "total": 91,
+            "train": 60,
             "validation": 16
           },
           "GUARANTOR_FRAUD_RING": {
@@ -989,6 +1132,12 @@
             "total": 271,
             "train": 183,
             "validation": 44
+          },
+          "WALLET_FUNNELING": {
+            "test": 58,
+            "total": 358,
+            "train": 246,
+            "validation": 54
           }
         },
         "typology_member_minimum_met": true,
@@ -997,36 +1146,41 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.6154,
-            "train": 0.7143,
-            "validation": 0.8333
+            "test": 0.625,
+            "train": 0.9091,
+            "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.3,
-            "train": 0.4444,
-            "validation": 0.2143
+            "test": 0.4,
+            "train": 0.4255,
+            "validation": 0.3077
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.0315,
-            "train": 0.0667,
-            "validation": 0.0699
+            "test": 0.0763,
+            "train": 0.0658,
+            "validation": 0.0282
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.4286,
-            "train": 0.8696,
-            "validation": 0.8333
+            "test": 0.6667,
+            "train": 0.8511,
+            "validation": 0.7692
           },
           "STRUCTURING": {
+            "test": 0.7692,
+            "train": 0.9091,
+            "validation": 0.8333
+          },
+          "WALLET_FUNNELING": {
             "test": 0.9091,
             "train": 1.0,
-            "validation": 0.7692
+            "validation": 1.0
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.3333,
+            "test": 0.6667,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.8
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
@@ -1041,10 +1195,15 @@
           "RAPID_PASS_THROUGH": {
             "test": 0.5714,
             "train": 1.0,
-            "validation": 0.5714
+            "validation": 0.3333
           },
           "STRUCTURING": {
             "test": 0.8889,
+            "train": 1.0,
+            "validation": 0.5714
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
             "train": 1.0,
             "validation": 0.8889
           }
@@ -1053,44 +1212,49 @@
       "ml_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.9091,
-            "train": 0.8889,
-            "validation": 1.0
+            "test": 0.8333,
+            "train": 1.0,
+            "validation": 0.8
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.6667,
-            "train": 0.8,
-            "validation": 0.5882
+            "test": 0.7143,
+            "train": 0.7843,
+            "validation": 0.4706
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.8333,
-            "train": 0.7692,
+            "test": 0.7143,
+            "train": 0.8,
             "validation": 0.7143
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.625,
-            "train": 0.8696,
+            "test": 0.75,
+            "train": 0.8511,
             "validation": 0.7692
           },
           "STRUCTURING": {
             "test": 0.9091,
+            "train": 0.9756,
+            "validation": 0.9091
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.9091,
             "train": 1.0,
-            "validation": 0.7692
+            "validation": 1.0
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.8889,
+            "test": 0.9091,
             "train": 1.0,
             "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.4444
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.3333,
+            "test": 0.7273,
             "train": 1.0,
             "validation": 0.5
           },
@@ -1102,6 +1266,11 @@
           "STRUCTURING": {
             "test": 0.8889,
             "train": 1.0,
+            "validation": 0.8889
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
+            "train": 1.0,
             "validation": 1.0
           }
         }
@@ -1111,58 +1280,72 @@
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "incomplete_structuring": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 48
+            "transaction_count": 60
+          },
+          "legitimate_chama_wallet_collection": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 120
           },
           "legitimate_preloan_affordability_candidate": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "legitimate_sme_liquidity_sweep": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "legitimate_structuring_like": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 60
+            "transaction_count": 75
           },
           "legitimate_two_member_reciprocal_guarantee": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 8,
-            "member_count": 8,
+            "guarantee_count": 10,
+            "member_count": 10,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           },
           "near_affordability_low_growth": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "near_rapid_low_exit": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 24
+            "transaction_count": 30
+          },
+          "near_wallet_funnel_low_fanout": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 105
           },
           "normal_shared_device_low_value": {
             "expected_rule_effect": "negative_control",
@@ -1173,31 +1356,31 @@
           },
           "trusted_guarantor_star": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 10,
-            "member_count": 15,
+            "guarantee_count": 9,
+            "member_count": 14,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           }
         },
-        "near_miss_guarantee_count": 18,
-        "near_miss_member_count": 122,
-        "near_miss_transaction_count": 330,
+        "near_miss_guarantee_count": 19,
+        "near_miss_member_count": 174,
+        "near_miss_transaction_count": 630,
         "status": "available"
       },
       "row_counts": {
         "accounts.csv": 40981,
         "agents.csv": 50,
-        "alerts_truth.csv": 933,
+        "alerts_truth.csv": 1335,
         "branches.csv": 10,
         "devices.csv": 10000,
         "employers.csv": 60,
-        "graph_edges.csv": 363863,
-        "guarantors.csv": 3546,
+        "graph_edges.csv": 363880,
+        "guarantors.csv": 3547,
         "institutions.csv": 5,
         "loans.csv": 2350,
         "members.csv": 10000,
         "nodes.csv": 61106,
-        "transactions.csv": 515406
+        "transactions.csv": 516048
       },
       "seed": 2026,
       "validation_error_count": 0,
@@ -1205,8 +1388,8 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6871,
-        "macro_recall": 0.9733,
+        "macro_precision": 0.6826,
+        "macro_recall": 0.9722,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "candidate_count": 30,
@@ -1218,12 +1401,12 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 146,
-            "f1": 0.3409,
-            "false_negative_count": 0,
-            "false_positive_count": 116,
-            "precision": 0.2055,
-            "recall": 1.0,
+            "candidate_count": 156,
+            "f1": 0.3118,
+            "false_negative_count": 1,
+            "false_positive_count": 127,
+            "precision": 0.1859,
+            "recall": 0.9667,
             "truth_member_count": 30
           },
           "GUARANTOR_FRAUD_RING": {
@@ -1236,20 +1419,29 @@
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 45,
-            "f1": 0.6933,
+            "candidate_count": 59,
+            "f1": 0.5843,
             "false_negative_count": 4,
-            "false_positive_count": 19,
-            "precision": 0.5778,
+            "false_positive_count": 33,
+            "precision": 0.4407,
             "recall": 0.8667,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 46,
-            "f1": 0.7895,
+            "candidate_count": 64,
+            "f1": 0.6383,
             "false_negative_count": 0,
-            "false_positive_count": 16,
-            "precision": 0.6522,
+            "false_positive_count": 34,
+            "precision": 0.4688,
+            "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "WALLET_FUNNELING": {
+            "candidate_count": 30,
+            "f1": 1.0,
+            "false_negative_count": 0,
+            "false_positive_count": 0,
+            "precision": 1.0,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -1275,7 +1467,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1947,
+        "cash_rail_share": 0.1945,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -1313,6 +1505,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "positive_member_counts_by_typology_split": {
@@ -1345,6 +1543,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "required_member_count": 10000,
@@ -1356,19 +1560,19 @@
         "smoke_only": false,
         "split_minimums_met": true,
         "status": "valid",
-        "suspicious_member_count": 150,
+        "suspicious_member_count": 180,
         "txn_label_counts_by_typology_split": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 16,
-            "total": 90,
-            "train": 60,
-            "validation": 14
+            "test": 14,
+            "total": 94,
+            "train": 63,
+            "validation": 17
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 23,
-            "total": 101,
-            "train": 61,
-            "validation": 17
+            "test": 16,
+            "total": 108,
+            "train": 76,
+            "validation": 16
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 10,
@@ -1387,6 +1591,12 @@
             "total": 276,
             "train": 183,
             "validation": 50
+          },
+          "WALLET_FUNNELING": {
+            "test": 53,
+            "total": 347,
+            "train": 231,
+            "validation": 63
           }
         },
         "typology_member_minimum_met": true,
@@ -1396,40 +1606,45 @@
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.8333,
-            "train": 0.8511,
-            "validation": 0.9091
+            "train": 0.9524,
+            "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5882,
-            "train": 0.4651,
-            "validation": 0.381
+            "test": 0.5455,
+            "train": 0.6897,
+            "validation": 0.5
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.0373,
-            "train": 0.0537,
-            "validation": 0.0263
+            "test": 0.0548,
+            "train": 0.057,
+            "validation": 0.0552
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.7273,
+            "test": 0.6667,
             "train": 0.9302,
-            "validation": 0.7692
+            "validation": 0.8333
           },
           "STRUCTURING": {
+            "test": 0.8333,
+            "train": 0.9756,
+            "validation": 0.8
+          },
+          "WALLET_FUNNELING": {
             "test": 0.9091,
-            "train": 0.9302,
+            "train": 1.0,
             "validation": 0.8333
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
             "train": 1.0,
             "validation": 0.0
-          },
-          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5714,
-            "train": 1.0,
-            "validation": 0.3333
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 0.0,
@@ -1445,60 +1660,75 @@
             "test": 0.75,
             "train": 1.0,
             "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
           }
         }
       },
       "ml_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.8333,
+            "test": 1.0,
             "train": 1.0,
             "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.7692,
-            "train": 0.7547,
-            "validation": 0.7273
-          },
-          "GUARANTOR_FRAUD_RING": {
-            "test": 0.7143,
-            "train": 0.8163,
+            "test": 0.8,
+            "train": 0.9302,
             "validation": 0.6667
           },
+          "GUARANTOR_FRAUD_RING": {
+            "test": 0.9091,
+            "train": 0.7843,
+            "validation": 0.9091
+          },
           "RAPID_PASS_THROUGH": {
-            "test": 0.75,
+            "test": 0.6667,
             "train": 0.9756,
-            "validation": 0.7692
+            "validation": 1.0
           },
           "STRUCTURING": {
-            "test": 0.9091,
-            "train": 0.9756,
-            "validation": 0.9091
+            "test": 0.7273,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
+            "train": 1.0,
+            "validation": 1.0
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.8889,
-            "train": 1.0,
-            "validation": 0.75
-          },
-          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 1.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 1.0
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": 0.5714,
+            "train": 1.0,
+            "validation": 0.5714
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.8,
+            "test": 0.75,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.75
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.3333,
             "train": 1.0,
-            "validation": 0.8889
+            "validation": 0.5714
           },
           "STRUCTURING": {
-            "test": 0.8889,
+            "test": 0.75,
+            "train": 1.0,
+            "validation": 0.8889
+          },
+          "WALLET_FUNNELING": {
+            "test": 1.0,
             "train": 1.0,
             "validation": 1.0
           }
@@ -1509,58 +1739,72 @@
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 62
           },
           "incomplete_structuring": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 48
+            "transaction_count": 60
+          },
+          "legitimate_chama_wallet_collection": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 120
           },
           "legitimate_preloan_affordability_candidate": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "legitimate_sme_liquidity_sweep": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "legitimate_structuring_like": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 60
+            "transaction_count": 75
           },
           "legitimate_two_member_reciprocal_guarantee": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 10,
-            "member_count": 10,
+            "guarantee_count": 4,
+            "member_count": 4,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           },
           "near_affordability_low_growth": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "near_rapid_low_exit": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 24
+            "transaction_count": 30
+          },
+          "near_wallet_funnel_low_fanout": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 105
           },
           "normal_shared_device_low_value": {
             "expected_rule_effect": "negative_control",
@@ -1571,31 +1815,31 @@
           },
           "trusted_guarantor_star": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 10,
-            "member_count": 15,
+            "guarantee_count": 9,
+            "member_count": 14,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           }
         },
-        "near_miss_guarantee_count": 20,
-        "near_miss_member_count": 124,
-        "near_miss_transaction_count": 330,
+        "near_miss_guarantee_count": 13,
+        "near_miss_member_count": 168,
+        "near_miss_transaction_count": 632,
         "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41034,
         "agents.csv": 50,
-        "alerts_truth.csv": 965,
+        "alerts_truth.csv": 1383,
         "branches.csv": 10,
         "devices.csv": 10000,
         "employers.csv": 60,
-        "graph_edges.csv": 363708,
-        "guarantors.csv": 3455,
+        "graph_edges.csv": 363719,
+        "guarantors.csv": 3448,
         "institutions.csv": 5,
         "loans.csv": 2374,
         "members.csv": 10000,
         "nodes.csv": 61159,
-        "transactions.csv": 509259
+        "transactions.csv": 509919
       },
       "seed": 9001,
       "validation_error_count": 0,
@@ -1603,24 +1847,24 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6796,
-        "macro_recall": 0.96,
+        "macro_precision": 0.6698,
+        "macro_recall": 0.9611,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "candidate_count": 30,
-            "f1": 1.0,
+            "candidate_count": 33,
+            "f1": 0.9524,
             "false_negative_count": 0,
-            "false_positive_count": 0,
-            "precision": 1.0,
+            "false_positive_count": 3,
+            "precision": 0.9091,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 160,
-            "f1": 0.3158,
+            "candidate_count": 159,
+            "f1": 0.3175,
             "false_negative_count": 0,
-            "false_positive_count": 130,
-            "precision": 0.1875,
+            "false_positive_count": 129,
+            "precision": 0.1887,
             "recall": 1.0,
             "truth_member_count": 30
           },
@@ -1634,21 +1878,30 @@
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 43,
-            "f1": 0.6575,
+            "candidate_count": 50,
+            "f1": 0.6,
             "false_negative_count": 6,
-            "false_positive_count": 19,
-            "precision": 0.5581,
+            "false_positive_count": 26,
+            "precision": 0.48,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 46,
-            "f1": 0.7895,
+            "candidate_count": 68,
+            "f1": 0.6122,
             "false_negative_count": 0,
-            "false_positive_count": 16,
-            "precision": 0.6522,
+            "false_positive_count": 38,
+            "precision": 0.4412,
             "recall": 1.0,
+            "truth_member_count": 30
+          },
+          "WALLET_FUNNELING": {
+            "candidate_count": 29,
+            "f1": 0.9831,
+            "false_negative_count": 1,
+            "false_positive_count": 0,
+            "precision": 1.0,
+            "recall": 0.9667,
             "truth_member_count": 30
           }
         }
@@ -1668,12 +1921,12 @@
       "device_metrics": {
         "device_required_missing_device_id_count": 0,
         "digital_device_coverage": 1.0,
-        "max_members_per_device": 4,
-        "shared_device_member_share": 0.0439
+        "max_members_per_device": 5,
+        "shared_device_member_share": 0.044
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1934,
+        "cash_rail_share": 0.1932,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -1711,6 +1964,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "positive_member_counts_by_typology_split": {
@@ -1743,6 +2002,12 @@
             "total": 30,
             "train": 20,
             "validation": 5
+          },
+          "WALLET_FUNNELING": {
+            "test": 5,
+            "total": 30,
+            "train": 20,
+            "validation": 5
           }
         },
         "required_member_count": 10000,
@@ -1754,18 +2019,18 @@
         "smoke_only": false,
         "split_minimums_met": true,
         "status": "valid",
-        "suspicious_member_count": 150,
+        "suspicious_member_count": 180,
         "txn_label_counts_by_typology_split": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 15,
+            "test": 13,
             "total": 87,
             "train": 58,
-            "validation": 14
+            "validation": 16
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 14,
-            "total": 105,
-            "train": 72,
+            "test": 19,
+            "total": 108,
+            "train": 70,
             "validation": 19
           },
           "GUARANTOR_FRAUD_RING": {
@@ -1785,6 +2050,12 @@
             "total": 262,
             "train": 176,
             "validation": 41
+          },
+          "WALLET_FUNNELING": {
+            "test": 51,
+            "total": 344,
+            "train": 234,
+            "validation": 59
           }
         },
         "typology_member_minimum_met": true,
@@ -1793,41 +2064,46 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.7692,
-            "train": 0.7018,
-            "validation": 0.6667
+            "test": 0.5,
+            "train": 0.8163,
+            "validation": 0.7143
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.4,
-            "train": 0.5634,
+            "test": 0.3333,
+            "train": 0.5556,
             "validation": 0.5263
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.0485,
-            "train": 0.0598,
-            "validation": 0.0397
+            "test": 0.0153,
+            "train": 0.0762,
+            "validation": 0.0276
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.7273,
+            "test": 0.5,
             "train": 0.678,
             "validation": 0.8333
           },
           "STRUCTURING": {
-            "test": 0.9091,
-            "train": 1.0,
+            "test": 0.8333,
+            "train": 0.9756,
             "validation": 0.8889
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8333,
+            "train": 1.0,
+            "validation": 0.9091
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.0,
+            "test": 0.5714,
             "train": 1.0,
-            "validation": 0.0
+            "validation": 0.3333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.0,
+            "test": 0.3333,
             "train": 1.0,
-            "validation": 0.2857
+            "validation": 0.3333
           },
           "GUARANTOR_FRAUD_RING": {
             "test": 0.0,
@@ -1843,6 +2119,11 @@
             "test": 0.8889,
             "train": 1.0,
             "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
           }
         }
       },
@@ -1850,45 +2131,50 @@
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.7692,
-            "train": 0.8889,
-            "validation": 0.7692
+            "train": 0.9091,
+            "validation": 0.7143
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5455,
-            "train": 0.7692,
-            "validation": 0.7692
+            "test": 0.4706,
+            "train": 0.8333,
+            "validation": 0.8333
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.625,
-            "train": 0.8333,
-            "validation": 0.7692
+            "test": 0.7692,
+            "train": 0.8163,
+            "validation": 0.6667
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8889,
-            "train": 0.7273,
+            "test": 0.4706,
+            "train": 0.7018,
             "validation": 0.8333
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.8333,
+            "train": 1.0,
+            "validation": 0.9091
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
             "train": 1.0,
             "validation": 1.0
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.8889,
+            "test": 1.0,
             "train": 1.0,
             "validation": 0.8889
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.3333,
+            "test": 0.4444,
             "train": 1.0,
             "validation": 0.8889
           },
           "GUARANTOR_FRAUD_RING": {
-            "test": 0.7273,
+            "test": 0.3333,
             "train": 1.0,
-            "validation": 0.6
+            "validation": 0.5714
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.3333,
@@ -1896,9 +2182,14 @@
             "validation": 0.3333
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.8889,
             "train": 1.0,
-            "validation": 0.8889
+            "validation": 0.75
+          },
+          "WALLET_FUNNELING": {
+            "test": 0.8889,
+            "train": 1.0,
+            "validation": 1.0
           }
         }
       },
@@ -1907,37 +2198,44 @@
           "church_family_bulk_payments": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "incomplete_structuring": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 48
+            "transaction_count": 60
+          },
+          "legitimate_chama_wallet_collection": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 120
           },
           "legitimate_preloan_affordability_candidate": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "legitimate_sme_liquidity_sweep": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 48
+            "transaction_count": 60
           },
           "legitimate_structuring_like": {
             "expected_rule_effect": "false_positive_pressure",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "STRUCTURING",
-            "transaction_count": 60
+            "transaction_count": 75
           },
           "legitimate_two_member_reciprocal_guarantee": {
             "expected_rule_effect": "negative_control",
@@ -1949,16 +2247,23 @@
           "near_affordability_low_growth": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
-            "transaction_count": 36
+            "transaction_count": 45
           },
           "near_rapid_low_exit": {
             "expected_rule_effect": "negative_control",
             "guarantee_count": 0,
-            "member_count": 12,
+            "member_count": 15,
             "target_typology": "RAPID_PASS_THROUGH",
-            "transaction_count": 24
+            "transaction_count": 30
+          },
+          "near_wallet_funnel_low_fanout": {
+            "expected_rule_effect": "negative_control",
+            "guarantee_count": 0,
+            "member_count": 15,
+            "target_typology": "WALLET_FUNNELING",
+            "transaction_count": 105
           },
           "normal_shared_device_low_value": {
             "expected_rule_effect": "negative_control",
@@ -1969,31 +2274,31 @@
           },
           "trusted_guarantor_star": {
             "expected_rule_effect": "negative_control",
-            "guarantee_count": 8,
-            "member_count": 12,
+            "guarantee_count": 9,
+            "member_count": 14,
             "target_typology": "GUARANTOR_FRAUD_RING",
             "transaction_count": 0
           }
         },
-        "near_miss_guarantee_count": 16,
-        "near_miss_member_count": 119,
-        "near_miss_transaction_count": 330,
+        "near_miss_guarantee_count": 17,
+        "near_miss_member_count": 172,
+        "near_miss_transaction_count": 630,
         "status": "available"
       },
       "row_counts": {
         "accounts.csv": 40981,
         "agents.csv": 50,
-        "alerts_truth.csv": 915,
+        "alerts_truth.csv": 1322,
         "branches.csv": 10,
         "devices.csv": 10000,
         "employers.csv": 60,
-        "graph_edges.csv": 362855,
-        "guarantors.csv": 3475,
+        "graph_edges.csv": 362872,
+        "guarantors.csv": 3476,
         "institutions.csv": 5,
         "loans.csv": 2403,
         "members.csv": 10000,
         "nodes.csv": 61106,
-        "transactions.csv": 516171
+        "transactions.csv": 516818
       },
       "seed": 314159,
       "validation_error_count": 0,
@@ -2031,9 +2336,9 @@
       },
       "cash_rail_share": {
         "count": 5,
-        "max": 0.1951,
-        "mean": 0.1938,
-        "min": 0.1927,
+        "max": 0.1949,
+        "mean": 0.1936,
+        "min": 0.1925,
         "range": 0.0024,
         "std": 0.0009
       },
@@ -2063,11 +2368,11 @@
       },
       "shared_device_member_share": {
         "count": 5,
-        "max": 0.0439,
+        "max": 0.044,
         "mean": 0.0434,
         "min": 0.0429,
-        "range": 0.001,
-        "std": 0.0003
+        "range": 0.0011,
+        "std": 0.0004
       }
     },
     "ml_stability": {
@@ -2077,130 +2382,156 @@
             "test": {
               "count": 5,
               "max": 0.8333,
-              "mean": 0.6569,
-              "min": 0.5333,
-              "range": 0.3,
-              "std": 0.1233
+              "mean": 0.676,
+              "min": 0.5,
+              "range": 0.3333,
+              "std": 0.1347
             },
             "train": {
               "count": 5,
-              "max": 0.8511,
-              "mean": 0.7605,
-              "min": 0.7018,
-              "range": 0.1493,
-              "std": 0.0671
+              "max": 0.9524,
+              "mean": 0.8504,
+              "min": 0.7407,
+              "range": 0.2117,
+              "std": 0.0739
             },
             "validation": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.797,
-              "min": 0.6667,
-              "range": 0.2424,
-              "std": 0.1099
+              "max": 1.0,
+              "mean": 0.8732,
+              "min": 0.7143,
+              "range": 0.2857,
+              "std": 0.0954
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.5882,
-              "mean": 0.4376,
-              "min": 0.3,
-              "range": 0.2882,
-              "std": 0.0983
+              "max": 0.6667,
+              "mean": 0.4291,
+              "min": 0.2,
+              "range": 0.4667,
+              "std": 0.1628
             },
             "train": {
               "count": 5,
-              "max": 0.5634,
-              "mean": 0.5033,
-              "min": 0.4444,
-              "range": 0.119,
-              "std": 0.048
+              "max": 0.6897,
+              "mean": 0.5897,
+              "min": 0.4255,
+              "range": 0.2642,
+              "std": 0.0981
             },
             "validation": {
               "count": 5,
-              "max": 0.5263,
-              "mean": 0.4185,
-              "min": 0.2143,
-              "range": 0.312,
-              "std": 0.1158
+              "max": 0.8333,
+              "mean": 0.5177,
+              "min": 0.3077,
+              "range": 0.5256,
+              "std": 0.1752
             }
           },
           "GUARANTOR_FRAUD_RING": {
             "test": {
               "count": 5,
-              "max": 0.0485,
-              "mean": 0.0316,
-              "min": 0.013,
-              "range": 0.0355,
-              "std": 0.0117
+              "max": 0.0763,
+              "mean": 0.036,
+              "min": 0.0143,
+              "range": 0.062,
+              "std": 0.0251
             },
             "train": {
               "count": 5,
-              "max": 0.0667,
-              "mean": 0.058,
-              "min": 0.0531,
-              "range": 0.0136,
-              "std": 0.005
+              "max": 0.0762,
+              "mean": 0.0663,
+              "min": 0.057,
+              "range": 0.0192,
+              "std": 0.0065
             },
             "validation": {
               "count": 5,
-              "max": 0.0699,
-              "mean": 0.0402,
-              "min": 0.0126,
-              "range": 0.0573,
-              "std": 0.02
+              "max": 0.0552,
+              "mean": 0.0314,
+              "min": 0.0163,
+              "range": 0.0389,
+              "std": 0.0128
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.6918,
-              "min": 0.4286,
-              "range": 0.4805,
-              "std": 0.1547
+              "max": 0.6667,
+              "mean": 0.6177,
+              "min": 0.5,
+              "range": 0.1667,
+              "std": 0.0662
             },
             "train": {
               "count": 5,
               "max": 0.9302,
-              "mean": 0.8161,
+              "mean": 0.8218,
               "min": 0.678,
               "range": 0.2522,
-              "std": 0.0865
+              "std": 0.0818
             },
             "validation": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.7963,
-              "min": 0.5455,
-              "range": 0.4545,
-              "std": 0.1469
+              "max": 0.8333,
+              "mean": 0.7191,
+              "min": 0.5714,
+              "range": 0.2619,
+              "std": 0.1162
             }
           },
           "STRUCTURING": {
             "test": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.7983,
+              "min": 0.6667,
+              "range": 0.2222,
+              "std": 0.0759
+            },
+            "train": {
+              "count": 5,
+              "max": 0.9756,
+              "mean": 0.932,
+              "min": 0.8696,
+              "range": 0.106,
+              "std": 0.0406
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8378,
+              "min": 0.6667,
+              "range": 0.3333,
+              "std": 0.1092
+            }
+          },
+          "WALLET_FUNNELING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.897,
+              "min": 0.8333,
+              "range": 0.1667,
+              "std": 0.0617
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.981,
+              "min": 0.9524,
+              "range": 0.0476,
+              "std": 0.0233
+            },
+            "validation": {
               "count": 5,
               "max": 1.0,
               "mean": 0.9121,
               "min": 0.8333,
               "range": 0.1667,
               "std": 0.0528
-            },
-            "train": {
-              "count": 5,
-              "max": 1.0,
-              "mean": 0.9589,
-              "min": 0.8889,
-              "range": 0.1111,
-              "std": 0.0433
-            },
-            "validation": {
-              "count": 5,
-              "max": 0.9091,
-              "mean": 0.8032,
-              "min": 0.6154,
-              "range": 0.2937,
-              "std": 0.1057
             }
           }
         },
@@ -2208,11 +2539,11 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": {
               "count": 5,
-              "max": 0.3333,
-              "mean": 0.1333,
-              "min": 0.0,
-              "range": 0.3333,
-              "std": 0.1633
+              "max": 0.8889,
+              "mean": 0.654,
+              "min": 0.5714,
+              "range": 0.3175,
+              "std": 0.1231
             },
             "train": {
               "count": 5,
@@ -2224,21 +2555,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.3333,
-              "mean": 0.1333,
-              "min": 0.0,
-              "range": 0.3333,
-              "std": 0.1633
+              "max": 0.8889,
+              "mean": 0.5378,
+              "min": 0.3333,
+              "range": 0.5556,
+              "std": 0.252
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.5714,
-              "mean": 0.1143,
+              "max": 0.75,
+              "mean": 0.2167,
               "min": 0.0,
-              "range": 0.5714,
-              "std": 0.2286
+              "range": 0.75,
+              "std": 0.2963
             },
             "train": {
               "count": 5,
@@ -2251,10 +2582,10 @@
             "validation": {
               "count": 5,
               "max": 0.3333,
-              "mean": 0.1809,
+              "mean": 0.1333,
               "min": 0.0,
               "range": 0.3333,
-              "std": 0.1488
+              "std": 0.1633
             }
           },
           "GUARANTOR_FRAUD_RING": {
@@ -2287,10 +2618,10 @@
             "test": {
               "count": 5,
               "max": 0.5714,
-              "mean": 0.3143,
+              "mean": 0.2476,
               "min": 0.0,
               "range": 0.5714,
-              "std": 0.1822
+              "std": 0.2201
             },
             "train": {
               "count": 5,
@@ -2303,17 +2634,17 @@
             "validation": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.4452,
+              "mean": 0.3976,
               "min": 0.0,
               "range": 0.75,
-              "std": 0.259
+              "std": 0.2533
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
               "max": 0.8889,
-              "mean": 0.8333,
+              "mean": 0.8056,
               "min": 0.75,
               "range": 0.1389,
               "std": 0.068
@@ -2328,11 +2659,37 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.7778,
-              "min": 0.75,
-              "range": 0.1389,
-              "std": 0.0556
+              "max": 0.75,
+              "mean": 0.6786,
+              "min": 0.5714,
+              "range": 0.1786,
+              "std": 0.0875
+            }
+          },
+          "WALLET_FUNNELING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9111,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0444
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.8063,
+              "min": 0.5714,
+              "range": 0.4286,
+              "std": 0.1961
             }
           }
         }
@@ -2342,131 +2699,157 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": {
               "count": 5,
-              "max": 0.3,
-              "mean": 0.1454,
-              "min": 0.0,
-              "range": 0.3,
-              "std": 0.1329
+              "max": 0.2692,
+              "mean": 0.1984,
+              "min": 0.1667,
+              "range": 0.1025,
+              "std": 0.0385
             },
             "train": {
               "count": 5,
-              "max": 0.2506,
-              "mean": 0.1761,
-              "min": 0.1191,
-              "range": 0.1315,
-              "std": 0.044
+              "max": 0.1684,
+              "mean": 0.0951,
+              "min": 0.0476,
+              "range": 0.1208,
+              "std": 0.0401
             },
             "validation": {
               "count": 5,
-              "max": 0.1667,
-              "mean": 0.1235,
-              "min": 0.0909,
-              "range": 0.0758,
-              "std": 0.0355
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.3667,
-              "mean": 0.2048,
-              "min": 0.1154,
-              "range": 0.2513,
-              "std": 0.0876
+              "max": 0.4,
+              "mean": 0.2545,
+              "min": 0.1373,
+              "range": 0.2627,
+              "std": 0.0961
             },
             "train": {
               "count": 5,
-              "max": 0.4213,
-              "mean": 0.3033,
-              "min": 0.2058,
-              "range": 0.2155,
-              "std": 0.0772
+              "max": 0.3588,
+              "mean": 0.2643,
+              "min": 0.1992,
+              "range": 0.1596,
+              "std": 0.0534
             },
             "validation": {
               "count": 5,
-              "max": 0.3739,
-              "mean": 0.2901,
-              "min": 0.1806,
-              "range": 0.1933,
-              "std": 0.0703
+              "max": 0.307,
+              "mean": 0.1813,
+              "min": 0.0758,
+              "range": 0.2312,
+              "std": 0.0744
             }
           },
           "GUARANTOR_FRAUD_RING": {
             "test": {
               "count": 5,
-              "max": 0.8203,
-              "mean": 0.7029,
-              "min": 0.5765,
-              "range": 0.2438,
-              "std": 0.0941
+              "max": 0.8543,
+              "mean": 0.763,
+              "min": 0.638,
+              "range": 0.2163,
+              "std": 0.0731
             },
             "train": {
               "count": 5,
-              "max": 0.8165,
-              "mean": 0.7506,
-              "min": 0.698,
-              "range": 0.1185,
-              "std": 0.0449
+              "max": 0.7401,
+              "mean": 0.7158,
+              "min": 0.6782,
+              "range": 0.0619,
+              "std": 0.0234
             },
             "validation": {
               "count": 5,
-              "max": 0.7295,
-              "mean": 0.6579,
-              "min": 0.5588,
-              "range": 0.1707,
-              "std": 0.0615
+              "max": 0.8539,
+              "mean": 0.7259,
+              "min": 0.6391,
+              "range": 0.2148,
+              "std": 0.072
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.1964,
-              "mean": 0.0761,
+              "max": 0.181,
+              "mean": 0.0529,
               "min": 0.0,
-              "range": 0.1964,
-              "std": 0.0851
+              "range": 0.181,
+              "std": 0.0717
             },
             "train": {
               "count": 5,
-              "max": 0.0556,
-              "mean": 0.0362,
+              "max": 0.0454,
+              "mean": 0.0245,
               "min": 0.0,
-              "range": 0.0556,
-              "std": 0.0199
+              "range": 0.0454,
+              "std": 0.0157
             },
             "validation": {
               "count": 5,
-              "max": 0.1212,
-              "mean": 0.0242,
+              "max": 0.1667,
+              "mean": 0.0586,
               "min": 0.0,
-              "range": 0.1212,
-              "std": 0.0485
+              "range": 0.1667,
+              "std": 0.0729
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
-              "max": 0.0909,
-              "mean": 0.0182,
+              "max": 0.1399,
+              "mean": 0.0707,
               "min": 0.0,
-              "range": 0.0909,
-              "std": 0.0364
+              "range": 0.1399,
+              "std": 0.059
             },
             "train": {
               "count": 5,
-              "max": 0.0454,
-              "mean": 0.0131,
+              "max": 0.0665,
+              "mean": 0.0321,
               "min": 0.0,
-              "range": 0.0454,
-              "std": 0.0179
+              "range": 0.0665,
+              "std": 0.0224
             },
             "validation": {
               "count": 5,
-              "max": 0.1111,
-              "mean": 0.0556,
+              "max": 0.3333,
+              "mean": 0.1036,
               "min": 0.0,
-              "range": 0.1111,
-              "std": 0.0467
+              "range": 0.3333,
+              "std": 0.1195
+            }
+          },
+          "WALLET_FUNNELING": {
+            "test": {
+              "count": 5,
+              "max": 0.0909,
+              "mean": 0.0445,
+              "min": 0.0,
+              "range": 0.0909,
+              "std": 0.038
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0476,
+              "mean": 0.019,
+              "min": 0.0,
+              "range": 0.0476,
+              "std": 0.0233
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.1667,
+              "mean": 0.0697,
+              "min": 0.0,
+              "range": 0.1667,
+              "std": 0.0633
             }
           }
         },
@@ -2474,11 +2857,11 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.7334,
-              "min": 0.5556,
-              "range": 0.3333,
-              "std": 0.1333
+              "max": 0.4286,
+              "mean": 0.3279,
+              "min": 0.1111,
+              "range": 0.3175,
+              "std": 0.1302
             },
             "train": {
               "count": 5,
@@ -2490,21 +2873,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.7541,
-              "min": 0.5758,
-              "range": 0.3131,
-              "std": 0.1231
+              "max": 0.6667,
+              "mean": 0.4178,
+              "min": 0.1111,
+              "range": 0.5556,
+              "std": 0.2197
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.75,
-              "mean": 0.4524,
+              "max": 0.5714,
+              "mean": 0.2643,
               "min": 0.0,
-              "range": 0.75,
-              "std": 0.2816
+              "range": 0.5714,
+              "std": 0.2276
             },
             "train": {
               "count": 5,
@@ -2516,21 +2899,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.6032,
-              "mean": 0.4222,
-              "min": 0.0,
-              "range": 0.6032,
-              "std": 0.2341
+              "max": 0.5714,
+              "mean": 0.4921,
+              "min": 0.3333,
+              "range": 0.2381,
+              "std": 0.0915
             }
           },
           "GUARANTOR_FRAUD_RING": {
             "test": {
               "count": 5,
-              "max": 0.8,
-              "mean": 0.6821,
-              "min": 0.3333,
-              "range": 0.4667,
-              "std": 0.1767
+              "max": 0.75,
+              "mean": 0.4288,
+              "min": 0.0,
+              "range": 0.75,
+              "std": 0.2808
             },
             "train": {
               "count": 5,
@@ -2543,20 +2926,46 @@
             "validation": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.5509,
-              "min": 0.3333,
-              "range": 0.4167,
-              "std": 0.136
+              "mean": 0.4881,
+              "min": 0.2857,
+              "range": 0.4643,
+              "std": 0.1677
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.3333,
-              "mean": 0.1619,
+              "max": 0.5714,
+              "mean": 0.1809,
               "min": 0.0,
-              "range": 0.3333,
-              "std": 0.1367
+              "range": 0.5714,
+              "std": 0.234
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.4167,
+              "mean": 0.0833,
+              "min": 0.0,
+              "range": 0.4167,
+              "std": 0.1667
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 0.1389,
+              "mean": 0.0278,
+              "min": 0.0,
+              "range": 0.1389,
+              "std": 0.0556
             },
             "train": {
               "count": 5,
@@ -2569,20 +2978,20 @@
             "validation": {
               "count": 5,
               "max": 0.3175,
-              "mean": 0.0992,
+              "mean": 0.127,
               "min": 0.0,
               "range": 0.3175,
-              "std": 0.1292
+              "std": 0.1195
             }
           },
-          "STRUCTURING": {
+          "WALLET_FUNNELING": {
             "test": {
               "count": 5,
-              "max": 0.1389,
-              "mean": 0.0722,
+              "max": 0.1111,
+              "mean": 0.0444,
               "min": 0.0,
-              "range": 0.1389,
-              "std": 0.0598
+              "range": 0.1111,
+              "std": 0.0544
             },
             "train": {
               "count": 5,
@@ -2594,23 +3003,23 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.25,
-              "mean": 0.1,
+              "max": 0.4286,
+              "mean": 0.1714,
               "min": 0.0,
-              "range": 0.25,
-              "std": 0.094
+              "range": 0.4286,
+              "std": 0.1731
             }
           }
         }
       },
       "confounder_diagnostic_stability": {
-        "all_clear": false,
+        "all_clear": true,
         "per_seed": [
           {
             "persona_confounding_review_required": false,
-            "review_required": true,
+            "review_required": false,
             "seed": 42,
-            "temporal_confounding_review_required": true
+            "temporal_confounding_review_required": false
           },
           {
             "persona_confounding_review_required": false,
@@ -2638,140 +3047,166 @@
           }
         ],
         "persona_confounding_review_required_count": 0,
-        "review_required_count": 1,
+        "review_required_count": 0,
         "seed_count": 5,
-        "temporal_confounding_review_required_count": 1
+        "temporal_confounding_review_required_count": 0
       },
       "full_feature_f1": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.8023,
-              "min": 0.6667,
-              "range": 0.2424,
-              "std": 0.081
+              "max": 1.0,
+              "mean": 0.8743,
+              "min": 0.7692,
+              "range": 0.2308,
+              "std": 0.1052
             },
             "train": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9365,
-              "min": 0.8889,
-              "range": 0.1111,
-              "std": 0.0426
+              "mean": 0.9455,
+              "min": 0.9091,
+              "range": 0.0909,
+              "std": 0.0445
             },
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9205,
-              "min": 0.7692,
-              "range": 0.2308,
-              "std": 0.0995
+              "mean": 0.7938,
+              "min": 0.7143,
+              "range": 0.2857,
+              "std": 0.1074
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.7692,
-              "mean": 0.6424,
-              "min": 0.5455,
-              "range": 0.2237,
-              "std": 0.0742
+              "max": 0.8333,
+              "mean": 0.6836,
+              "min": 0.4706,
+              "range": 0.3627,
+              "std": 0.1336
             },
             "train": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.8066,
-              "min": 0.7547,
-              "range": 0.1544,
-              "std": 0.0542
+              "max": 0.9302,
+              "mean": 0.854,
+              "min": 0.7843,
+              "range": 0.1459,
+              "std": 0.0505
             },
             "validation": {
               "count": 5,
-              "max": 0.8333,
-              "mean": 0.7086,
-              "min": 0.5882,
-              "range": 0.2451,
-              "std": 0.0906
+              "max": 0.9091,
+              "mean": 0.699,
+              "min": 0.4706,
+              "range": 0.4385,
+              "std": 0.1564
             }
           },
           "GUARANTOR_FRAUD_RING": {
             "test": {
               "count": 5,
-              "max": 0.8333,
-              "mean": 0.7345,
-              "min": 0.625,
-              "range": 0.2083,
-              "std": 0.0855
+              "max": 0.9091,
+              "mean": 0.799,
+              "min": 0.7143,
+              "range": 0.1948,
+              "std": 0.0667
             },
             "train": {
               "count": 5,
-              "max": 0.8696,
-              "mean": 0.8086,
-              "min": 0.7547,
-              "range": 0.1149,
-              "std": 0.0421
+              "max": 0.8163,
+              "mean": 0.7821,
+              "min": 0.7407,
+              "range": 0.0756,
+              "std": 0.026
             },
             "validation": {
               "count": 5,
-              "max": 0.7692,
-              "mean": 0.6982,
-              "min": 0.5714,
-              "range": 0.1978,
-              "std": 0.074
+              "max": 0.9091,
+              "mean": 0.7573,
+              "min": 0.6667,
+              "range": 0.2424,
+              "std": 0.0826
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.7461,
-              "min": 0.625,
-              "range": 0.2639,
-              "std": 0.0941
+              "max": 0.7692,
+              "mean": 0.6646,
+              "min": 0.4706,
+              "range": 0.2986,
+              "std": 0.1057
             },
             "train": {
               "count": 5,
               "max": 0.9756,
-              "mean": 0.8523,
-              "min": 0.7273,
-              "range": 0.2483,
-              "std": 0.0839
+              "mean": 0.8463,
+              "min": 0.7018,
+              "range": 0.2738,
+              "std": 0.0876
             },
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8077,
-              "min": 0.6667,
-              "range": 0.3333,
-              "std": 0.11
+              "mean": 0.7776,
+              "min": 0.5714,
+              "range": 0.4286,
+              "std": 0.1408
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9303,
-              "min": 0.8333,
-              "range": 0.1667,
-              "std": 0.0633
+              "mean": 0.8478,
+              "min": 0.7273,
+              "range": 0.2727,
+              "std": 0.0978
             },
             "train": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9721,
-              "min": 0.9091,
-              "range": 0.0909,
-              "std": 0.0333
+              "mean": 0.9642,
+              "min": 0.8696,
+              "range": 0.1304,
+              "std": 0.0485
             },
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8587,
-              "min": 0.6154,
-              "range": 0.3846,
-              "std": 0.1481
+              "mean": 0.9414,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0484
+            }
+          },
+          "WALLET_FUNNELING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9414,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0484
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9818,
+              "min": 0.9091,
+              "range": 0.0909,
+              "std": 0.0364
             }
           }
         },
@@ -2780,10 +3215,10 @@
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8667,
-              "min": 0.6667,
-              "range": 0.3333,
-              "std": 0.1089
+              "mean": 0.9818,
+              "min": 0.9091,
+              "range": 0.0909,
+              "std": 0.0364
             },
             "train": {
               "count": 5,
@@ -2796,20 +3231,20 @@
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8874,
-              "min": 0.75,
-              "range": 0.25,
-              "std": 0.08
+              "mean": 0.9556,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0544
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.5667,
+              "max": 0.8889,
+              "mean": 0.4809,
               "min": 0.0,
-              "range": 1.0,
-              "std": 0.3551
+              "range": 0.8889,
+              "std": 0.2855
             },
             "train": {
               "count": 5,
@@ -2822,20 +3257,20 @@
             "validation": {
               "count": 5,
               "max": 0.8889,
-              "mean": 0.6032,
+              "mean": 0.6254,
               "min": 0.3333,
               "range": 0.5556,
-              "std": 0.249
+              "std": 0.228
             }
           },
           "GUARANTOR_FRAUD_RING": {
             "test": {
               "count": 5,
-              "max": 0.8,
-              "mean": 0.6821,
-              "min": 0.3333,
-              "range": 0.4667,
-              "std": 0.1767
+              "max": 0.75,
+              "mean": 0.4288,
+              "min": 0.0,
+              "range": 0.75,
+              "std": 0.2808
             },
             "train": {
               "count": 5,
@@ -2848,17 +3283,17 @@
             "validation": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.5509,
-              "min": 0.3333,
-              "range": 0.4167,
-              "std": 0.136
+              "mean": 0.4881,
+              "min": 0.2857,
+              "range": 0.4643,
+              "std": 0.1677
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
               "max": 0.5714,
-              "mean": 0.4762,
+              "mean": 0.4285,
               "min": 0.3333,
               "range": 0.2381,
               "std": 0.1166
@@ -2873,21 +3308,47 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.5444,
+              "max": 0.75,
+              "mean": 0.4809,
               "min": 0.0,
-              "range": 0.8889,
-              "std": 0.3299
+              "range": 0.75,
+              "std": 0.285
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.9056,
+              "max": 0.8889,
+              "mean": 0.8333,
               "min": 0.75,
-              "range": 0.25,
-              "std": 0.0923
+              "range": 0.1389,
+              "std": 0.068
+            },
+            "train": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 1.0,
+              "min": 1.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.8056,
+              "min": 0.75,
+              "range": 0.1389,
+              "std": 0.068
+            }
+          },
+          "WALLET_FUNNELING": {
+            "test": {
+              "count": 5,
+              "max": 1.0,
+              "mean": 0.9556,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0544
             },
             "train": {
               "count": 5,
@@ -2900,10 +3361,10 @@
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8778,
-              "min": 0.75,
-              "range": 0.25,
-              "std": 0.1119
+              "mean": 0.9778,
+              "min": 0.8889,
+              "range": 0.1111,
+              "std": 0.0444
             }
           }
         }
@@ -2915,81 +3376,27 @@
         "church_family_bulk_payments": {
           "member_count": {
             "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
             "range": 0.0,
             "std": 0.0
           },
           "transaction_count": {
             "count": 5,
-            "max": 50.0,
-            "mean": 48.4,
-            "min": 48.0,
+            "max": 62.0,
+            "mean": 61.2,
+            "min": 60.0,
             "range": 2.0,
-            "std": 0.8
+            "std": 0.9798
           }
         },
         "incomplete_structuring": {
           "member_count": {
             "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
-            "range": 0.0,
-            "std": 0.0
-          },
-          "transaction_count": {
-            "count": 5,
-            "max": 48.0,
-            "mean": 48.0,
-            "min": 48.0,
-            "range": 0.0,
-            "std": 0.0
-          }
-        },
-        "legitimate_preloan_affordability_candidate": {
-          "member_count": {
-            "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
-            "range": 0.0,
-            "std": 0.0
-          },
-          "transaction_count": {
-            "count": 5,
-            "max": 36.0,
-            "mean": 36.0,
-            "min": 36.0,
-            "range": 0.0,
-            "std": 0.0
-          }
-        },
-        "legitimate_sme_liquidity_sweep": {
-          "member_count": {
-            "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
-            "range": 0.0,
-            "std": 0.0
-          },
-          "transaction_count": {
-            "count": 5,
-            "max": 48.0,
-            "mean": 48.0,
-            "min": 48.0,
-            "range": 0.0,
-            "std": 0.0
-          }
-        },
-        "legitimate_structuring_like": {
-          "member_count": {
-            "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
             "range": 0.0,
             "std": 0.0
           },
@@ -3002,14 +3409,86 @@
             "std": 0.0
           }
         },
+        "legitimate_chama_wallet_collection": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 120.0,
+            "mean": 120.0,
+            "min": 120.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_preloan_affordability_candidate": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 45.0,
+            "mean": 45.0,
+            "min": 45.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_sme_liquidity_sweep": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 60.0,
+            "mean": 60.0,
+            "min": 60.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_structuring_like": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 75.0,
+            "mean": 75.0,
+            "min": 75.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
         "legitimate_two_member_reciprocal_guarantee": {
           "member_count": {
             "count": 5,
             "max": 10.0,
-            "mean": 8.8,
-            "min": 8.0,
-            "range": 2.0,
-            "std": 0.9798
+            "mean": 8.4,
+            "min": 4.0,
+            "range": 6.0,
+            "std": 2.3324
           },
           "transaction_count": {
             "count": 5,
@@ -3023,17 +3502,17 @@
         "near_affordability_low_growth": {
           "member_count": {
             "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
             "range": 0.0,
             "std": 0.0
           },
           "transaction_count": {
             "count": 5,
-            "max": 36.0,
-            "mean": 36.0,
-            "min": 36.0,
+            "max": 45.0,
+            "mean": 45.0,
+            "min": 45.0,
             "range": 0.0,
             "std": 0.0
           }
@@ -3041,17 +3520,35 @@
         "near_rapid_low_exit": {
           "member_count": {
             "count": 5,
-            "max": 12.0,
-            "mean": 12.0,
-            "min": 12.0,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
             "range": 0.0,
             "std": 0.0
           },
           "transaction_count": {
             "count": 5,
-            "max": 24.0,
-            "mean": 24.0,
-            "min": 24.0,
+            "max": 30.0,
+            "mean": 30.0,
+            "min": 30.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "near_wallet_funnel_low_fanout": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 105.0,
+            "mean": 105.0,
+            "min": 105.0,
             "range": 0.0,
             "std": 0.0
           }
@@ -3078,10 +3575,10 @@
           "member_count": {
             "count": 5,
             "max": 15.0,
-            "mean": 14.0,
+            "mean": 13.8,
             "min": 12.0,
             "range": 3.0,
-            "std": 1.2649
+            "std": 0.9798
           },
           "transaction_count": {
             "count": 5,
@@ -3096,26 +3593,26 @@
       "near_miss_guarantee_count": {
         "count": 5,
         "max": 20.0,
-        "mean": 18.0,
-        "min": 16.0,
-        "range": 4.0,
-        "std": 1.7889
+        "mean": 17.4,
+        "min": 13.0,
+        "range": 7.0,
+        "std": 2.4166
       },
       "near_miss_member_count": {
         "count": 5,
-        "max": 124.0,
-        "mean": 121.8,
-        "min": 119.0,
-        "range": 5.0,
-        "std": 2.0396
+        "max": 175.0,
+        "mean": 172.2,
+        "min": 168.0,
+        "range": 7.0,
+        "std": 2.4
       },
       "near_miss_transaction_count": {
         "count": 5,
-        "max": 332.0,
-        "mean": 330.4,
-        "min": 330.0,
+        "max": 632.0,
+        "mean": 631.2,
+        "min": 630.0,
         "range": 2.0,
-        "std": 0.8
+        "std": 0.9798
       }
     },
     "typology_precision_recall": {
@@ -3123,10 +3620,10 @@
         "precision": {
           "count": 5,
           "max": 1.0,
-          "mean": 1.0,
-          "min": 1.0,
-          "range": 0.0,
-          "std": 0.0
+          "mean": 0.9636,
+          "min": 0.9091,
+          "range": 0.0909,
+          "std": 0.0445
         },
         "recall": {
           "count": 5,
@@ -3141,19 +3638,19 @@
       "FAKE_AFFORDABILITY_BEFORE_LOAN": {
         "precision": {
           "count": 5,
-          "max": 0.2083,
-          "mean": 0.1944,
-          "min": 0.1807,
-          "range": 0.0276,
-          "std": 0.0107
+          "max": 0.1974,
+          "mean": 0.1878,
+          "min": 0.1829,
+          "range": 0.0145,
+          "std": 0.0052
         },
         "recall": {
           "count": 5,
           "max": 1.0,
-          "mean": 1.0,
-          "min": 1.0,
-          "range": 0.0,
-          "std": 0.0
+          "mean": 0.9933,
+          "min": 0.9667,
+          "range": 0.0333,
+          "std": 0.0133
         },
         "within_threshold": true
       },
@@ -3179,11 +3676,11 @@
       "RAPID_PASS_THROUGH": {
         "precision": {
           "count": 5,
-          "max": 0.5778,
-          "mean": 0.5497,
-          "min": 0.5217,
-          "range": 0.0561,
-          "std": 0.0183
+          "max": 0.5333,
+          "mean": 0.4889,
+          "min": 0.4407,
+          "range": 0.0926,
+          "std": 0.0314
         },
         "recall": {
           "count": 5,
@@ -3198,11 +3695,11 @@
       "STRUCTURING": {
         "precision": {
           "count": 5,
-          "max": 0.6818,
-          "mean": 0.6581,
-          "min": 0.6522,
-          "range": 0.0296,
-          "std": 0.0118
+          "max": 0.4688,
+          "mean": 0.4455,
+          "min": 0.4286,
+          "range": 0.0402,
+          "std": 0.0132
         },
         "recall": {
           "count": 5,
@@ -3211,6 +3708,25 @@
           "min": 1.0,
           "range": 0.0,
           "std": 0.0
+        },
+        "within_threshold": true
+      },
+      "WALLET_FUNNELING": {
+        "precision": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 1.0,
+          "min": 1.0,
+          "range": 0.0,
+          "std": 0.0
+        },
+        "recall": {
+          "count": 5,
+          "max": 1.0,
+          "mean": 0.9867,
+          "min": 0.9667,
+          "range": 0.0333,
+          "std": 0.0163
         },
         "within_threshold": true
       }

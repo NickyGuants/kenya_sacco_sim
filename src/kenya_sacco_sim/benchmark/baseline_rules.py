@@ -9,6 +9,7 @@ from kenya_sacco_sim.core.rules import (
     GUARANTOR_FRAUD_RING_RULE_CONFIG,
     RAPID_PASS_THROUGH_RULE_CONFIG,
     STRUCTURING_RULE_CONFIG,
+    WALLET_FUNNELING_RULE_CONFIG,
 )
 
 
@@ -25,6 +26,7 @@ def build_rule_results(
     fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
     device_sharing = device_sharing_mule_candidates(transactions, member_accounts)
     guarantor_ring = guarantor_fraud_ring_candidates(guarantors or [], loans or [])
+    wallet_funneling = wallet_funneling_candidates(transactions, member_accounts)
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -59,6 +61,12 @@ def build_rule_results(
             GUARANTOR_FRAUD_RING_RULE_CONFIG,
             guarantor_ring,
             truth_by_typology["GUARANTOR_FRAUD_RING"],
+        ),
+        "WALLET_FUNNELING": rule_section(
+            "Many wallet/paybill credits fan into one member account within 7 days and disperse quickly to multiple counterparties",
+            WALLET_FUNNELING_RULE_CONFIG,
+            wallet_funneling,
+            truth_by_typology["WALLET_FUNNELING"],
         ),
     }
 
@@ -175,6 +183,20 @@ def guarantor_fraud_ring_candidates(guarantors: list[dict[str, object]], loans: 
     return candidates
 
 
+def wallet_funneling_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    candidates: dict[str, object] = {}
+    for member_id, rows in by_member.items():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        if has_wallet_funneling(rows, member_accounts.get(member_id, set())):
+            candidates[member_id] = True
+    return candidates
+
+
 def has_structuring_window(deposits: list[tuple[datetime, float]]) -> bool:
     deposits.sort(key=lambda item: item[0])
     window_days = int(STRUCTURING_RULE_CONFIG["window_days"])
@@ -216,6 +238,48 @@ def has_rapid_pass_through(rows: list[dict[str, object]], accounts: set[str]) ->
             outbound_amount / inbound_amount >= float(RAPID_PASS_THROUGH_RULE_CONFIG["min_exit_ratio"])
             and retained_balance_ratio <= float(RAPID_PASS_THROUGH_RULE_CONFIG["max_retained_balance_ratio"])
             and len(counterparties) >= int(RAPID_PASS_THROUGH_RULE_CONFIG["min_counterparties"])
+        ):
+            return True
+    return False
+
+
+def has_wallet_funneling(rows: list[dict[str, object]], accounts: set[str]) -> bool:
+    inbound_types = set(WALLET_FUNNELING_RULE_CONFIG["inbound_txn_types"])
+    outbound_types = set(WALLET_FUNNELING_RULE_CONFIG["outbound_txn_types"])
+    fan_in_window = timedelta(days=int(WALLET_FUNNELING_RULE_CONFIG["window_days"]))
+    dispersion_window = timedelta(hours=int(WALLET_FUNNELING_RULE_CONFIG["dispersion_window_hours"]))
+    for start in rows:
+        account_id = str(start.get("account_id_cr") or "")
+        if account_id not in accounts:
+            continue
+        start_ts = datetime.fromisoformat(str(start["timestamp"]))
+        inbound_rows = [
+            row
+            for row in rows
+            if str(row.get("account_id_cr") or "") == account_id
+            and str(row.get("txn_type") or "") in inbound_types
+            and start_ts <= datetime.fromisoformat(str(row["timestamp"])) <= start_ts + fan_in_window
+        ]
+        if len(inbound_rows) < int(WALLET_FUNNELING_RULE_CONFIG["min_inbound_count"]):
+            continue
+        inbound_value = sum(float(row["amount_kes"]) for row in inbound_rows)
+        inbound_counterparties = {str(row.get("counterparty_id_hash") or "") for row in inbound_rows if row.get("counterparty_id_hash")}
+        if inbound_value < float(WALLET_FUNNELING_RULE_CONFIG["min_inbound_value_kes"]) or len(inbound_counterparties) < int(WALLET_FUNNELING_RULE_CONFIG["min_inbound_counterparties"]):
+            continue
+        last_inbound_ts = max(datetime.fromisoformat(str(row["timestamp"])) for row in inbound_rows)
+        outbound_rows = [
+            row
+            for row in rows
+            if str(row.get("account_id_dr") or "") == account_id
+            and str(row.get("txn_type") or "") in outbound_types
+            and last_inbound_ts <= datetime.fromisoformat(str(row["timestamp"])) <= last_inbound_ts + dispersion_window
+        ]
+        outbound_value = sum(float(row["amount_kes"]) for row in outbound_rows)
+        outbound_counterparties = {str(row.get("counterparty_id_hash") or "") for row in outbound_rows if row.get("counterparty_id_hash")}
+        if (
+            inbound_value > 0
+            and outbound_value / inbound_value >= float(WALLET_FUNNELING_RULE_CONFIG["min_outbound_share"])
+            and len(outbound_counterparties) >= int(WALLET_FUNNELING_RULE_CONFIG["min_outbound_counterparties"])
         ):
             return True
     return False
@@ -355,7 +419,9 @@ __all__ = [
     "fake_affordability_candidates",
     "guarantor_fraud_ring_candidates",
     "device_sharing_mule_candidates",
+    "has_wallet_funneling",
     "rapid_pass_through_candidates",
     "rule_section",
     "structuring_candidates",
+    "wallet_funneling_candidates",
 ]

@@ -99,6 +99,8 @@ patterns:
   shared device.
 - `GUARANTOR_FRAUD_RING` — members manufacture credit support through
   circular or reciprocal guarantor links.
+- `WALLET_FUNNELING` — many wallet or paybill credits fan into one member
+  account and then disperse quickly.
 
 See [Typologies](typologies.md) for what each looks like in the data
 and what rule the simulator's baseline detector applies.

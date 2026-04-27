@@ -75,6 +75,21 @@ def inject_typologies(
         next_pattern,
         targets["RAPID_PASS_THROUGH"],
     )
+    next_txn, next_pattern = _inject_wallet_funneling(
+        rng,
+        config,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        next_txn,
+        next_pattern,
+        targets["WALLET_FUNNELING"],
+    )
     next_txn, next_pattern = _inject_fake_affordability(
         rng,
         config,
@@ -177,13 +192,14 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
             "FAKE_AFFORDABILITY_BEFORE_LOAN": 0,
             "DEVICE_SHARING_MULE_NETWORK": 0,
             "GUARANTOR_FRAUD_RING": 0,
+            "WALLET_FUNNELING": 0,
         }
     if total > 0 and config.member_count >= 100:
         total = max(total, 5 if include_fake_affordability else 3)
     if total > 0 and config.member_count >= 10_000:
-        total = max(total, 30 * (5 if include_fake_affordability else 3))
+        total = max(total, 30 * (6 if include_fake_affordability else 4))
 
-    base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
+    base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH", "WALLET_FUNNELING"]
     if include_fake_affordability:
         base_typologies.append("FAKE_AFFORDABILITY_BEFORE_LOAN")
         base_typologies.append("GUARANTOR_FRAUD_RING")
@@ -191,7 +207,7 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
     include_device_sharing = config.member_count >= 1_000 and total >= device_minimum_total
 
     if not include_fake_affordability:
-        typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
+        typologies = ["STRUCTURING", "RAPID_PASS_THROUGH", "WALLET_FUNNELING"]
         if include_device_sharing:
             typologies.append("DEVICE_SHARING_MULE_NETWORK")
         counts = _balanced_target_counts(total, typologies)
@@ -204,6 +220,7 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
         counts = _balanced_target_counts(total, typologies)
     counts.setdefault("DEVICE_SHARING_MULE_NETWORK", 0)
     counts.setdefault("GUARANTOR_FRAUD_RING", 0)
+    counts.setdefault("WALLET_FUNNELING", 0)
     if include_device_sharing and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
         _raise_count_floor(counts, "DEVICE_SHARING_MULE_NETWORK", 3, base_typologies)
     return counts
@@ -408,6 +425,100 @@ def _inject_rapid_pass_through(
             explanation = "HIGH_EXIT_RATIO" if not is_partial_truth else "RAPID_IN_OUT_MOVEMENT"
             alerts.append(_alert_row(len(alerts) + 1, pattern_id, "RAPID_PASS_THROUGH", "TRANSACTION", out_id, member, fosa, out_id, None, outbound["timestamp"], outbound["timestamp"], "HIGH", "LAYERING", explanation))
         alerts.append(_alert_row(len(alerts) + 1, pattern_id, "RAPID_PASS_THROUGH", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
+def _inject_wallet_funneling(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    candidates = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
+    inserted = 0
+    for member in candidates:
+        if inserted >= target_count:
+            break
+        member_id = str(member["member_id"])
+        inbound_count = rng.randint(6, 10)
+        outbound_count = rng.randint(2, 5)
+        suspicious_txn_count = inbound_count + outbound_count
+        if normal_txn_counts[member_id] < suspicious_txn_count:
+            continue
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        if not fosa:
+            continue
+        used_members.add(member_id)
+        pattern_id = _pattern_id(next_pattern)
+        next_pattern += 1
+        inserted += 1
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=12)
+        fan_in_hours = rng.randint(36, 168)
+        inbound_times = _spread_timestamps(start, fan_in_hours, inbound_count, rng, include_endpoints=True)
+        txn_times: list[str] = []
+        inbound_total = 0.0
+        for offset, timestamp in enumerate(inbound_times):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            txn_type, rail, channel, provider = _wallet_funnel_inbound_shape(offset)
+            amount = float(rng.randrange(55_000, 115_000, 5_000))
+            inbound_total += amount
+            tx = _txn_row(
+                txn_id,
+                timestamp,
+                rng.choice(source_accounts),
+                fosa,
+                member,
+                txn_type,
+                rail,
+                channel,
+                amount,
+                provider,
+                "WALLET_USER" if rail in {"MPESA", "AIRTEL_MONEY"} else "MERCHANT",
+                fosa.get("branch_id"),
+                f"WALLET_FUNNEL_IN:{pattern_id}:{member_id}:{offset}",
+            )
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "WALLET_FUNNELING", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "PLACEMENT", "WALLET_FUNNEL_ACTIVITY"))
+        outbound_total = round(inbound_total * rng.uniform(0.58, 0.82), 2)
+        allocations = _allocate_amounts(outbound_total, outbound_count, rng)
+        last_inbound = max(inbound_times)
+        outbound_times = _spread_timestamps(last_inbound + timedelta(hours=2), rng.randint(18, 72), outbound_count, rng)
+        for offset, amount in enumerate(allocations):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            txn_type, rail, channel, provider = _wallet_funnel_outbound_shape(offset)
+            tx = _txn_row(
+                txn_id,
+                outbound_times[offset],
+                fosa,
+                sink_accounts[(inserted + offset) % len(sink_accounts)],
+                member,
+                txn_type,
+                rail,
+                channel,
+                amount,
+                provider,
+                "WALLET_USER" if txn_type in {"MPESA_WALLET_TOPUP", "WALLET_P2P_OUT"} else "MERCHANT",
+                fosa.get("branch_id"),
+                f"WALLET_FUNNEL_OUT:{pattern_id}:{member_id}:{offset}",
+            )
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "WALLET_FUNNELING", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "WALLET_FUNNEL_ACTIVITY"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "WALLET_FUNNELING", "MEMBER", member_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "LAYERING", "WALLET_FUNNEL_ACTIVITY"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "WALLET_FUNNELING", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
     return next_txn, next_pattern
 
 
@@ -957,6 +1068,8 @@ def _inject_decoys(
         "incomplete_structuring",
         "legitimate_sme_liquidity_sweep",
         "near_rapid_low_exit",
+        "legitimate_chama_wallet_collection",
+        "near_wallet_funnel_low_fanout",
         "church_family_bulk_payments",
     ]
     family_counts = Counter()
@@ -978,6 +1091,10 @@ def _inject_decoys(
             next_txn = _inject_legitimate_rapid_like(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         elif family == "near_rapid_low_exit":
             next_txn = _inject_near_rapid(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        elif family == "legitimate_chama_wallet_collection":
+            next_txn = _inject_legitimate_chama_wallet_collection(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        elif family == "near_wallet_funnel_low_fanout":
+            next_txn = _inject_near_wallet_funnel_low_fanout(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         else:
             next_txn = _inject_church_family_bulk(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         if next_txn > before:
@@ -1060,6 +1177,102 @@ def _inject_near_rapid(rng: random.Random, member: dict[str, object], fosa: dict
     out_id = _txn_id(next_txn)
     next_txn += 1
     transactions.append(_txn_row(out_id, start + timedelta(hours=12), fosa, rng.choice(sink_accounts), member, "PESALINK_OUT", "PESALINK", "BANK_TRANSFER", round(amount * rng.uniform(0.55, 0.70), 2), "BANK_PARTNER", "MERCHANT", fosa.get("branch_id"), f"NEAR_RAPID_OUT:{member['member_id']}"))
+    return next_txn
+
+
+def _inject_legitimate_chama_wallet_collection(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    start = datetime(2024, 6, 3, 9, 0, tzinfo=EAT) + timedelta(days=(index * 2) % 90)
+    inbound_total = 0.0
+    for offset in range(6):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        txn_type, rail, channel, provider = _wallet_funnel_inbound_shape(offset)
+        amount = float(rng.randrange(45_000, 85_000, 5_000))
+        inbound_total += amount
+        transactions.append(
+            _txn_row(
+                txn_id,
+                start + timedelta(hours=offset * 10),
+                rng.choice(source_accounts),
+                fosa,
+                member,
+                txn_type,
+                rail,
+                channel,
+                amount,
+                provider,
+                "WALLET_USER",
+                fosa.get("branch_id"),
+                f"LEGIT_CHAMA_WALLET_IN:{member['member_id']}:{index}:{offset}",
+            )
+        )
+    for offset, share in enumerate([0.16, 0.12]):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        transactions.append(
+            _txn_row(
+                txn_id,
+                start + timedelta(days=8, hours=offset * 5),
+                fosa,
+                sink_accounts[(index + offset) % len(sink_accounts)],
+                member,
+                "BOSA_DEP_TOPUP" if offset == 0 else "SUPPLIER_PAYMENT_OUT",
+                "SACCO_INTERNAL" if offset == 0 else "MPESA",
+                "SYSTEM" if offset == 0 else "PAYBILL",
+                round(inbound_total * share, 2),
+                "SACCO_CORE" if offset == 0 else "MPESA",
+                "SACCO" if offset == 0 else "MERCHANT",
+                fosa.get("branch_id"),
+                f"LEGIT_CHAMA_WALLET_OUT:{member['member_id']}:{index}:{offset}",
+            )
+        )
+    return next_txn
+
+
+def _inject_near_wallet_funnel_low_fanout(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    start = datetime(2024, 7, 8, 9, 0, tzinfo=EAT) + timedelta(days=(index * 2) % 90)
+    inbound_total = 0.0
+    shared_counterparty = f"NEAR_WALLET_LOW_FANOUT:{member['member_id']}:{index}:SHARED"
+    for offset in range(6):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        amount = float(rng.randrange(55_000, 95_000, 5_000))
+        inbound_total += amount
+        tx = _txn_row(
+            txn_id,
+            start + timedelta(hours=offset * 9),
+            rng.choice(source_accounts),
+            fosa,
+            member,
+            "MPESA_PAYBILL_IN",
+            "MPESA",
+            "PAYBILL",
+            amount,
+            "MPESA",
+            "WALLET_USER",
+            fosa.get("branch_id"),
+            shared_counterparty if offset < 4 else f"NEAR_WALLET_LOW_FANOUT:{member['member_id']}:{index}:{offset}",
+        )
+        transactions.append(tx)
+    txn_id = _txn_id(next_txn)
+    next_txn += 1
+    transactions.append(
+        _txn_row(
+            txn_id,
+            start + timedelta(days=6, hours=6),
+            fosa,
+            rng.choice(sink_accounts),
+            member,
+            "MPESA_WALLET_TOPUP",
+            "MPESA",
+            "MOBILE_APP",
+            round(inbound_total * rng.uniform(0.62, 0.74), 2),
+            "MPESA",
+            "WALLET_USER",
+            fosa.get("branch_id"),
+            f"NEAR_WALLET_LOW_FANOUT_OUT:{member['member_id']}:{index}",
+        )
+    )
     return next_txn
 
 
@@ -1405,6 +1618,16 @@ def _empty_near_miss_families() -> dict[str, dict[str, object]]:
             "description": "Legitimate church collections, donor support, school fees, and family bulk payments.",
             "expected_rule_effect": "negative_control",
         },
+        "legitimate_chama_wallet_collection": {
+            "target_typology": "WALLET_FUNNELING",
+            "description": "Normal chama, welfare, or project collection credits from many wallets with low/late dispersion.",
+            "expected_rule_effect": "negative_control",
+        },
+        "near_wallet_funnel_low_fanout": {
+            "target_typology": "WALLET_FUNNELING",
+            "description": "Many wallet credits followed by high outbound value but too few source or destination counterparties.",
+            "expected_rule_effect": "negative_control",
+        },
         "legitimate_preloan_affordability_candidate": {
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
             "description": "Legitimate pre-loan remittance, donor, harvest, or business inflow that can satisfy the fake-affordability rule.",
@@ -1492,6 +1715,26 @@ def _device_mule_inbound_shape(offset: int) -> tuple[str, str, str, str, str]:
         ("MPESA_PAYBILL_IN", "MPESA", "PAYBILL", "MPESA", "CUSTOMER"),
         ("PESALINK_IN", "PESALINK", "BANK_TRANSFER", "BANK_PARTNER", "BANK"),
         ("BUSINESS_SETTLEMENT_IN", "MPESA", "PAYBILL", "MPESA", "MERCHANT"),
+    ]
+    return variants[offset % len(variants)]
+
+
+def _wallet_funnel_inbound_shape(offset: int) -> tuple[str, str, str, str]:
+    variants = [
+        ("MPESA_PAYBILL_IN", "MPESA", "PAYBILL", "MPESA"),
+        ("WALLET_P2P_IN", "MPESA", "MOBILE_APP", "MPESA"),
+        ("BUSINESS_SETTLEMENT_IN", "MPESA", "TILL", "MPESA"),
+        ("WALLET_P2P_IN", "AIRTEL_MONEY", "MOBILE_APP", "AIRTEL_MONEY"),
+    ]
+    return variants[offset % len(variants)]
+
+
+def _wallet_funnel_outbound_shape(offset: int) -> tuple[str, str, str, str]:
+    variants = [
+        ("MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", "MPESA"),
+        ("WALLET_P2P_OUT", "MPESA", "MOBILE_APP", "MPESA"),
+        ("PESALINK_OUT", "PESALINK", "BANK_TRANSFER", "BANK_PARTNER"),
+        ("SUPPLIER_PAYMENT_OUT", "MPESA", "PAYBILL", "MPESA"),
     ]
     return variants[offset % len(variants)]
 

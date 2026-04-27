@@ -187,6 +187,45 @@ products:
   ASSET_FINANCE
 ```
 
+## WALLET_FUNNELING
+
+Many wallet or paybill credits from distinct counterparties fan into one member
+account, then the value disperses quickly to several wallet, PesaLink, or
+supplier counterparties.
+
+Injector behavior:
+
+- Can use any persona with a suitable FOSA account.
+- Posts 6 to 10 inbound wallet/paybill/business-settlement credits in a 7-day
+  fan-in window.
+- Uses distinct counterparty hashes so the pattern is fan-in rather than one
+  repeated payer.
+- Disperses 58% to 82% of value within 72 hours after the last inbound credit.
+- Keeps the member blended with normal activity.
+- Leaves chama/project collection and low-fanout near-misses unlabeled.
+
+Rule contract:
+
+```text
+same account only
+fan-in window = 7 days
+dispersion window = 72 hours
+inbound count >= 6
+inbound counterparties >= 5
+inbound value >= KES 350,000
+outbound value / inbound value >= 0.55
+outbound counterparties >= 2
+inbound types:
+  MPESA_PAYBILL_IN
+  WALLET_P2P_IN
+  BUSINESS_SETTLEMENT_IN
+outbound types:
+  MPESA_WALLET_TOPUP
+  WALLET_P2P_OUT
+  PESALINK_OUT
+  SUPPLIER_PAYMENT_OUT
+```
+
 ## How Labels Appear
 
 Every injected typology produces rows in `alerts_truth.csv`:
@@ -262,6 +301,14 @@ legitimate_two_member_reciprocal_guarantee
 
 trusted_guarantor_star
   Target: GUARANTOR_FRAUD_RING
+  Effect: negative_control
+
+legitimate_chama_wallet_collection
+  Target: WALLET_FUNNELING
+  Effect: negative_control
+
+near_wallet_funnel_low_fanout
+  Target: WALLET_FUNNELING
   Effect: negative_control
 ```
 

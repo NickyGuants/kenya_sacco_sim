@@ -35,3 +35,14 @@ typologies:
     min_cycle_edges: 3
     guaranteed_products: [DEVELOPMENT_LOAN, BIASHARA_LOAN, ASSET_FINANCE]
     near_miss_families: [legitimate_two_member_reciprocal_guarantee, trusted_guarantor_star]
+  WALLET_FUNNELING:
+    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, SME_OWNER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR, CHURCH_ORG]
+    fan_in_count: [6, 10]
+    fan_in_counterparties: [5, 10]
+    fan_in_amount_kes: [55000, 115000]
+    window_days: 7
+    dispersion_window_hours: 72
+    outbound_share: [0.58, 0.82]
+    outbound_count: [2, 5]
+    rails: [MPESA, AIRTEL_MONEY, PESALINK]
+    near_miss_families: [legitimate_chama_wallet_collection, near_wallet_funnel_low_fanout]

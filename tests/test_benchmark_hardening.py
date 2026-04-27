@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
-from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates
+from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates, wallet_funneling_candidates
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.labels import validate_labels
@@ -11,6 +11,75 @@ from kenya_sacco_sim.validation.report import build_validation_report
 
 
 class BenchmarkHardeningTests(unittest.TestCase):
+    def test_wallet_funneling_rule_detects_multi_wallet_fan_in_and_dispersion(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(6):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-04-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "amount_kes": 70_000,
+                    "counterparty_id_hash": f"CP_IN_{index}",
+                }
+            )
+        for index in range(2):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 7:012d}",
+                    "timestamp": f"2024-04-08T1{index}:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": account_id,
+                    "account_id_cr": "SINK",
+                    "txn_type": "MPESA_WALLET_TOPUP" if index == 0 else "PESALINK_OUT",
+                    "amount_kes": 130_000,
+                    "counterparty_id_hash": f"CP_OUT_{index}",
+                }
+            )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {"MEM0000001": True})
+
+    def test_wallet_funneling_rule_ignores_low_fanout_near_miss(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(6):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-04-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "amount_kes": 70_000,
+                    "counterparty_id_hash": "CP_SHARED" if index < 4 else f"CP_IN_{index}",
+                }
+            )
+        transactions.append(
+            {
+                "txn_id": "TXN000000000007",
+                "timestamp": "2024-04-08T10:00:00+03:00",
+                "member_id_primary": "MEM0000001",
+                "account_id_dr": account_id,
+                "account_id_cr": "SINK",
+                "txn_type": "MPESA_WALLET_TOPUP",
+                "amount_kes": 290_000,
+                "counterparty_id_hash": "CP_OUT_ONLY",
+            }
+        )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {})
+
     def test_guarantor_fraud_ring_rule_detects_directed_cycle(self) -> None:
         loans = [
             _loan("LOAN000001", "MEM0000001"),

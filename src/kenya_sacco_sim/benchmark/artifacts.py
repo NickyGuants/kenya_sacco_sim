@@ -114,7 +114,7 @@ def _build_baseline_results(
 
     return {
         "baseline_name": "deterministic_v1_rules",
-        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, and guarantor fraud ring definitions.",
+        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, guarantor fraud ring, and wallet-funneling definitions.",
         "per_typology": per_typology,
         "near_miss_disclosure": rule_results.get("near_miss_disclosure", {"status": "not_available"}),
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
@@ -388,10 +388,10 @@ def _build_feature_documentation() -> dict[str, object]:
             "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
         },
         "derived_ml_features": {
-            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio"],
+            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio", "max_wallet_fan_in_value_7d_kes"],
             "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count", "device_peer_member_count"],
             "device": ["transaction_device_count", "shared_device_txn_share", "max_members_per_used_device", "device_network_value_kes"],
-            "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes"],
+            "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes", "max_wallet_funnel_exit_ratio_7d"],
         },
         "ml_leakage_ablation": {
             "artifact": "ml_leakage_ablation.json",
@@ -442,7 +442,7 @@ Do not use this dataset for real customer risk decisions, regulatory filings, pr
 
 ## Scope
 
-The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` when v1 typologies are enabled.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` when v1 typologies are enabled.
 
 ## Benchmark Task
 
@@ -667,9 +667,9 @@ def _metric(value: object) -> str:
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` suspicious typologies.
+- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
-- Wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
+- Dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.

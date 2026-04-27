@@ -57,7 +57,7 @@ recovery transactions.
 | File | What it is |
 | --- | --- |
 | `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
-| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, and guarantor near-misses. |
+| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, and wallet-funnel near-misses. |
 
 ## With `--with-benchmark`
 

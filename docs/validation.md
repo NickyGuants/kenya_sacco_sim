@@ -26,6 +26,7 @@ errors. Warnings do not fail the run but should be reviewed.
   "fake_affordability_validation": ...,
   "device_sharing_mule_network_validation": ...,
   "guarantor_fraud_ring_validation": ...,
+  "wallet_funneling_validation": ...,
   "near_miss_validation": ...,
   "benchmark_validation": ...,
   "errors": [...],
@@ -60,6 +61,7 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `fake_affordability_validation` | Pre-loan window and external-credit invariants are reported. |
 | `device_sharing_mule_network_validation` | Shared-device mule candidate IDs, precision/recall, and misses are reported. |
 | `guarantor_fraud_ring_validation` | Reciprocal guarantor-ring candidate IDs, precision/recall, and misses are reported. |
+| `wallet_funneling_validation` | Wallet fan-in/fan-out candidate IDs, precision/recall, and misses are reported. |
 | `benchmark_validation` | Whether benchmark artifacts form a valid evaluation or only a smoke run. |
 
 `benchmark_validation` also embeds confounder diagnostics from
@@ -124,6 +126,8 @@ near_affordability_low_growth
 normal_shared_device_low_value
 legitimate_two_member_reciprocal_guarantee
 trusted_guarantor_star
+legitimate_chama_wallet_collection
+near_wallet_funnel_low_fanout
 ```
 
 Families marked `false_positive_pressure` are allowed to be rule candidates.
