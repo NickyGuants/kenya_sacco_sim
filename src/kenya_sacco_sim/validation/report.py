@@ -161,6 +161,9 @@ def _near_miss_section(rule_results: dict[str, object] | None) -> dict[str, obje
         "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
         "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
         "near_miss_guarantee_count": disclosure.get("near_miss_guarantee_count", 0),
+        "device_sharing_near_miss_group_count": disclosure.get("device_sharing_near_miss_group_count", 0),
+        "device_sharing_near_miss_member_count": disclosure.get("device_sharing_near_miss_member_count", 0),
+        "device_sharing_near_miss_transaction_count": disclosure.get("device_sharing_near_miss_transaction_count", 0),
         "families": families if isinstance(families, dict) else {},
     }
 

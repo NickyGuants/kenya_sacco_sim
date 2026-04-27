@@ -260,6 +260,9 @@ def _near_miss_summary(disclosure: object) -> dict[str, object]:
         "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
         "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
         "near_miss_guarantee_count": disclosure.get("near_miss_guarantee_count", 0),
+        "device_sharing_near_miss_group_count": disclosure.get("device_sharing_near_miss_group_count", 0),
+        "device_sharing_near_miss_member_count": disclosure.get("device_sharing_near_miss_member_count", 0),
+        "device_sharing_near_miss_transaction_count": disclosure.get("device_sharing_near_miss_transaction_count", 0),
         "family_counts": family_counts,
     }
 

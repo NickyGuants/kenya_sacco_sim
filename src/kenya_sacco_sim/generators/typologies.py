@@ -1705,6 +1705,7 @@ def _merge_near_miss_stats(primary: dict[str, object], secondary: dict[str, obje
     for source in (primary, secondary):
         for family, section in (source.get("families") or {}).items():
             families[family] = dict(section)
+    device_summary = _device_sharing_near_miss_summary(families)
     return {
         "status": "available" if families else "not_applicable",
         "family_count": len(families),
@@ -1712,9 +1713,16 @@ def _merge_near_miss_stats(primary: dict[str, object], secondary: dict[str, obje
         "near_miss_member_count": sum(int(section.get("member_count") or 0) for section in families.values()),
         "near_miss_transaction_count": sum(int(section.get("transaction_count") or 0) for section in families.values()),
         "near_miss_guarantee_count": sum(int(section.get("guarantee_count") or 0) for section in families.values()),
-        "device_sharing_near_miss_group_count": secondary.get("device_sharing_near_miss_group_count", 0),
-        "device_sharing_near_miss_member_count": secondary.get("device_sharing_near_miss_member_count", 0),
-        "device_sharing_near_miss_transaction_count": secondary.get("device_sharing_near_miss_transaction_count", 0),
+        **device_summary,
+    }
+
+
+def _device_sharing_near_miss_summary(families: dict[str, dict[str, object]]) -> dict[str, int]:
+    device_family = families.get("normal_shared_device_low_value") or {}
+    return {
+        "device_sharing_near_miss_group_count": int(device_family.get("group_count") or 0),
+        "device_sharing_near_miss_member_count": int(device_family.get("member_count") or 0),
+        "device_sharing_near_miss_transaction_count": int(device_family.get("transaction_count") or 0),
     }
 
 

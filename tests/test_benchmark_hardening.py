@@ -5,12 +5,53 @@ import unittest
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
 from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates, wallet_funneling_candidates
 from kenya_sacco_sim.core.config import WorldConfig
+from kenya_sacco_sim.generators.typologies import _merge_near_miss_stats
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.labels import validate_labels
 from kenya_sacco_sim.validation.report import build_validation_report
 
 
 class BenchmarkHardeningTests(unittest.TestCase):
+    def test_near_miss_merge_preserves_device_summary_after_guarantor_merge(self) -> None:
+        general = {
+            "families": {
+                "legitimate_structuring_like": {
+                    "member_count": 2,
+                    "transaction_count": 10,
+                }
+            }
+        }
+        device = {
+            "families": {
+                "normal_shared_device_low_value": {
+                    "member_count": 6,
+                    "transaction_count": 12,
+                    "group_count": 2,
+                }
+            },
+            "device_sharing_near_miss_group_count": 2,
+            "device_sharing_near_miss_member_count": 6,
+            "device_sharing_near_miss_transaction_count": 12,
+        }
+        guarantor = {
+            "families": {
+                "trusted_guarantor_star": {
+                    "member_count": 3,
+                    "transaction_count": 0,
+                    "guarantee_count": 4,
+                }
+            }
+        }
+
+        merged = _merge_near_miss_stats(_merge_near_miss_stats(general, device), guarantor)
+
+        self.assertEqual(merged["device_sharing_near_miss_group_count"], 2)
+        self.assertEqual(merged["device_sharing_near_miss_member_count"], 6)
+        self.assertEqual(merged["device_sharing_near_miss_transaction_count"], 12)
+        self.assertEqual(merged["near_miss_member_count"], 11)
+        self.assertEqual(merged["near_miss_transaction_count"], 22)
+        self.assertEqual(merged["near_miss_guarantee_count"], 4)
+
     def test_wallet_funneling_rule_detects_multi_wallet_fan_in_and_dispersion(self) -> None:
         account_id = "ACC00000001"
         accounts_by_member = {"MEM0000001": {account_id}}
@@ -455,6 +496,9 @@ class BenchmarkHardeningTests(unittest.TestCase):
                     "family_count": 1,
                     "near_miss_member_count": 3,
                     "near_miss_transaction_count": 12,
+                    "device_sharing_near_miss_group_count": 2,
+                    "device_sharing_near_miss_member_count": 6,
+                    "device_sharing_near_miss_transaction_count": 12,
                     "families": {
                         "near_rapid_low_exit": {
                             "target_typology": "RAPID_PASS_THROUGH",
@@ -471,6 +515,9 @@ class BenchmarkHardeningTests(unittest.TestCase):
 
         self.assertEqual(near_miss["status"], "available")
         self.assertEqual(near_miss["near_miss_member_count"], 3)
+        self.assertEqual(near_miss["device_sharing_near_miss_group_count"], 2)
+        self.assertEqual(near_miss["device_sharing_near_miss_member_count"], 6)
+        self.assertEqual(near_miss["device_sharing_near_miss_transaction_count"], 12)
         self.assertIn("near_rapid_low_exit", near_miss["families"])
 
 
