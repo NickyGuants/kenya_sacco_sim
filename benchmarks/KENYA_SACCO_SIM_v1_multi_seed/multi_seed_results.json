@@ -55,8 +55,8 @@
       "confounder_diagnostics": {
         "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
         "persona_confounding_review_required": false,
-        "review_required": false,
-        "temporal_confounding_review_required": false
+        "review_required": true,
+        "temporal_confounding_review_required": true
       },
       "credit_metrics": {
         "arrears_share": 0.0829,
@@ -280,7 +280,7 @@
       },
       "seed": 42,
       "validation_error_count": 0,
-      "validation_warning_count": 0
+      "validation_warning_count": 1
     },
     {
       "baseline_metrics": {
@@ -1660,6 +1660,259 @@
           }
         }
       },
+      "ablation_f1_drop": {
+        "LogisticRegression": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 0.3846,
+              "mean": 0.2427,
+              "min": 0.0758,
+              "range": 0.3088,
+              "std": 0.1095
+            },
+            "train": {
+              "count": 5,
+              "max": 0.2194,
+              "mean": 0.154,
+              "min": 0.0635,
+              "range": 0.1559,
+              "std": 0.0525
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.1948,
+              "mean": 0.0936,
+              "min": 0.0,
+              "range": 0.1948,
+              "std": 0.066
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 0.6471,
+              "mean": 0.3269,
+              "min": 0.1503,
+              "range": 0.4968,
+              "std": 0.207
+            },
+            "train": {
+              "count": 5,
+              "max": 0.4366,
+              "mean": 0.3682,
+              "min": 0.2405,
+              "range": 0.1961,
+              "std": 0.0679
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.4333,
+              "mean": 0.3016,
+              "min": 0.1442,
+              "range": 0.2891,
+              "std": 0.0924
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 0.1818,
+              "mean": 0.0541,
+              "min": 0.0,
+              "range": 0.1818,
+              "std": 0.0725
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0433,
+              "mean": 0.0242,
+              "min": 0.0,
+              "range": 0.0433,
+              "std": 0.0199
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.0476,
+              "mean": 0.0095,
+              "min": 0.0,
+              "range": 0.0476,
+              "std": 0.019
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 0.0909,
+              "mean": 0.0182,
+              "min": 0.0,
+              "range": 0.0909,
+              "std": 0.0364
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0454,
+              "mean": 0.0173,
+              "min": 0.0,
+              "range": 0.0454,
+              "std": 0.0213
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.0641,
+              "mean": 0.0128,
+              "min": 0.0,
+              "range": 0.0641,
+              "std": 0.0256
+            }
+          }
+        },
+        "RandomForestClassifier": {
+          "DEVICE_SHARING_MULE_NETWORK": {
+            "test": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.6643,
+              "min": 0.5556,
+              "range": 0.3333,
+              "std": 0.1342
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.8889,
+              "mean": 0.6611,
+              "min": 0.4167,
+              "range": 0.4722,
+              "std": 0.1495
+            }
+          },
+          "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+            "test": {
+              "count": 5,
+              "max": 0.75,
+              "mean": 0.4889,
+              "min": 0.25,
+              "range": 0.5,
+              "std": 0.178
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.5556,
+              "mean": 0.3389,
+              "min": 0.0,
+              "range": 0.5556,
+              "std": 0.2082
+            }
+          },
+          "RAPID_PASS_THROUGH": {
+            "test": {
+              "count": 5,
+              "max": 0.3175,
+              "mean": 0.1468,
+              "min": 0.0,
+              "range": 0.3175,
+              "std": 0.1277
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.3175,
+              "mean": 0.0913,
+              "min": 0.0,
+              "range": 0.3175,
+              "std": 0.1253
+            }
+          },
+          "STRUCTURING": {
+            "test": {
+              "count": 5,
+              "max": 0.25,
+              "mean": 0.0944,
+              "min": 0.0,
+              "range": 0.25,
+              "std": 0.0923
+            },
+            "train": {
+              "count": 5,
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0,
+              "range": 0.0,
+              "std": 0.0
+            },
+            "validation": {
+              "count": 5,
+              "max": 0.25,
+              "mean": 0.1278,
+              "min": 0.0,
+              "range": 0.25,
+              "std": 0.0797
+            }
+          }
+        }
+      },
+      "confounder_diagnostic_stability": {
+        "all_clear": false,
+        "per_seed": [
+          {
+            "persona_confounding_review_required": false,
+            "review_required": true,
+            "seed": 42,
+            "temporal_confounding_review_required": true
+          },
+          {
+            "persona_confounding_review_required": false,
+            "review_required": false,
+            "seed": 1337,
+            "temporal_confounding_review_required": false
+          },
+          {
+            "persona_confounding_review_required": false,
+            "review_required": false,
+            "seed": 2026,
+            "temporal_confounding_review_required": false
+          },
+          {
+            "persona_confounding_review_required": false,
+            "review_required": false,
+            "seed": 9001,
+            "temporal_confounding_review_required": false
+          },
+          {
+            "persona_confounding_review_required": false,
+            "review_required": false,
+            "seed": 314159,
+            "temporal_confounding_review_required": false
+          }
+        ],
+        "persona_confounding_review_required_count": 0,
+        "review_required_count": 1,
+        "seed_count": 5,
+        "temporal_confounding_review_required_count": 1
+      },
       "full_feature_f1": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -1874,7 +2127,7 @@
           }
         }
       },
-      "interpretation": "Single-seed ML scores are anecdotal; use these ranges to assess seed sensitivity."
+      "interpretation": "Single-seed ML scores are anecdotal; use full, ablated, and confounder ranges to assess seed sensitivity."
     },
     "typology_precision_recall": {
       "DEVICE_SHARING_MULE_NETWORK": {

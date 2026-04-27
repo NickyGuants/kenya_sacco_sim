@@ -69,9 +69,9 @@ These files require `--with-typologies`.
 | `baseline_model_results.json` | Per-split rule-baseline precision, recall, and F1. Includes benchmark validity checks. |
 | `ml_baseline_results.json` | Member-level Logistic Regression and Random Forest metrics by typology and split. |
 | `feature_importance.json` | Logistic Regression coefficient rankings and Random Forest importances. |
-| `ml_leakage_ablation.json` | ML baselines retrained with rule-proxy features removed. |
+| `ml_leakage_ablation.json` | ML baselines retrained with rule-proxy features removed; the dataset card summarizes the largest validation/test F1 drops. |
 | `rule_vs_ml_comparison.json` | Descriptive rule-vs-ML precision, recall, and F1 deltas. This is not a superiority claim. |
-| `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. |
+| `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. Temporal concentration uses `max_month_share > 0.40` or `window_span_days < 120`. |
 | `feature_documentation.json` | Per-file feature dictionary and split guidance. |
 | `dataset_card.md` | Human-readable run summary, intended use, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |

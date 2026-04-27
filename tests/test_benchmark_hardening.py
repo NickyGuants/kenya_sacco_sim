@@ -115,6 +115,52 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertIn("rules_dominate", comparison)
         self.assertIn("benchmark_confounder_diagnostics.json", artifacts)
         self.assertIn("ml_leakage_ablation.json", artifacts)
+        self.assertIn("Rule-Proxy Dependence", artifacts["dataset_card.md"])
+
+    def test_temporal_confounder_flags_month_share_above_40pct(self) -> None:
+        transactions = [
+            {
+                "txn_id": f"TXN{index:012d}",
+                "member_id_primary": "MEM0000001",
+                "timestamp": f"2024-07-{index:02d}T10:00:00+03:00",
+                "account_id_dr": "SRC",
+                "account_id_cr": "ACC00000001",
+                "amount_kes": 50_000,
+                "rail": "CASH_BRANCH",
+                "channel": "BRANCH",
+                "txn_type": "FOSA_CASH_DEPOSIT",
+                "counterparty_id_hash": f"CP{index:04d}",
+            }
+            for index in range(1, 12)
+        ]
+        alerts = [
+            {
+                "alert_id": f"ALT{index:08d}",
+                "typology": "STRUCTURING",
+                "member_id": "MEM0000001",
+                "txn_id": transaction["txn_id"],
+                "pattern_id": "PAT00000001",
+                "entity_type": "TRANSACTION",
+            }
+            for index, transaction in enumerate(transactions, start=1)
+        ]
+
+        artifacts = build_benchmark_artifacts(
+            {
+                "members.csv": [{"member_id": "MEM0000001", "persona_type": "SME_OWNER"}],
+                "accounts.csv": [{"account_id": "ACC00000001", "member_id": "MEM0000001"}],
+                "transactions.csv": transactions,
+                "alerts_truth.csv": alerts,
+            },
+            {},
+            WorldConfig(member_count=1, suspicious_ratio=1),
+        )
+
+        temporal = artifacts["benchmark_confounder_diagnostics.json"]["temporal_label_concentration"]
+
+        self.assertTrue(temporal["review_required"])
+        self.assertIn("max_month_share > 0.40", temporal["review_rule"])
+        self.assertIn("STRUCTURING", temporal["flagged_typologies"])
 
     def test_label_validation_uses_half_up_target_count(self) -> None:
         rows_by_file = {
