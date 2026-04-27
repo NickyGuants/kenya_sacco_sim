@@ -116,9 +116,21 @@ def inject_typologies(
         next_txn,
         max(1, targets["DEVICE_SHARING_MULE_NETWORK"] // 6) if targets["DEVICE_SHARING_MULE_NETWORK"] else 0,
     )
-    decoy_target = max(2, targets["STRUCTURING"] // 5) if sum(targets.values()) else 0
-    next_txn, near_miss_stats = _inject_decoys(rng, members, account_by_member, source_accounts, sink_accounts, agents_by_branch, transactions, used_members, next_txn, decoy_target)
-    near_miss_stats.update(device_near_miss_stats)
+    decoy_target = max(2, sum(targets.values()) // 12) if sum(targets.values()) else 0
+    next_txn, near_miss_stats = _inject_decoys(
+        rng,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        agents_by_branch,
+        transactions,
+        used_members,
+        loans or [],
+        next_txn,
+        decoy_target,
+    )
+    near_miss_stats = _merge_near_miss_stats(near_miss_stats, device_near_miss_stats)
 
     _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
@@ -591,17 +603,14 @@ def _inject_device_sharing_decoys(
     target_group_count: int,
 ) -> tuple[int, dict[str, object]]:
     if not world or not world.devices or target_group_count <= 0:
-        return next_txn, {
-            "device_sharing_near_miss_group_count": 0,
-            "device_sharing_near_miss_member_count": 0,
-            "device_sharing_near_miss_transaction_count": 0,
-        }
+        return next_txn, _near_miss_result({})
     available_device_members = _members_without_shared_devices(world)
     candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
     candidates = [member for member in candidates if str(member["member_id"]) in available_device_members]
     rng.shuffle(candidates)
     group_count = 0
     member_ids: set[str] = set()
+    family_members: set[str] = set()
     txn_count = 0
     cursor = 0
     while group_count < target_group_count and cursor + 3 <= len(candidates):
@@ -611,6 +620,7 @@ def _inject_device_sharing_decoys(
         device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_DECOY_{group_count + 1:05d}")
         if not device_id:
             continue
+        used_members.update(group_member_ids)
         group_count += 1
         start = datetime(2024, 11, 5, 9, 0, tzinfo=EAT) + timedelta(days=group_count * 4)
         for offset, member in enumerate(group):
@@ -659,7 +669,19 @@ def _inject_device_sharing_decoys(
             outbound["device_id"] = device_id
             transactions.append(outbound)
             txn_count += 2
+            family_members.add(member_id)
+    families = {
+        "normal_shared_device_low_value": {
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "description": "Family or co-owner shared devices with low value and low outbound share.",
+            "expected_rule_effect": "negative_control",
+            "member_ids": family_members,
+            "transaction_count": txn_count,
+            "group_count": group_count,
+        }
+    }
     return next_txn, {
+        **_near_miss_result(families),
         "device_sharing_near_miss_group_count": group_count,
         "device_sharing_near_miss_member_count": len(member_ids),
         "device_sharing_near_miss_transaction_count": txn_count,
@@ -675,33 +697,61 @@ def _inject_decoys(
     agents_by_branch: dict[str, list[str]],
     transactions: list[dict[str, object]],
     used_members: set[str],
+    loans: list[dict[str, object]],
     next_txn: int,
     target_count: int,
 ) -> tuple[int, dict[str, object]]:
-    decoy_members = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    decoy_members = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
     rng.shuffle(decoy_members)
-    near_miss_member_ids: set[str] = set()
-    near_miss_txn_count = 0
-    for index, member in enumerate(decoy_members[: target_count * 4], start=1):
+    families = _empty_near_miss_families()
+    family_order = [
+        "legitimate_structuring_like",
+        "incomplete_structuring",
+        "legitimate_sme_liquidity_sweep",
+        "near_rapid_low_exit",
+        "church_family_bulk_payments",
+    ]
+    family_counts = Counter()
+    cursor = 0
+    index = 1
+    while cursor < len(decoy_members) and any(family_counts[family] < target_count for family in family_order):
+        member = decoy_members[cursor]
+        cursor += 1
         fosa = _first(account_by_member[str(member["member_id"])], {"FOSA_CURRENT", "FOSA_SAVINGS"})
         if not fosa:
             continue
         before = next_txn
-        if index % 4 == 1:
+        family = next((name for name in family_order if family_counts[name] < target_count), family_order[0])
+        if family == "legitimate_structuring_like":
             next_txn = _inject_legitimate_structuring_like(rng, member, fosa, source_accounts, agents_by_branch, transactions, next_txn, index)
-        elif index % 4 == 2:
+        elif family == "incomplete_structuring":
             next_txn = _inject_incomplete_structuring(rng, member, fosa, source_accounts, transactions, next_txn, index)
-        elif index % 4 == 3:
+        elif family == "legitimate_sme_liquidity_sweep":
             next_txn = _inject_legitimate_rapid_like(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
-        else:
+        elif family == "near_rapid_low_exit":
             next_txn = _inject_near_rapid(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        else:
+            next_txn = _inject_church_family_bulk(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         if next_txn > before:
-            near_miss_member_ids.add(str(member["member_id"]))
-            near_miss_txn_count += next_txn - before
-    return next_txn, {
-        "near_miss_transaction_count": near_miss_txn_count,
-        "near_miss_member_count": len(near_miss_member_ids),
-    }
+            _record_near_miss(families, family, str(member["member_id"]), next_txn - before)
+            used_members.add(str(member["member_id"]))
+            family_counts[family] += 1
+            index += 1
+
+    next_txn = _inject_fake_affordability_near_misses(
+        rng,
+        loans,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        transactions,
+        used_members,
+        families,
+        next_txn,
+        target_count,
+    )
+    return next_txn, _near_miss_result(families)
 
 
 def _inject_legitimate_structuring_like(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], agents_by_branch: dict[str, list[str]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
@@ -763,6 +813,320 @@ def _inject_near_rapid(rng: random.Random, member: dict[str, object], fosa: dict
     next_txn += 1
     transactions.append(_txn_row(out_id, start + timedelta(hours=12), fosa, rng.choice(sink_accounts), member, "PESALINK_OUT", "PESALINK", "BANK_TRANSFER", round(amount * rng.uniform(0.55, 0.70), 2), "BANK_PARTNER", "MERCHANT", fosa.get("branch_id"), f"NEAR_RAPID_OUT:{member['member_id']}"))
     return next_txn
+
+
+def _inject_church_family_bulk(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    start = datetime(2024, 8, 4, 10, 0, tzinfo=EAT) + timedelta(days=index)
+    persona = str(member.get("persona_type") or "")
+    if persona == "CHURCH_ORG":
+        for offset in range(4):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            transactions.append(
+                _txn_row(
+                    txn_id,
+                    start + timedelta(days=offset * 7),
+                    rng.choice(source_accounts),
+                    fosa,
+                    member,
+                    "CHURCH_COLLECTION_IN",
+                    "MPESA" if offset % 2 else "CASH_BRANCH",
+                    "PAYBILL" if offset % 2 else "BRANCH",
+                    float(rng.randrange(70_000, 135_000, 5_000)),
+                    "MPESA" if offset % 2 else "SACCO_CORE",
+                    "CHURCH",
+                    fosa.get("branch_id"),
+                    f"LEGIT_CHURCH_COLLECTION:{member['member_id']}:{offset}",
+                )
+            )
+        for offset, txn_type in enumerate(["SUPPLIER_PAYMENT_OUT", "PESALINK_OUT"]):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            rail = "PESALINK" if txn_type == "PESALINK_OUT" else "MPESA"
+            transactions.append(
+                _txn_row(
+                    txn_id,
+                    start + timedelta(days=29, hours=offset * 3),
+                    fosa,
+                    sink_accounts[(index + offset) % len(sink_accounts)],
+                    member,
+                    txn_type,
+                    rail,
+                    "BANK_TRANSFER" if rail == "PESALINK" else "PAYBILL",
+                    float(rng.randrange(45_000, 95_000, 5_000)),
+                    "BANK_PARTNER" if rail == "PESALINK" else "MPESA",
+                    "MERCHANT",
+                    fosa.get("branch_id"),
+                    f"LEGIT_CHURCH_OUT:{member['member_id']}:{offset}",
+                )
+            )
+        return next_txn
+
+    inbound_amount = float(rng.randrange(160_000, 340_000, 10_000))
+    inbound_id = _txn_id(next_txn)
+    next_txn += 1
+    transactions.append(
+        _txn_row(
+            inbound_id,
+            start,
+            rng.choice(source_accounts),
+            fosa,
+            member,
+            "PESALINK_IN",
+            "REMITTANCE",
+            "BANK_TRANSFER",
+            inbound_amount,
+            "BANK_PARTNER",
+            "BANK",
+            fosa.get("branch_id"),
+            f"LEGIT_FAMILY_BULK_IN:{member['member_id']}",
+        )
+    )
+    outflows = [
+        ("SCHOOL_FEES_PAYMENT_OUT", 0.35, "MPESA", "PAYBILL"),
+        ("HOUSEHOLD_SPEND_OUT", 0.22, "MPESA", "PAYBILL"),
+        ("HOUSEHOLD_SPEND_OUT", 0.18, "MPESA", "PAYBILL"),
+    ]
+    for offset, (txn_type, share, rail, channel) in enumerate(outflows):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        transactions.append(
+            _txn_row(
+                txn_id,
+                start + timedelta(hours=8 + offset * 7),
+                fosa,
+                sink_accounts[(index + offset) % len(sink_accounts)],
+                member,
+                txn_type,
+                rail,
+                channel,
+                round(inbound_amount * share, 2),
+                "MPESA" if rail == "MPESA" else "SACCO_CORE",
+                "MERCHANT" if rail == "MPESA" else "SACCO",
+                fosa.get("branch_id"),
+                f"LEGIT_FAMILY_BULK_OUT:{member['member_id']}:{offset}",
+            )
+        )
+    return next_txn
+
+
+def _inject_fake_affordability_near_misses(
+    rng: random.Random,
+    loans: list[dict[str, object]],
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    used_members: set[str],
+    families: dict[str, dict[str, object]],
+    next_txn: int,
+    target_count: int,
+) -> int:
+    if not loans or target_count <= 0:
+        return next_txn
+    member_by_id = {str(member["member_id"]): member for member in members}
+    eligible_products = {"DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "BIASHARA_LOAN"}
+    candidates = [
+        loan
+        for loan in loans
+        if str(loan.get("product_code")) in eligible_products
+        and str(loan.get("member_id")) in member_by_id
+        and str(loan.get("member_id")) not in used_members
+        and _first(account_by_member[str(loan["member_id"])], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    ]
+    candidates = _stratified_items_by_persona(candidates, rng, lambda loan: str(member_by_id[str(loan["member_id"])]["persona_type"]))
+    target_by_family = {
+        "legitimate_preloan_affordability_candidate": target_count,
+        "near_affordability_low_growth": target_count,
+    }
+    family_counts = Counter()
+    for index, loan in enumerate(candidates, start=1):
+        family = next((name for name, target in target_by_family.items() if family_counts[name] < target), None)
+        if family is None:
+            break
+        member_id = str(loan["member_id"])
+        member = member_by_id[member_id]
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        if not fosa:
+            continue
+        before = next_txn
+        next_txn = _inject_preloan_inflow_sequence(
+            rng,
+            member,
+            fosa,
+            loan,
+            source_accounts,
+            sink_accounts,
+            transactions,
+            next_txn,
+            index,
+            trigger_rule=family == "legitimate_preloan_affordability_candidate",
+        )
+        if next_txn > before:
+            _record_near_miss(families, family, member_id, next_txn - before)
+            used_members.add(member_id)
+            family_counts[family] += 1
+    return next_txn
+
+
+def _inject_preloan_inflow_sequence(
+    rng: random.Random,
+    member: dict[str, object],
+    fosa: dict[str, object],
+    loan: dict[str, object],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    next_txn: int,
+    index: int,
+    trigger_rule: bool,
+) -> int:
+    application_ts = datetime.fromisoformat(f"{loan['application_date']}T09:00:00+03:00")
+    start = application_ts - timedelta(days=18 + index % 9)
+    if start.year != application_ts.year:
+        return next_txn
+    amounts = [float(rng.randrange(55_000, 95_000, 5_000)), float(rng.randrange(45_000, 85_000, 5_000))]
+    if trigger_rule:
+        amounts.append(float(rng.randrange(35_000, 75_000, 5_000)))
+    else:
+        amounts = [float(rng.randrange(25_000, 45_000, 5_000)), float(rng.randrange(20_000, 40_000, 5_000))]
+    for offset, amount in enumerate(amounts):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        rail = ["REMITTANCE", "PESALINK", "MPESA"][offset % 3]
+        transactions.append(
+            _txn_row(
+                txn_id,
+                start + timedelta(days=offset * 4, hours=offset),
+                rng.choice(source_accounts),
+                fosa,
+                member,
+                "PESALINK_IN" if rail in {"REMITTANCE", "PESALINK"} else "MPESA_PAYBILL_IN",
+                rail,
+                "BANK_TRANSFER" if rail in {"REMITTANCE", "PESALINK"} else "PAYBILL",
+                amount,
+                "BANK_PARTNER" if rail in {"REMITTANCE", "PESALINK"} else "MPESA",
+                "BANK" if rail in {"REMITTANCE", "PESALINK"} else "CUSTOMER",
+                fosa.get("branch_id"),
+                f"LEGIT_PRELOAN_INFLOW:{member['member_id']}:{loan['loan_id']}:{offset}",
+            )
+        )
+    if not trigger_rule:
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        transactions.append(
+            _txn_row(
+                txn_id,
+                start + timedelta(days=10),
+                fosa,
+                rng.choice(sink_accounts),
+                member,
+                "SCHOOL_FEES_PAYMENT_OUT",
+                "MPESA",
+                "PAYBILL",
+                round(sum(amounts) * rng.uniform(0.55, 0.80), 2),
+                "MPESA",
+                "MERCHANT",
+                fosa.get("branch_id"),
+                f"LEGIT_PRELOAN_OUTFLOW:{member['member_id']}:{loan['loan_id']}",
+            )
+        )
+    return next_txn
+
+
+def _empty_near_miss_families() -> dict[str, dict[str, object]]:
+    return {
+        "legitimate_structuring_like": {
+            "target_typology": "STRUCTURING",
+            "description": "Legitimate high-cash operating deposits that can satisfy the structuring rule.",
+            "expected_rule_effect": "false_positive_pressure",
+        },
+        "incomplete_structuring": {
+            "target_typology": "STRUCTURING",
+            "description": "Sub-threshold deposits that miss the minimum-count rule.",
+            "expected_rule_effect": "negative_control",
+        },
+        "legitimate_sme_liquidity_sweep": {
+            "target_typology": "RAPID_PASS_THROUGH",
+            "description": "Legitimate SME settlement followed by supplier settlement.",
+            "expected_rule_effect": "false_positive_pressure",
+        },
+        "near_rapid_low_exit": {
+            "target_typology": "RAPID_PASS_THROUGH",
+            "description": "Large inbound movement with a below-threshold exit ratio.",
+            "expected_rule_effect": "negative_control",
+        },
+        "church_family_bulk_payments": {
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "description": "Legitimate church collections, donor support, school fees, and family bulk payments.",
+            "expected_rule_effect": "negative_control",
+        },
+        "legitimate_preloan_affordability_candidate": {
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "description": "Legitimate pre-loan remittance, donor, harvest, or business inflow that can satisfy the fake-affordability rule.",
+            "expected_rule_effect": "false_positive_pressure",
+        },
+        "near_affordability_low_growth": {
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "description": "Pre-loan inflows offset by legitimate spending so balance growth stays below rule threshold.",
+            "expected_rule_effect": "negative_control",
+        },
+    }
+
+
+def _record_near_miss(families: dict[str, dict[str, object]], family: str, member_id: str, txn_count: int) -> None:
+    families.setdefault(family, {"target_typology": "UNKNOWN", "description": "", "expected_rule_effect": "negative_control"})
+    families[family].setdefault("member_ids", set())
+    families[family].setdefault("transaction_count", 0)
+    families[family]["member_ids"].add(member_id)
+    families[family]["transaction_count"] = int(families[family]["transaction_count"]) + txn_count
+
+
+def _near_miss_result(families: dict[str, dict[str, object]]) -> dict[str, object]:
+    serialized: dict[str, dict[str, object]] = {}
+    all_members: set[str] = set()
+    transaction_count = 0
+    for family, section in sorted(families.items()):
+        member_ids = set(section.get("member_ids", set()))
+        count = int(section.get("transaction_count", 0) or 0)
+        if not member_ids and count == 0:
+            continue
+        all_members.update(str(member_id) for member_id in member_ids)
+        transaction_count += count
+        serialized[family] = {
+            "target_typology": section.get("target_typology", "UNKNOWN"),
+            "description": section.get("description", ""),
+            "expected_rule_effect": section.get("expected_rule_effect", "negative_control"),
+            "member_count": len(member_ids),
+            "transaction_count": count,
+        }
+        if "group_count" in section:
+            serialized[family]["group_count"] = int(section.get("group_count") or 0)
+    return {
+        "status": "available" if serialized else "not_applicable",
+        "family_count": len(serialized),
+        "families": serialized,
+        "near_miss_member_count": len(all_members),
+        "near_miss_transaction_count": transaction_count,
+    }
+
+
+def _merge_near_miss_stats(primary: dict[str, object], secondary: dict[str, object]) -> dict[str, object]:
+    families: dict[str, dict[str, object]] = {}
+    for source in (primary, secondary):
+        for family, section in (source.get("families") or {}).items():
+            families[family] = dict(section)
+    return {
+        "status": "available" if families else "not_applicable",
+        "family_count": len(families),
+        "families": families,
+        "near_miss_member_count": sum(int(section.get("member_count") or 0) for section in families.values()),
+        "near_miss_transaction_count": sum(int(section.get("transaction_count") or 0) for section in families.values()),
+        "device_sharing_near_miss_group_count": secondary.get("device_sharing_near_miss_group_count", 0),
+        "device_sharing_near_miss_member_count": secondary.get("device_sharing_near_miss_member_count", 0),
+        "device_sharing_near_miss_transaction_count": secondary.get("device_sharing_near_miss_transaction_count", 0),
+    }
 
 
 def _device_mule_inbound_shape(offset: int) -> tuple[str, str, str, str, str]:

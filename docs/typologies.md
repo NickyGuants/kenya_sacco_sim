@@ -186,3 +186,54 @@ split coverage
 leakage checks
 dataset-card and docs updates
 ```
+
+## Near-Miss Families
+
+Near-misses are legitimate, unlabeled transactions that resemble suspicious
+behavior enough to pressure rules and ML features. They must not appear in
+`alerts_truth.csv`.
+
+Current families:
+
+```text
+legitimate_structuring_like
+  Target: STRUCTURING
+  Effect: false_positive_pressure
+
+incomplete_structuring
+  Target: STRUCTURING
+  Effect: negative_control
+
+legitimate_sme_liquidity_sweep
+  Target: RAPID_PASS_THROUGH
+  Effect: false_positive_pressure
+
+near_rapid_low_exit
+  Target: RAPID_PASS_THROUGH
+  Effect: negative_control
+
+church_family_bulk_payments
+  Target: STRUCTURING and RAPID_PASS_THROUGH
+  Effect: negative_control
+
+legitimate_preloan_affordability_candidate
+  Target: FAKE_AFFORDABILITY_BEFORE_LOAN
+  Effect: false_positive_pressure
+
+near_affordability_low_growth
+  Target: FAKE_AFFORDABILITY_BEFORE_LOAN
+  Effect: negative_control
+
+normal_shared_device_low_value
+  Target: DEVICE_SHARING_MULE_NETWORK
+  Effect: negative_control
+```
+
+The generator reports these through:
+
+```text
+rule_results.json.near_miss_disclosure
+validation_report.json.near_miss_validation
+dataset_card.md
+multi_seed_results.json.near_miss_stability
+```

@@ -239,15 +239,28 @@ Every typology must ship with normal-but-suspicious-looking negatives.
 Required near-miss families:
 
 ```text
-incomplete structuring
-legitimate SME liquidity sweeps
-legitimate church/family bulk payments
-legitimate pre-loan remittance or harvest inflows
-normal shared devices for family phones or business co-owners
+legitimate_structuring_like
+incomplete_structuring
+legitimate_sme_liquidity_sweep
+near_rapid_low_exit
+church_family_bulk_payments
+legitimate_preloan_affordability_candidate
+near_affordability_low_growth
+normal_shared_device_low_value
 ```
 
 Near-misses must not appear in `alerts_truth.csv`, but their counts should be
 reported in validation or rule artifacts when applicable.
+
+Reporting contract:
+
+```text
+rule_results.json.near_miss_disclosure
+validation_report.json.near_miss_validation
+baseline_model_results.json.near_miss_disclosure
+dataset_card.md near-miss section
+multi_seed_results.json.near_miss_stability
+```
 
 ---
 
@@ -354,6 +367,7 @@ Rules:
 8. Confounder diagnostics must report temporal label concentration and persona/static-attribute label concentration.
 9. Rule-vs-ML comparison is descriptive and must not be framed as ML superiority evidence without ablation and confounder support.
 10. Multi-seed results must summarize full-feature ML F1, ablated ML F1, ablation F1 drops, and confounder diagnostic flags.
+11. Dataset card must summarize near-miss and negative-control coverage.
 ```
 
 Blocked ML input fields:
@@ -414,6 +428,7 @@ benchmark_validation
 typology_runtime_metrics
 label_validation
 device_validation
+near_miss_validation
 ```
 
 Hard errors:
@@ -484,11 +499,17 @@ Current accepted metrics:
 
 ```text
 validation errors: 0
-validation warnings: 0
+validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
 digital device coverage: 100%
 max members per device: 5
-DEVICE_SHARING_MULE_NETWORK precision: 0.9091
+near-miss families: 8
+near-miss members: 85
+near-miss transactions: 280
+DEVICE_SHARING_MULE_NETWORK precision: 1.0000
 DEVICE_SHARING_MULE_NETWORK recall: 1.0000
+FAKE_AFFORDABILITY precision: 0.2098
+RAPID_PASS_THROUGH precision: 0.5714
+STRUCTURING precision: 0.6522
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
 ```

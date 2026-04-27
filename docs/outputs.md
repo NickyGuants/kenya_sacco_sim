@@ -57,7 +57,7 @@ recovery transactions.
 | File | What it is |
 | --- | --- |
 | `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
-| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, and candidate IDs. |
+| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure`. |
 
 ## With `--with-benchmark`
 
@@ -73,7 +73,7 @@ These files require `--with-typologies`.
 | `rule_vs_ml_comparison.json` | Descriptive rule-vs-ML precision, recall, and F1 deltas. This is not a superiority claim. |
 | `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. Temporal concentration uses `max_month_share > 0.40` or `window_span_days < 120`. |
 | `feature_documentation.json` | Per-file feature dictionary and split guidance. |
-| `dataset_card.md` | Human-readable run summary, intended use, metrics, and limitations. |
+| `dataset_card.md` | Human-readable run summary, intended use, near-miss coverage, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |
 
 ## Always Emitted Last

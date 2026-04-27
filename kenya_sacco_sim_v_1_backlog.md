@@ -12,13 +12,13 @@ kenya_sacco_sim_v_1_specification.md
 ## Active Slice
 
 ```text
-DEVICE_SHARING_MULE_NETWORK
+NEGATIVE_CONTROLS_AND_NEAR_MISSES
 ```
 
-This slice uses the existing device layer, support entities, graph projection,
-rule baseline, ML baseline, and validation framework. It must keep raw
-`device_id` out of model features, label only in `alerts_truth.csv`, export
-candidate IDs, include near-misses, and pass the multi-seed stability gate.
+This slice deepens the current v1 typologies before adding new suspicious
+families. It adds richer legitimate near-misses, reports near-miss coverage in
+the benchmark artifacts, keeps all near-misses out of `alerts_truth.csv`, and
+must pass the multi-seed stability gate.
 
 ## Next Typology Candidates
 
