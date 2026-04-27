@@ -597,23 +597,32 @@ Current accepted metrics:
 validation errors: 0
 validation warnings: 0
 digital device coverage: 100%
-max members per device: 5
+max members per device: 3
 near-miss families: 12
-near-miss members: 216
-near-miss transactions: 865
-near-miss guarantees: 17
+near-miss members: 211
+near-miss transactions: 858
+near-miss guarantees: 16
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000
 DEVICE_SHARING_MULE_NETWORK recall: 1.0000
 GUARANTOR_FRAUD_RING precision: 1.0000
 GUARANTOR_FRAUD_RING recall: 1.0000
-WALLET_FUNNELING precision: 0.6042
-WALLET_FUNNELING recall: 0.9667
-FAKE_AFFORDABILITY precision: 0.1899
-RAPID_PASS_THROUGH precision: 0.4528
-STRUCTURING precision: 0.3750
+WALLET_FUNNELING precision: 0.5833
+WALLET_FUNNELING recall: 0.9333
+FAKE_AFFORDABILITY precision: 0.1974
+RAPID_PASS_THROUGH precision: 0.4615
+STRUCTURING precision: 0.3571
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
+single 10k package wall clock: 52.3s
+five-seed 10k benchmark wall clock: 106.6s with --jobs 4
 ```
+
+The benchmark runner caps parallel seed workers by CPU count and estimated
+memory budget. The current local gate uses four workers for 10k runs. 100k
+full benchmark probes are capped to two workers on the local development
+machine; the latest two-seed 100k probe was stopped after ten minutes with no
+completed seed. 100k remains an experimental scaling target, not supported
+release scale.
 
 ---
 

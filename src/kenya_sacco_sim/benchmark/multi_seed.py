@@ -40,7 +40,7 @@ def run_multi_seed_benchmark(
 ) -> dict[str, object]:
     seeds = _validate_seeds(seeds)
     output_dir.mkdir(parents=True, exist_ok=True)
-    worker_count = _worker_count(max_workers, len(seeds))
+    worker_count = _worker_count(max_workers, len(seeds), member_count=config.member_count)
     _emit_progress(progress, f"running {len(seeds)} seeds with {worker_count} worker(s)")
     seed_results = _run_seeds_parallel(config, seeds, output_dir, write_seed_datasets, worker_count, progress)
 
@@ -59,15 +59,34 @@ def _validate_seeds(seeds: list[int]) -> list[int]:
     return list(seeds)
 
 
-def _worker_count(max_workers: int | None, seed_count: int) -> int:
+def _worker_count(max_workers: int | None, seed_count: int, member_count: int = 10_000, total_memory_gb: float | None = None) -> int:
     if max_workers is not None and max_workers < 1:
         raise ValueError("--jobs must be at least 1")
     if seed_count <= 1:
         return 1
+    memory_limit = _memory_worker_cap(member_count, total_memory_gb)
     if max_workers is not None:
-        return min(max_workers, seed_count)
+        return min(max_workers, seed_count, memory_limit)
     cpu_count = os.cpu_count() or 2
-    return min(seed_count, max(1, cpu_count - 1), 4)
+    return min(seed_count, max(1, cpu_count - 1), 4, memory_limit)
+
+
+def _memory_worker_cap(member_count: int, total_memory_gb: float | None = None) -> int:
+    total_gb = total_memory_gb if total_memory_gb is not None else _system_memory_gb()
+    if total_gb <= 0:
+        return 4
+    estimated_worker_gb = max(1.5, member_count / 25_000)
+    usable_gb = total_gb * 0.55
+    return max(1, min(4, int(usable_gb // estimated_worker_gb)))
+
+
+def _system_memory_gb() -> float:
+    try:
+        page_size = int(os.sysconf("SC_PAGE_SIZE"))
+        pages = int(os.sysconf("SC_PHYS_PAGES"))
+        return page_size * pages / (1024**3)
+    except (AttributeError, OSError, ValueError):
+        return 0.0
 
 
 def _run_seeds_parallel(

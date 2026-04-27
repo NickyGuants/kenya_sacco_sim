@@ -173,6 +173,7 @@ def inject_typologies(
     near_miss_stats = _merge_near_miss_stats(near_miss_stats, device_near_miss_stats)
     near_miss_stats = _merge_near_miss_stats(near_miss_stats, guarantor_near_miss_stats)
 
+    _ensure_member_alert_rows(alerts)
     _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
@@ -471,7 +472,7 @@ def _inject_wallet_funneling(
             txn_id = _txn_id(next_txn)
             next_txn += 1
             txn_type, rail, channel, provider = _wallet_funnel_inbound_shape(offset)
-            amount = float(rng.randrange(55_000, 115_000, 5_000))
+            amount = float(rng.randrange(60_000, 115_000, 5_000))
             inbound_total += amount
             tx = _txn_row(
                 txn_id,
@@ -484,7 +485,7 @@ def _inject_wallet_funneling(
                 channel,
                 amount,
                 provider,
-                "WALLET_USER" if rail in {"MPESA", "AIRTEL_MONEY"} else "MERCHANT",
+                _wallet_funnel_inbound_counterparty_type(txn_type),
                 fosa.get("branch_id"),
                 f"WALLET_FUNNEL_IN:{pattern_id}:{member_id}:{offset}",
             )
@@ -510,7 +511,7 @@ def _inject_wallet_funneling(
                 channel,
                 amount,
                 provider,
-                "WALLET_USER" if txn_type in {"MPESA_WALLET_TOPUP", "WALLET_P2P_OUT"} else "MERCHANT",
+                _wallet_funnel_outbound_counterparty_type(txn_type),
                 fosa.get("branch_id"),
                 f"WALLET_FUNNEL_OUT:{pattern_id}:{member_id}:{offset}",
             )
@@ -970,9 +971,9 @@ def _inject_device_sharing_decoys(
     family_members: set[str] = set()
     txn_count = 0
     cursor = 0
-    while group_count < target_group_count and cursor + 3 <= len(candidates):
-        group = candidates[cursor : cursor + 3]
-        cursor += 3
+    while group_count < target_group_count and cursor + 2 <= len(candidates):
+        group = candidates[cursor : cursor + 2]
+        cursor += 2
         group_member_ids = [str(member["member_id"]) for member in group]
         device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_DECOY_{group_count + 1:05d}")
         if not device_id:
@@ -1030,7 +1031,7 @@ def _inject_device_sharing_decoys(
     families = {
         "normal_shared_device_low_value": {
             "target_typology": "DEVICE_SHARING_MULE_NETWORK",
-            "description": "Family or co-owner shared devices with low value and low outbound share.",
+            "description": "Family or co-owner two-member shared devices with low value and low outbound share.",
             "expected_rule_effect": "negative_control",
             "member_ids": family_members,
             "transaction_count": txn_count,
@@ -1755,6 +1756,20 @@ def _wallet_funnel_outbound_shape(offset: int) -> tuple[str, str, str, str]:
     return variants[offset % len(variants)]
 
 
+def _wallet_funnel_inbound_counterparty_type(txn_type: str) -> str:
+    if txn_type == "BUSINESS_SETTLEMENT_IN":
+        return "MERCHANT"
+    return "WALLET_USER"
+
+
+def _wallet_funnel_outbound_counterparty_type(txn_type: str) -> str:
+    if txn_type == "PESALINK_OUT":
+        return "BANK"
+    if txn_type == "SUPPLIER_PAYMENT_OUT":
+        return "MERCHANT"
+    return "WALLET_USER"
+
+
 def _members_without_shared_devices(world: InstitutionWorld) -> set[str]:
     members: set[str] = set()
     blocked: set[str] = set()
@@ -1845,6 +1860,53 @@ def _reassign_transaction_ids(transactions: list[dict[str, object]], alerts: lis
         old_entity_id = str(alert.get("entity_id") or "")
         if alert.get("entity_type") == "TRANSACTION" and old_entity_id in id_map:
             alert["entity_id"] = id_map[old_entity_id]
+
+
+def _ensure_member_alert_rows(alerts: list[dict[str, object]]) -> None:
+    grouped: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    existing_member_rows: set[tuple[str, str]] = set()
+    for alert in alerts:
+        pattern_id = str(alert.get("pattern_id") or "")
+        member_id = str(alert.get("member_id") or "")
+        if not pattern_id or not member_id:
+            continue
+        key = (pattern_id, member_id)
+        grouped[key].append(alert)
+        if alert.get("entity_type") == "MEMBER":
+            existing_member_rows.add(key)
+
+    for key, rows in sorted(grouped.items()):
+        if key in existing_member_rows:
+            continue
+        pattern_id, member_id = key
+        template = rows[0]
+        timestamps = [
+            str(value)
+            for row in rows
+            for value in (row.get("start_timestamp"), row.get("end_timestamp"))
+            if value
+        ]
+        start_timestamp = min(timestamps) if timestamps else str(template.get("start_timestamp") or "")
+        end_timestamp = max(timestamps) if timestamps else str(template.get("end_timestamp") or start_timestamp)
+        alerts.append(
+            {
+                "alert_id": f"ALT{len(alerts) + 1:08d}",
+                "pattern_id": pattern_id,
+                "typology": template["typology"],
+                "entity_type": "MEMBER",
+                "entity_id": member_id,
+                "member_id": member_id,
+                "account_id": template.get("account_id"),
+                "txn_id": None,
+                "edge_id": None,
+                "start_timestamp": start_timestamp,
+                "end_timestamp": end_timestamp,
+                "severity": template["severity"],
+                "truth_label": True,
+                "stage": template["stage"],
+                "explanation_code": template["explanation_code"],
+            }
+        )
 
 
 def _reference_for_transaction(txn: dict[str, object]) -> str:

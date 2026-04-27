@@ -4,7 +4,7 @@ import hashlib
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
+from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_member_feature_table, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.labels import _reference_leakage_metrics, _txn_id_leakage_metrics
 from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
@@ -26,8 +26,9 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
     split_manifest = _build_split_manifest(rows_by_file, config)
     confounder_diagnostics = _build_confounder_diagnostics(rows_by_file)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest, confounder_diagnostics)
-    ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
-    ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results)
+    feature_table = build_member_feature_table(rows_by_file)
+    ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config, feature_table=feature_table)
+    ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results, feature_table=feature_table)
     comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results, ml_ablation, confounder_diagnostics)
     feature_docs = _build_feature_documentation()
     return {
@@ -391,7 +392,7 @@ def _build_feature_documentation() -> dict[str, object]:
             "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
         },
         "derived_ml_features": {
-            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio", "max_wallet_fan_in_value_7d_kes"],
+            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio", "max_wallet_fan_in_counterparties_7d", "max_wallet_fan_in_value_7d_kes"],
             "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count", "device_peer_member_count"],
             "device": ["transaction_device_count", "shared_device_txn_share", "max_members_per_used_device", "device_network_value_kes"],
             "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes", "max_wallet_funnel_exit_ratio_7d"],

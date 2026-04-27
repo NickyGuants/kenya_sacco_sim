@@ -22,6 +22,10 @@ class MultiSeedBenchmarkTests(unittest.TestCase):
         self.assertEqual(_worker_count(1, 3), 1)
         self.assertEqual(_worker_count(None, 1), 1)
 
+    def test_worker_count_caps_large_runs_by_memory_estimate(self) -> None:
+        self.assertEqual(_worker_count(4, 5, member_count=100_000, total_memory_gb=18), 2)
+        self.assertEqual(_worker_count(None, 5, member_count=10_000, total_memory_gb=18), 4)
+
     def test_worker_count_rejects_non_positive_jobs(self) -> None:
         with self.assertRaisesRegex(ValueError, "--jobs"):
             _worker_count(0, 3)

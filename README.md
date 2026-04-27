@@ -276,19 +276,19 @@ validation errors:   0
 validation warnings: 0
 members:             10,000
 accounts:            41,003
-transactions:        512,133
+transactions:        512,109
 loans:               2,352
-guarantors:          3,419
-alerts_truth:        1,338
+guarantors:          3,418
+alerts_truth:        1,411
 devices:             10,000
 device coverage:     100.00% of digital transactions
-shared devices:      346
+shared devices:      345
 max members/device:  3
 evaluation validity: valid
 near-miss families:  12
-near-miss members:   216
-near-miss txns:      865
-near-miss guarantees: 17
+near-miss members:   211
+near-miss txns:      858
+near-miss guarantees: 16
 ```
 
 Rule-baseline metrics from that run:
@@ -296,10 +296,10 @@ Rule-baseline metrics from that run:
 ```text
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
 GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
-WALLET_FUNNELING precision:            0.6042 / recall: 0.9667
-FAKE_AFFORDABILITY precision:          0.1899 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.4528 / recall: 0.8000
-STRUCTURING precision:                 0.3750 / recall: 1.0000
+WALLET_FUNNELING precision:            0.5833 / recall: 0.9333
+FAKE_AFFORDABILITY precision:          0.1974 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.4615 / recall: 0.8000
+STRUCTURING precision:                 0.3571 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
@@ -310,14 +310,23 @@ validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
-shared-device member share mean: 0.0434
+shared-device member share mean: 0.0429
 cash rail share mean: 0.1935
 loan active member mean: 0.2385
 arrears share mean: 0.0927
-near-miss member count mean: 217.6
-near-miss transaction count mean: 869.4
-near-miss guarantee count mean: 17.8
+near-miss member count mean: 213.8
+near-miss transaction count mean: 860.2
+near-miss guarantee count mean: 18.8
+wall clock: 106.6s on this 11-CPU local machine with --jobs 4
+first four seeds completed in ~58-59s; final queued seed completed at 106.3s
+single 10k package wall clock: 52.3s
 ```
+
+The benchmark runner now caps parallel workers by both CPU count and an
+estimated memory budget. On this local 11-CPU, ~18 GB host, 10k runs use four
+workers. A 100k two-seed full benchmark probe was correctly capped to two
+workers, but was stopped after ten minutes with no completed seed. Treat 100k
+as an unresolved performance-scaling item, not as a supported benchmark gate.
 
 Known benchmark behavior:
 
@@ -332,6 +341,9 @@ before making ML superiority claims.
 ML outperformance on direct rule-proxy features is not treated as benchmark
 evidence unless the ablated feature set and multi-seed diagnostics support it.
 100-member runs are smoke tests only, not valid benchmark evaluations.
+100,000-member full benchmark runs are not yet a release gate; the current full
+ML/validation path is still too slow at that scale on the local development
+machine.
 ```
 
 ## Development Discipline
