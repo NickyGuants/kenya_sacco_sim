@@ -159,6 +159,34 @@ Normal shared-device groups are allowed. Suspicion requires the shared-device
 graph pattern plus value, transaction-count, member-count, and outbound-share
 thresholds.
 
+## GUARANTOR_FRAUD_RING
+
+Several members create reciprocal or circular guarantee relationships so that
+loan approvals appear supported by independent guarantors when the support is
+actually coordinated.
+
+Injector behavior:
+
+- Forms rings of 3 to 5 members with real active guaranteed loans.
+- Adds reciprocal/circular rows to `guarantors.csv`.
+- Relies on the existing `GUARANTEES` graph projection instead of adding label
+  columns to feature files.
+- Labels member and loan-context transaction rows while keeping the members
+  blended with normal activity.
+
+Rule contract:
+
+```text
+directed guarantee graph
+active guaranteed loans only
+strongly connected component size 3 to 6
+cycle edges within component >= 3
+products:
+  DEVELOPMENT_LOAN
+  BIASHARA_LOAN
+  ASSET_FINANCE
+```
+
 ## How Labels Appear
 
 Every injected typology produces rows in `alerts_truth.csv`:
@@ -226,6 +254,14 @@ near_affordability_low_growth
 
 normal_shared_device_low_value
   Target: DEVICE_SHARING_MULE_NETWORK
+  Effect: negative_control
+
+legitimate_two_member_reciprocal_guarantee
+  Target: GUARANTOR_FRAUD_RING
+  Effect: negative_control
+
+trusted_guarantor_star
+  Target: GUARANTOR_FRAUD_RING
   Effect: negative_control
 ```
 

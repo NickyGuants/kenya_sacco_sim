@@ -90,8 +90,9 @@ write artifacts                 CSV, JSON, Markdown, manifest
 
 Most steps return new row collections. Typology injection is the deliberate
 exception: it appends suspicious transactions and labels, may update shared
-device grouping for device-based typologies, and then the graph/validation
-phases consume the finalized world.
+device grouping for device-based typologies, may add guarantor rows for
+graph-credit typologies, and then the graph/validation phases consume the
+finalized world.
 
 ## Determinism Model
 

@@ -55,7 +55,7 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, 
     accounts = generate_accounts(config, members, institution_world)
     loans, guarantors = generate_loans_and_guarantors(config, members, accounts, institution_world)
     transactions = generate_transactions(config, members, accounts, institution_world, loans)
-    alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world, loans)
+    alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world, loans, guarantors)
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors)
     rows_by_file = {
@@ -248,6 +248,7 @@ def _near_miss_summary(disclosure: object) -> dict[str, object]:
             str(family): {
                 "member_count": section.get("member_count", 0),
                 "transaction_count": section.get("transaction_count", 0),
+                "guarantee_count": section.get("guarantee_count", 0),
                 "expected_rule_effect": section.get("expected_rule_effect"),
                 "target_typology": section.get("target_typology"),
             }
@@ -258,6 +259,7 @@ def _near_miss_summary(disclosure: object) -> dict[str, object]:
         "status": disclosure.get("status", "not_available"),
         "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
         "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
+        "near_miss_guarantee_count": disclosure.get("near_miss_guarantee_count", 0),
         "family_counts": family_counts,
     }
 
@@ -277,6 +279,7 @@ def _near_miss_stability_report(seed_results: list[dict[str, object]]) -> dict[s
     return {
         "near_miss_member_count": _seed_metric_stats(seed_results, ("near_miss_metrics", "near_miss_member_count")),
         "near_miss_transaction_count": _seed_metric_stats(seed_results, ("near_miss_metrics", "near_miss_transaction_count")),
+        "near_miss_guarantee_count": _seed_metric_stats(seed_results, ("near_miss_metrics", "near_miss_guarantee_count")),
         "families": {
             family: {
                 "member_count": _near_miss_family_stats(seed_results, family, "member_count"),

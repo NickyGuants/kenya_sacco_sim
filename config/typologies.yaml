@@ -27,3 +27,11 @@ typologies:
     inbound_amount_kes: [100000, 160000]
     outbound_share: [0.48, 0.68]
     rails: [MPESA, PESALINK]
+  GUARANTOR_FRAUD_RING:
+    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, SME_OWNER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR]
+    group_size: [3, 5]
+    min_members_per_ring: 3
+    max_members_per_ring: 6
+    min_cycle_edges: 3
+    guaranteed_products: [DEVELOPMENT_LOAN, BIASHARA_LOAN, ASSET_FINANCE]
+    near_miss_families: [legitimate_two_member_reciprocal_guarantee, trusted_guarantor_star]

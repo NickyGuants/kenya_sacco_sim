@@ -71,6 +71,10 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         if not txn_alerts:
             findings.append(_error("label.pattern_without_txn_labels", "Suspicious pattern must label at least one transaction", pattern_id))
 
+    active_typology_count = sum(1 for count in typology_counts.values() if count > 0)
+    if member_count >= 10_000 and active_typology_count:
+        target_suspicious_member_count = max(target_suspicious_member_count, 30 * active_typology_count)
+        count_tolerance = _suspicious_count_tolerance(member_count, tolerance)
     suspicious_member_count = len({str(alert["member_id"]) for alert in alerts if alert["entity_type"] == "PATTERN"})
     realized_ratio = suspicious_member_count / member_count if member_count else 0.0
     count_delta = abs(suspicious_member_count - target_suspicious_member_count)
@@ -94,6 +98,7 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "rapid_pass_through_pattern_count": typology_counts["RAPID_PASS_THROUGH"],
         "fake_affordability_pattern_count": typology_counts["FAKE_AFFORDABILITY_BEFORE_LOAN"],
         "device_sharing_mule_network_pattern_count": typology_counts["DEVICE_SHARING_MULE_NETWORK"],
+        "guarantor_fraud_ring_pattern_count": typology_counts["GUARANTOR_FRAUD_RING"],
         "rule_configs": RULE_CONFIGS,
     }
     label_section = {

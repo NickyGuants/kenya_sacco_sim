@@ -3,15 +3,28 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from kenya_sacco_sim.core.rules import DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG, FAKE_AFFORDABILITY_RULE_CONFIG, RAPID_PASS_THROUGH_RULE_CONFIG, STRUCTURING_RULE_CONFIG
+from kenya_sacco_sim.core.rules import (
+    DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
+    FAKE_AFFORDABILITY_RULE_CONFIG,
+    GUARANTOR_FRAUD_RING_RULE_CONFIG,
+    RAPID_PASS_THROUGH_RULE_CONFIG,
+    STRUCTURING_RULE_CONFIG,
+)
 
 
-def build_rule_results(transactions: list[dict[str, object]], accounts: list[dict[str, object]], alerts: list[dict[str, object]], loans: list[dict[str, object]] | None = None) -> dict[str, object]:
+def build_rule_results(
+    transactions: list[dict[str, object]],
+    accounts: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    loans: list[dict[str, object]] | None = None,
+    guarantors: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
     member_accounts = member_account_ids(accounts)
     structuring = structuring_candidates(transactions, member_accounts)
     rapid = rapid_pass_through_candidates(transactions, member_accounts)
     fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
     device_sharing = device_sharing_mule_candidates(transactions, member_accounts)
+    guarantor_ring = guarantor_fraud_ring_candidates(guarantors or [], loans or [])
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -40,6 +53,12 @@ def build_rule_results(transactions: list[dict[str, object]], accounts: list[dic
             DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
             device_sharing,
             truth_by_typology["DEVICE_SHARING_MULE_NETWORK"],
+        ),
+        "GUARANTOR_FRAUD_RING": rule_section(
+            "Directed guarantee cycle among >=3 members with active guaranteed loans",
+            GUARANTOR_FRAUD_RING_RULE_CONFIG,
+            guarantor_ring,
+            truth_by_typology["GUARANTOR_FRAUD_RING"],
         ),
     }
 
@@ -118,6 +137,41 @@ def device_sharing_mule_candidates(transactions: list[dict[str, object]], member
         for members in _device_mule_windows(rows, member_accounts):
             for member_id in members:
                 candidates[member_id] = True
+    return candidates
+
+
+def guarantor_fraud_ring_candidates(guarantors: list[dict[str, object]], loans: list[dict[str, object]]) -> dict[str, object]:
+    active_statuses = set(GUARANTOR_FRAUD_RING_RULE_CONFIG["active_loan_statuses"])
+    products = set(GUARANTOR_FRAUD_RING_RULE_CONFIG["guaranteed_products"])
+    loan_by_id = {str(loan["loan_id"]): loan for loan in loans}
+    graph: dict[str, set[str]] = defaultdict(set)
+    for guarantee in guarantors:
+        loan = loan_by_id.get(str(guarantee.get("loan_id") or ""))
+        if not loan:
+            continue
+        if str(loan.get("performing_status") or "") not in active_statuses:
+            continue
+        if str(loan.get("product_code") or "") not in products:
+            continue
+        guarantor = str(guarantee.get("guarantor_member_id") or "")
+        borrower = str(guarantee.get("borrower_member_id") or "")
+        if not guarantor or not borrower or guarantor == borrower:
+            continue
+        graph[guarantor].add(borrower)
+        graph.setdefault(borrower, set())
+
+    min_members = int(GUARANTOR_FRAUD_RING_RULE_CONFIG["min_members_per_ring"])
+    max_members = int(GUARANTOR_FRAUD_RING_RULE_CONFIG["max_members_per_ring"])
+    min_edges = int(GUARANTOR_FRAUD_RING_RULE_CONFIG["min_cycle_edges"])
+    candidates: dict[str, object] = {}
+    for component in _strongly_connected_components(graph):
+        if len(component) < min_members or len(component) > max_members:
+            continue
+        edge_count = sum(1 for src in component for dst in graph.get(src, set()) if dst in component)
+        if edge_count < min_edges:
+            continue
+        for member_id in component:
+            candidates[member_id] = True
     return candidates
 
 
@@ -226,6 +280,45 @@ def _device_mule_windows(rows: list[dict[str, object]], member_accounts: dict[st
     return windows
 
 
+def _strongly_connected_components(graph: dict[str, set[str]]) -> list[set[str]]:
+    index = 0
+    stack: list[str] = []
+    indices: dict[str, int] = {}
+    lowlinks: dict[str, int] = {}
+    on_stack: set[str] = set()
+    components: list[set[str]] = []
+
+    def strongconnect(node: str) -> None:
+        nonlocal index
+        indices[node] = index
+        lowlinks[node] = index
+        index += 1
+        stack.append(node)
+        on_stack.add(node)
+
+        for neighbor in graph.get(node, set()):
+            if neighbor not in indices:
+                strongconnect(neighbor)
+                lowlinks[node] = min(lowlinks[node], lowlinks[neighbor])
+            elif neighbor in on_stack:
+                lowlinks[node] = min(lowlinks[node], indices[neighbor])
+
+        if lowlinks[node] == indices[node]:
+            component: set[str] = set()
+            while stack:
+                member = stack.pop()
+                on_stack.remove(member)
+                component.add(member)
+                if member == node:
+                    break
+            components.append(component)
+
+    for node in sorted(graph):
+        if node not in indices:
+            strongconnect(node)
+    return components
+
+
 def rule_section(rule_definition: str, rule_config: dict[str, object], candidates: dict[str, object], truth_alerts: list[dict[str, object]]) -> dict[str, object]:
     truth_member_ids = sorted({str(alert["member_id"]) for alert in truth_alerts})
     detected = sorted(member_id for member_id in truth_member_ids if member_id in candidates)
@@ -260,6 +353,7 @@ __all__ = [
     "has_structuring_window",
     "member_account_ids",
     "fake_affordability_candidates",
+    "guarantor_fraud_ring_candidates",
     "device_sharing_mule_candidates",
     "rapid_pass_through_candidates",
     "rule_section",

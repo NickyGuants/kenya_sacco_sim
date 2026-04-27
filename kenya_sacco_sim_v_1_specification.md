@@ -15,6 +15,7 @@ Ship every typology with a rule, near-misses, candidate IDs, split coverage, and
 ```
 
 The first v1 typology is `DEVICE_SHARING_MULE_NETWORK`.
+The current v1 slice adds `GUARANTOR_FRAUD_RING`.
 
 ---
 
@@ -77,6 +78,7 @@ active_typologies:
   - RAPID_PASS_THROUGH
   - FAKE_AFFORDABILITY_BEFORE_LOAN
   - DEVICE_SHARING_MULE_NETWORK
+  - GUARANTOR_FRAUD_RING
 ```
 
 A benchmark-grade run must satisfy:
@@ -230,6 +232,41 @@ If the target is nonzero, DEVICE_SHARING_MULE_NETWORK must allocate at least 3 m
 If suspicious_ratio is 0, every typology target must be 0.
 ```
 
+### 4.5 GUARANTOR_FRAUD_RING
+
+Purpose:
+
+```text
+Detect reciprocal or circular guarantor relationships used to manufacture
+credit support across a small member group.
+```
+
+Rule contract:
+
+```text
+directed guarantee graph
+active guaranteed loans only
+guaranteed products:
+  DEVELOPMENT_LOAN
+  BIASHARA_LOAN
+  ASSET_FINANCE
+strongly connected component size >= 3
+strongly connected component size <= 6
+cycle edges within component >= 3
+```
+
+Injection contract:
+
+```text
+1. Suspicious rings must contain 3 to 5 members.
+2. Ring members must have real active guaranteed loans.
+3. Ring guarantees must be written to guarantors.csv and projected as GUARANTEES graph edges.
+4. Suspicious labels must include PATTERN, MEMBER, and loan-context TRANSACTION rows.
+5. Each suspicious member must keep at least 50% normal transaction share.
+6. Normal guarantor concentration limits must remain valid for non-suspicious behavior.
+7. Candidate selection must avoid fixed persona-only assignment.
+```
+
 ---
 
 ## 5. Normal Near-Misses
@@ -247,6 +284,8 @@ church_family_bulk_payments
 legitimate_preloan_affordability_candidate
 near_affordability_low_growth
 normal_shared_device_low_value
+legitimate_two_member_reciprocal_guarantee
+trusted_guarantor_star
 ```
 
 Near-misses must not appear in `alerts_truth.csv`, but their counts should be
@@ -424,6 +463,7 @@ The validation report must include:
 
 ```text
 device_sharing_mule_network_validation
+guarantor_fraud_ring_validation
 benchmark_validation
 typology_runtime_metrics
 label_validation
@@ -502,14 +542,17 @@ validation errors: 0
 validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
 digital device coverage: 100%
 max members per device: 5
-near-miss families: 8
-near-miss members: 85
-near-miss transactions: 280
+near-miss families: 10
+near-miss members: 120
+near-miss transactions: 330
+near-miss guarantees: 16
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000
 DEVICE_SHARING_MULE_NETWORK recall: 1.0000
-FAKE_AFFORDABILITY precision: 0.2098
-RAPID_PASS_THROUGH precision: 0.5714
-STRUCTURING precision: 0.6522
+GUARANTOR_FRAUD_RING precision: 1.0000
+GUARANTOR_FRAUD_RING recall: 1.0000
+FAKE_AFFORDABILITY precision: 0.2083
+RAPID_PASS_THROUGH precision: 0.5455
+STRUCTURING precision: 0.6818
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
 ```
@@ -518,7 +561,7 @@ multi-seed precision/recall variance: within threshold
 
 ## 12. Next Implementation Slice
 
-Next candidate typology:
+Current implementation slice:
 
 ```text
 GUARANTOR_FRAUD_RING
@@ -542,4 +585,10 @@ Acceptance requirements for the next typology:
 5. Add validation section.
 6. Add ML features only if they are non-leaky.
 7. Update README, docs, dataset card, known limitations, and this spec in the same implementation slice.
+```
+
+Next candidate after this slice:
+
+```text
+WALLET_FUNNELING
 ```

@@ -25,6 +25,8 @@ errors. Warnings do not fail the run but should be reviewed.
   "typology_runtime_metrics": ...,
   "fake_affordability_validation": ...,
   "device_sharing_mule_network_validation": ...,
+  "guarantor_fraud_ring_validation": ...,
+  "near_miss_validation": ...,
   "benchmark_validation": ...,
   "errors": [...],
   "warnings": [...]
@@ -54,9 +56,10 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `distribution_validation` | Persona, rural/urban, wallet, rail, transaction mix, and seasonality metrics are checked. |
 | `typology_validation` | Injected typology counts match target policy and active typology requirements. |
 | `typology_runtime_metrics` | Rule-baseline precision and recall against truth labels. |
-| `near_miss_validation` | Normal-but-suspicious-looking negative-control family counts and transaction coverage. |
+| `near_miss_validation` | Normal-but-suspicious-looking negative-control family counts plus transaction and guarantor coverage. |
 | `fake_affordability_validation` | Pre-loan window and external-credit invariants are reported. |
 | `device_sharing_mule_network_validation` | Shared-device mule candidate IDs, precision/recall, and misses are reported. |
+| `guarantor_fraud_ring_validation` | Reciprocal guarantor-ring candidate IDs, precision/recall, and misses are reported. |
 | `benchmark_validation` | Whether benchmark artifacts form a valid evaluation or only a smoke run. |
 
 `benchmark_validation` also embeds confounder diagnostics from
@@ -119,6 +122,8 @@ church_family_bulk_payments
 legitimate_preloan_affordability_candidate
 near_affordability_low_growth
 normal_shared_device_low_value
+legitimate_two_member_reciprocal_guarantee
+trusted_guarantor_star
 ```
 
 Families marked `false_positive_pressure` are allowed to be rule candidates.

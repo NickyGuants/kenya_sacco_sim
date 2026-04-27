@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
+from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.labels import validate_labels
@@ -10,6 +11,36 @@ from kenya_sacco_sim.validation.report import build_validation_report
 
 
 class BenchmarkHardeningTests(unittest.TestCase):
+    def test_guarantor_fraud_ring_rule_detects_directed_cycle(self) -> None:
+        loans = [
+            _loan("LOAN000001", "MEM0000001"),
+            _loan("LOAN000002", "MEM0000002"),
+            _loan("LOAN000003", "MEM0000003"),
+        ]
+        guarantors = [
+            _guarantee("GUA000001", "LOAN000002", "MEM0000002", "MEM0000001"),
+            _guarantee("GUA000002", "LOAN000003", "MEM0000003", "MEM0000002"),
+            _guarantee("GUA000003", "LOAN000001", "MEM0000001", "MEM0000003"),
+        ]
+
+        candidates = guarantor_fraud_ring_candidates(guarantors, loans)
+
+        self.assertEqual(set(candidates), {"MEM0000001", "MEM0000002", "MEM0000003"})
+
+    def test_guarantor_fraud_ring_rule_ignores_two_member_reciprocal_near_miss(self) -> None:
+        loans = [
+            _loan("LOAN000001", "MEM0000001"),
+            _loan("LOAN000002", "MEM0000002"),
+        ]
+        guarantors = [
+            _guarantee("GUA000001", "LOAN000002", "MEM0000002", "MEM0000001"),
+            _guarantee("GUA000002", "LOAN000001", "MEM0000001", "MEM0000002"),
+        ]
+
+        candidates = guarantor_fraud_ring_candidates(guarantors, loans)
+
+        self.assertEqual(candidates, {})
+
     def test_feature_documentation_exposes_label_file_role(self) -> None:
         artifacts = build_benchmark_artifacts(
             {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
@@ -304,6 +335,24 @@ def _transaction(txn_id: str, timestamp: str) -> dict[str, object]:
         "counterparty_id_hash": "CP",
         "account_id_dr": "SRC",
         "account_id_cr": "ACC",
+    }
+
+
+def _loan(loan_id: str, member_id: str) -> dict[str, object]:
+    return {
+        "loan_id": loan_id,
+        "member_id": member_id,
+        "product_code": "DEVELOPMENT_LOAN",
+        "performing_status": "CURRENT",
+    }
+
+
+def _guarantee(guarantee_id: str, loan_id: str, borrower_member_id: str, guarantor_member_id: str) -> dict[str, object]:
+    return {
+        "guarantee_id": guarantee_id,
+        "loan_id": loan_id,
+        "borrower_member_id": borrower_member_id,
+        "guarantor_member_id": guarantor_member_id,
     }
 
 

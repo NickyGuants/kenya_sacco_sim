@@ -48,9 +48,19 @@ DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG = {
     "normal_shared_device_member_ceiling": 2,
 }
 
+GUARANTOR_FRAUD_RING_RULE_CONFIG = {
+    "min_members_per_ring": 3,
+    "max_members_per_ring": 6,
+    "min_cycle_edges": 3,
+    "active_loan_statuses": ["CURRENT", "IN_ARREARS", "DEFAULTED", "RESTRUCTURED"],
+    "guaranteed_products": ["DEVELOPMENT_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE"],
+    "require_directed_cycle": True,
+}
+
 RULE_CONFIGS = {
     "STRUCTURING": STRUCTURING_RULE_CONFIG,
     "RAPID_PASS_THROUGH": RAPID_PASS_THROUGH_RULE_CONFIG,
     "FAKE_AFFORDABILITY_BEFORE_LOAN": FAKE_AFFORDABILITY_RULE_CONFIG,
     "DEVICE_SHARING_MULE_NETWORK": DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
+    "GUARANTOR_FRAUD_RING": GUARANTOR_FRAUD_RING_RULE_CONFIG,
 }
