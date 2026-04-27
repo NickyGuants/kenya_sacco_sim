@@ -666,7 +666,7 @@ def _load_sklearn() -> dict[str, Any]:
         from sklearn.pipeline import make_pipeline
         from sklearn.preprocessing import StandardScaler
     except ModuleNotFoundError as exc:
-        raise RuntimeError("scikit-learn is required to build v0.2 ML baseline artifacts. Install project dependencies first.") from exc
+        raise RuntimeError("scikit-learn is required to build ML baseline artifacts. Install project dependencies first.") from exc
     return {
         "RandomForestClassifier": RandomForestClassifier,
         "LogisticRegression": LogisticRegression,

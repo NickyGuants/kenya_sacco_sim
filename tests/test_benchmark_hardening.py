@@ -108,8 +108,12 @@ class BenchmarkHardeningTests(unittest.TestCase):
         comparison = artifacts["rule_vs_ml_comparison.json"]
 
         self.assertEqual(comparison["status"], "available")
+        self.assertEqual(comparison["claim_status"], "descriptive_not_ml_superiority_evidence")
+        self.assertIn("ablation_risk_summary", comparison)
+        self.assertIn("confounder_risk_summary", comparison)
         self.assertIn("ml_outperforms_rules", comparison)
         self.assertIn("rules_dominate", comparison)
+        self.assertIn("benchmark_confounder_diagnostics.json", artifacts)
         self.assertIn("ml_leakage_ablation.json", artifacts)
 
     def test_label_validation_uses_half_up_target_count(self) -> None:

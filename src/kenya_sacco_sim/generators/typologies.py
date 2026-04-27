@@ -12,6 +12,15 @@ from kenya_sacco_sim.core.models import InstitutionWorld
 
 
 DIGITAL_DEVICE_REQUIRED_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
+TYPOLOGY_CANDIDATE_PERSONAS = {
+    "SALARIED_TEACHER",
+    "COUNTY_WORKER",
+    "SME_OWNER",
+    "FARMER_SEASONAL",
+    "DIASPORA_SUPPORTED",
+    "BODA_BODA_OPERATOR",
+    "CHURCH_ORG",
+}
 
 
 def inject_typologies(
@@ -36,6 +45,7 @@ def inject_typologies(
 
     next_txn, next_pattern = _inject_structuring(
         rng,
+        config,
         members,
         account_by_member,
         source_accounts,
@@ -50,6 +60,7 @@ def inject_typologies(
     )
     next_txn, next_pattern = _inject_rapid_pass_through(
         rng,
+        config,
         members,
         account_by_member,
         source_accounts,
@@ -79,6 +90,7 @@ def inject_typologies(
     )
     next_txn, next_pattern = _inject_device_sharing_mule_network(
         rng,
+        config,
         members,
         account_by_member,
         source_accounts,
@@ -176,6 +188,7 @@ def _raise_count_floor(counts: dict[str, int], target_name: str, floor: int, don
 
 def _inject_structuring(
     rng: random.Random,
+    config: WorldConfig,
     members: list[dict[str, object]],
     account_by_member: dict[str, list[dict[str, object]]],
     source_accounts: list[dict[str, object]],
@@ -188,8 +201,8 @@ def _inject_structuring(
     next_pattern: int,
     target_count: int,
 ) -> tuple[int, int]:
-    candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED"}, {"FOSA_SAVINGS", "FOSA_CURRENT"})
-    rng.shuffle(candidates)
+    candidates = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_SAVINGS", "FOSA_CURRENT"})
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
     inserted = 0
     for member in candidates:
         if inserted >= target_count:
@@ -207,7 +220,7 @@ def _inject_structuring(
         pattern_id = _pattern_id(next_pattern)
         next_pattern += 1
         inserted += 1
-        start = datetime(2024, 5, 20, 9, 0, tzinfo=EAT) + timedelta(days=inserted * 3)
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=8)
         window_hours = rng.randint(48, 168)
         rail_mix = _structuring_rail_mix(inserted)
         timestamps = _spread_timestamps(start, window_hours, suspicious_txn_count, rng, include_endpoints=True)
@@ -262,6 +275,7 @@ def _inject_structuring(
 
 def _inject_rapid_pass_through(
     rng: random.Random,
+    config: WorldConfig,
     members: list[dict[str, object]],
     account_by_member: dict[str, list[dict[str, object]]],
     source_accounts: list[dict[str, object]],
@@ -274,8 +288,8 @@ def _inject_rapid_pass_through(
     next_pattern: int,
     target_count: int,
 ) -> tuple[int, int]:
-    candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
-    rng.shuffle(candidates)
+    candidates = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
     inserted = 0
     for member in candidates:
         if inserted >= target_count:
@@ -291,7 +305,7 @@ def _inject_rapid_pass_through(
         pattern_id = _pattern_id(next_pattern)
         next_pattern += 1
         inserted += 1
-        start = datetime(2024, 7, 1, 10, 0, tzinfo=EAT) + timedelta(days=inserted * 2)
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=3)
         inbound_amount = float(rng.randrange(120_000, 740_000, 10_000))
         is_partial_truth = inserted % 5 == 0
         exit_ratio = rng.uniform(0.64, 0.74) if is_partial_truth else rng.uniform(0.76, 0.96)
@@ -379,10 +393,10 @@ def _inject_fake_affordability(
         for loan in loans
         if str(loan["product_code"]) in eligible_products
         and str(loan["member_id"]) in member_by_id
-        and str(member_by_id[str(loan["member_id"])]["persona_type"]) in {"SME_OWNER", "DIASPORA_SUPPORTED", "COUNTY_WORKER", "SALARIED_TEACHER"}
+        and str(member_by_id[str(loan["member_id"])]["persona_type"]) in TYPOLOGY_CANDIDATE_PERSONAS
         and str(loan["member_id"]) not in used_members
     ]
-    rng.shuffle(candidates)
+    candidates = _stratified_items_by_persona(candidates, rng, lambda loan: str(member_by_id[str(loan["member_id"])]["persona_type"]))
     inserted = 0
     for loan in candidates:
         if inserted >= target_count:
@@ -443,6 +457,7 @@ def _inject_fake_affordability(
 
 def _inject_device_sharing_mule_network(
     rng: random.Random,
+    config: WorldConfig,
     members: list[dict[str, object]],
     account_by_member: dict[str, list[dict[str, object]]],
     source_accounts: list[dict[str, object]],
@@ -459,9 +474,9 @@ def _inject_device_sharing_mule_network(
     if not world or not world.devices or target_count <= 0:
         return next_txn, next_pattern
     available_device_members = _members_without_shared_devices(world)
-    candidates = _candidate_members(members, account_by_member, used_members, {"SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED", "CHURCH_ORG"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
     candidates = [member for member in candidates if str(member["member_id"]) in available_device_members and normal_txn_counts[str(member["member_id"])] >= 4]
-    rng.shuffle(candidates)
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
     inserted = 0
     group_index = 1
     cursor = 0
@@ -482,11 +497,13 @@ def _inject_device_sharing_mule_network(
         group_member_ids = [str(member["member_id"]) for member in group]
         if any(member_id in used_members for member_id in group_member_ids):
             continue
-        device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_{group_index:05d}")
+        current_group_index = group_index
+        device_id = _assign_shared_device_group(world, group_member_ids, f"SHARED_DEVICE_GROUP_V1_{current_group_index:05d}")
         if not device_id:
             continue
         group_index += 1
-        start = datetime(2024, 8, 5, 8, 0, tzinfo=EAT) + timedelta(days=group_index * 3)
+        expected_group_count = max(1, (target_count + 2) // 3)
+        start = _distributed_pattern_start(config, rng, current_group_index, expected_group_count, max_duration_days=32)
         for member_offset, member in enumerate(group):
             if inserted >= target_count:
                 break
@@ -937,6 +954,36 @@ def _simulation_datetime(date_value: str, hour: int, minute: int) -> datetime:
     return datetime.fromisoformat(f"{date_value}T{hour:02d}:{minute:02d}:00+03:00").astimezone(EAT)
 
 
+def _random_pattern_start(config: WorldConfig, rng: random.Random, max_duration_days: int) -> datetime:
+    simulation_start = _simulation_datetime(config.start_date, 7, 0)
+    latest_start = _simulation_datetime(config.end_date, 18, 0) - timedelta(days=max_duration_days)
+    if latest_start <= simulation_start:
+        return simulation_start
+    day_span = max(0, (latest_start.date() - simulation_start.date()).days)
+    return simulation_start + timedelta(
+        days=rng.randint(0, day_span),
+        hours=rng.randint(1, 10),
+        minutes=rng.choice([0, 10, 20, 30, 40, 50]),
+    )
+
+
+def _distributed_pattern_start(config: WorldConfig, rng: random.Random, sequence_index: int, sequence_total: int, max_duration_days: int) -> datetime:
+    simulation_start = _simulation_datetime(config.start_date, 7, 0)
+    latest_start = _simulation_datetime(config.end_date, 18, 0) - timedelta(days=max_duration_days)
+    if latest_start <= simulation_start:
+        return simulation_start
+    total_days = max(1, (latest_start.date() - simulation_start.date()).days)
+    slots = max(1, sequence_total)
+    slot_width = max(1, total_days // slots)
+    slot_start = min(total_days - 1, max(0, (sequence_index - 1) * slot_width))
+    slot_end = min(total_days - 1, slot_start + slot_width - 1)
+    return simulation_start + timedelta(
+        days=rng.randint(slot_start, max(slot_start, slot_end)),
+        hours=rng.randint(1, 10),
+        minutes=rng.choice([0, 10, 20, 30, 40, 50]),
+    )
+
+
 def _allocate_amounts(total: float, count: int, rng: random.Random) -> list[float]:
     weights = [rng.uniform(0.6, 1.4) for _ in range(count)]
     weight_total = sum(weights)
@@ -960,6 +1007,27 @@ def _candidate_members(
         and str(member["member_id"]) not in used_members
         and _first(account_by_member[str(member["member_id"])], account_types)
     ]
+
+
+def _stratified_items_by_persona(items: list, rng: random.Random, persona_for_item) -> list:
+    buckets: dict[str, list] = defaultdict(list)
+    for item in items:
+        buckets[str(persona_for_item(item))].append(item)
+    personas = sorted(buckets)
+    rng.shuffle(personas)
+    for bucket in buckets.values():
+        rng.shuffle(bucket)
+    ordered: list = []
+    while personas:
+        next_personas: list[str] = []
+        for persona in personas:
+            bucket = buckets[persona]
+            if bucket:
+                ordered.append(bucket.pop())
+            if bucket:
+                next_personas.append(persona)
+        personas = next_personas
+    return ordered
 
 
 def _recompute_balances(transactions: list[dict[str, object]], accounts: list[dict[str, object]]) -> None:

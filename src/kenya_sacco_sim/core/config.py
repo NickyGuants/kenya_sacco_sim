@@ -76,6 +76,7 @@ DEFAULT_PATTERNS = {
         "STRUCTURING": {"enabled": True},
         "RAPID_PASS_THROUGH": {"enabled": True},
         "FAKE_AFFORDABILITY_BEFORE_LOAN": {"enabled": True},
+        "DEVICE_SHARING_MULE_NETWORK": {"enabled": True},
     },
 }
 

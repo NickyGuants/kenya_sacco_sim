@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from collections import Counter, defaultdict
+from datetime import datetime
 
 from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
 from kenya_sacco_sim.core.config import WorldConfig
@@ -20,10 +21,11 @@ MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT = 10
 
 def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
     split_manifest = _build_split_manifest(rows_by_file, config)
-    baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest)
+    confounder_diagnostics = _build_confounder_diagnostics(rows_by_file)
+    baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest, confounder_diagnostics)
     ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
     ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results)
-    comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results)
+    comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results, ml_ablation, confounder_diagnostics)
     feature_docs = _build_feature_documentation()
     return {
         "split_manifest.json": split_manifest,
@@ -32,8 +34,9 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
         "feature_importance.json": feature_importance,
         "ml_leakage_ablation.json": ml_ablation,
         "rule_vs_ml_comparison.json": comparison,
+        "benchmark_confounder_diagnostics.json": confounder_diagnostics,
         "feature_documentation.json": feature_docs,
-        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, comparison),
+        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, comparison, confounder_diagnostics),
         "known_limitations.md": _known_limitations(),
     }
 
@@ -74,7 +77,12 @@ def _build_split_manifest(rows_by_file: dict[str, list[dict[str, object]]], conf
     }
 
 
-def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], split_manifest: dict[str, object]) -> dict[str, object]:
+def _build_baseline_results(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    rule_results: dict[str, object],
+    split_manifest: dict[str, object],
+    confounder_diagnostics: dict[str, object],
+) -> dict[str, object]:
     suspicious_txn_ids = {str(alert["txn_id"]) for alert in rows_by_file.get("alerts_truth.csv", []) if alert.get("txn_id")}
     per_typology: dict[str, dict[str, object]] = {}
     precision_values: list[float] = []
@@ -112,11 +120,17 @@ def _build_baseline_results(rows_by_file: dict[str, list[dict[str, object]]], ru
             **split_manifest["checks"],
             "txn_id_leakage": _txn_id_leakage_metrics(rows_by_file, suspicious_txn_ids),
             "reference_leakage": _reference_leakage_metrics(rows_by_file),
+            "confounder_diagnostics": confounder_diagnostics,
         },
     }
 
 
-def _build_rule_vs_ml_comparison(baseline_results: dict[str, object], ml_results: dict[str, object]) -> dict[str, object]:
+def _build_rule_vs_ml_comparison(
+    baseline_results: dict[str, object],
+    ml_results: dict[str, object],
+    ml_ablation: dict[str, object],
+    confounder_diagnostics: dict[str, object],
+) -> dict[str, object]:
     per_typology: dict[str, object] = {}
     ml_outperforms: list[dict[str, object]] = []
     rules_dominate: list[dict[str, object]] = []
@@ -174,11 +188,165 @@ def _build_rule_vs_ml_comparison(baseline_results: dict[str, object], ml_results
         }
     return {
         "status": "available",
-        "comparison_basis": "deterministic rule metrics compared with member-level ML split metrics",
+        "claim_status": "descriptive_not_ml_superiority_evidence",
+        "comparison_basis": "deterministic rule metrics compared with full-feature member-level ML split metrics",
+        "interpretation": (
+            "This artifact is descriptive. Full-feature ML scores may benefit from rule-proxy, "
+            "temporal, and persona/static-attribute signals. Use ml_leakage_ablation.json and "
+            "benchmark_confounder_diagnostics.json before making ML-vs-rule claims."
+        ),
+        "ablation_risk_summary": ml_ablation.get("risk_summary", {}),
+        "confounder_risk_summary": confounder_diagnostics.get("risk_summary", {}),
         "per_typology": per_typology,
+        "ml_f1_greater_than_rule_cases": sorted(ml_outperforms, key=lambda row: float(row["f1_delta"]), reverse=True),
+        "rule_f1_greater_than_ml_cases": sorted(rules_dominate, key=lambda row: float(row["f1_delta"])),
         "ml_outperforms_rules": sorted(ml_outperforms, key=lambda row: float(row["f1_delta"]), reverse=True),
         "rules_dominate": sorted(rules_dominate, key=lambda row: float(row["f1_delta"])),
     }
+
+
+def _build_confounder_diagnostics(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    temporal = _temporal_label_concentration(rows_by_file)
+    persona = _persona_label_concentration(rows_by_file)
+    temporal_review = bool(temporal.get("review_required"))
+    persona_review = bool(persona.get("review_required"))
+    return {
+        "status": "available",
+        "purpose": "Surface non-obvious benchmark shortcuts not caught by identifier leakage checks.",
+        "temporal_label_concentration": temporal,
+        "persona_label_concentration": persona,
+        "risk_summary": {
+            "temporal_confounding_review_required": temporal_review,
+            "persona_confounding_review_required": persona_review,
+            "ml_claim_status": "use_ablation_and_confounder_diagnostics_before_claiming_ml_outperformance",
+            "review_required": temporal_review or persona_review,
+        },
+    }
+
+
+def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    txn_timestamp = {
+        str(txn.get("txn_id")): _parse_timestamp(str(txn.get("timestamp") or ""))
+        for txn in rows_by_file.get("transactions.csv", [])
+        if txn.get("txn_id")
+    }
+    suspicious_by_typology: dict[str, list[datetime]] = {typology: [] for typology in TYPOLOGY_NAMES}
+    all_suspicious: list[datetime] = []
+    for alert in rows_by_file.get("alerts_truth.csv", []):
+        if not alert.get("txn_id"):
+            continue
+        typology = str(alert.get("typology") or "")
+        timestamp = txn_timestamp.get(str(alert.get("txn_id")))
+        if typology not in suspicious_by_typology or timestamp is None:
+            continue
+        suspicious_by_typology[typology].append(timestamp)
+        all_suspicious.append(timestamp)
+
+    per_typology = {typology: _temporal_distribution(timestamps) for typology, timestamps in suspicious_by_typology.items()}
+    flagged = [
+        typology
+        for typology, metrics in per_typology.items()
+        if int(metrics.get("suspicious_transaction_count") or 0) >= 10
+        and (
+            float(metrics.get("max_month_share") or 0.0) > 0.45
+            or float(metrics.get("window_span_days") or 0.0) < 120.0
+        )
+    ]
+    return {
+        "review_required": bool(flagged),
+        "review_rule": "Flag typologies with >=10 suspicious transactions and max_month_share > 0.45 or window_span_days < 120.",
+        "flagged_typologies": flagged,
+        "overall": _temporal_distribution(all_suspicious),
+        "per_typology": per_typology,
+    }
+
+
+def _temporal_distribution(timestamps: list[datetime]) -> dict[str, object]:
+    timestamps = sorted(timestamps)
+    if not timestamps:
+        return {
+            "suspicious_transaction_count": 0,
+            "month_counts": {},
+            "active_month_count": 0,
+            "max_month_share": 0.0,
+            "start_timestamp": None,
+            "end_timestamp": None,
+            "window_span_days": 0.0,
+        }
+    month_counts = Counter(timestamp.strftime("%Y-%m") for timestamp in timestamps)
+    total = len(timestamps)
+    span_days = (timestamps[-1] - timestamps[0]).total_seconds() / 86_400.0
+    return {
+        "suspicious_transaction_count": total,
+        "month_counts": dict(sorted(month_counts.items())),
+        "active_month_count": len(month_counts),
+        "max_month_share": round(max(month_counts.values()) / total, 4),
+        "start_timestamp": timestamps[0].isoformat(timespec="seconds"),
+        "end_timestamp": timestamps[-1].isoformat(timespec="seconds"),
+        "window_span_days": round(span_days, 2),
+    }
+
+
+def _persona_label_concentration(rows_by_file: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    persona_by_member = {str(member.get("member_id")): str(member.get("persona_type") or "UNKNOWN") for member in rows_by_file.get("members.csv", [])}
+    population_counts = Counter(persona_by_member.values())
+    total_members = sum(population_counts.values())
+    labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
+    suspicious_members = sorted({member_id for members in labels_by_typology.values() for member_id in members})
+    suspicious_counts = Counter(persona_by_member.get(member_id, "UNKNOWN") for member_id in suspicious_members)
+    per_typology: dict[str, object] = {}
+    max_typology_persona_share = 0.0
+    max_enrichment = 0.0
+    for typology in TYPOLOGY_NAMES:
+        members = labels_by_typology.get(typology, set())
+        counts = Counter(persona_by_member.get(member_id, "UNKNOWN") for member_id in members)
+        total = sum(counts.values())
+        typology_rows: dict[str, object] = {}
+        for persona, population_count in sorted(population_counts.items()):
+            typology_count = counts.get(persona, 0)
+            population_share = population_count / total_members if total_members else 0.0
+            typology_share = typology_count / total if total else 0.0
+            enrichment = typology_share / population_share if population_share else 0.0
+            if population_share >= 0.05 and typology_share >= 0.25:
+                max_enrichment = max(max_enrichment, enrichment)
+            typology_rows[persona] = {
+                "population_count": population_count,
+                "typology_count": typology_count,
+                "population_share": round(population_share, 4),
+                "typology_share": round(typology_share, 4),
+                "enrichment": round(enrichment, 4),
+            }
+        typology_max_share = max((float(row["typology_share"]) for row in typology_rows.values()), default=0.0)
+        max_typology_persona_share = max(max_typology_persona_share, typology_max_share)
+        per_typology[typology] = {
+            "positive_member_count": total,
+            "max_persona_share": round(typology_max_share, 4),
+            "personas": typology_rows,
+        }
+
+    zero_suspicious_personas = [
+        persona
+        for persona, population_count in sorted(population_counts.items())
+        if population_count / total_members >= 0.05 and suspicious_counts.get(persona, 0) == 0
+    ]
+    review_required = bool(zero_suspicious_personas) or max_typology_persona_share > 0.60 or max_enrichment > 3.0
+    return {
+        "review_required": review_required,
+        "review_rule": "Flag if any >=5% population persona has zero suspicious members, any typology has >60% in one persona, or a persona with >=5% population share and >=25% typology share exceeds 3x enrichment.",
+        "population_counts": dict(sorted(population_counts.items())),
+        "suspicious_counts": dict(sorted(suspicious_counts.items())),
+        "zero_suspicious_personas_over_5pct_population": zero_suspicious_personas,
+        "max_typology_persona_share": round(max_typology_persona_share, 4),
+        "max_enrichment": round(max_enrichment, 4),
+        "per_typology": per_typology,
+    }
+
+
+def _parse_timestamp(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _build_feature_documentation() -> dict[str, object]:
@@ -240,10 +408,17 @@ def _build_feature_documentation() -> dict[str, object]:
     }
 
 
-def _dataset_card(split_manifest: dict[str, object], baseline_results: dict[str, object], ml_results: dict[str, object], comparison: dict[str, object]) -> str:
+def _dataset_card(
+    split_manifest: dict[str, object],
+    baseline_results: dict[str, object],
+    ml_results: dict[str, object],
+    comparison: dict[str, object],
+    confounder_diagnostics: dict[str, object],
+) -> str:
     rule_summary = _rule_performance_summary(baseline_results)
     ml_summary = _ml_performance_summary(ml_results)
     comparison_summary = _comparison_summary(comparison)
+    confounder_summary = _confounder_summary(confounder_diagnostics)
     validity = split_manifest.get("checks", {}).get("evaluation_validity", {})
     return f"""# KENYA_SACCO_SIM v1 Dataset Card
 
@@ -292,9 +467,13 @@ The ML baseline is `{ml_results.get("baseline_name", "not_available")}`. It trai
 
 {comparison_summary}
 
+### Confounder Diagnostics
+
+{confounder_summary}
+
 ## Leakage Controls
 
-Feature files exclude explicit suspicious labels. The validator checks transaction-ID threshold leakage and reference mirroring, and benchmark artifacts report those metrics.
+Feature files exclude explicit suspicious labels. The validator checks transaction-ID threshold leakage and reference mirroring, and benchmark artifacts report those metrics. `benchmark_confounder_diagnostics.json` also reports temporal and persona/static-attribute concentration risks that can make ML scores look stronger than they are.
 
 ## Seed Stability
 
@@ -371,13 +550,32 @@ def _ml_performance_summary(ml_results: dict[str, object]) -> str:
 def _comparison_summary(comparison: dict[str, object]) -> str:
     if comparison.get("status") != "available":
         return "Rule-vs-ML comparison was not emitted for this package."
-    ml_wins = comparison.get("ml_outperforms_rules", [])
-    rule_wins = comparison.get("rules_dominate", [])
+    ml_wins = comparison.get("ml_f1_greater_than_rule_cases", comparison.get("ml_outperforms_rules", []))
+    rule_wins = comparison.get("rule_f1_greater_than_ml_cases", comparison.get("rules_dominate", []))
     return (
         "```text\n"
-        f"ml_outperforms_rule_cases: {len(ml_wins) if isinstance(ml_wins, list) else 0}\n"
-        f"rule_dominates_cases: {len(rule_wins) if isinstance(rule_wins, list) else 0}\n"
-        "Interpret split-level ML scores carefully when positive labels are sparse.\n"
+        "claim_status: descriptive_not_ml_superiority_evidence\n"
+        f"ml_f1_greater_than_rule_cases: {len(ml_wins) if isinstance(ml_wins, list) else 0}\n"
+        f"rule_f1_greater_than_ml_cases: {len(rule_wins) if isinstance(rule_wins, list) else 0}\n"
+        "Interpret split-level ML scores with the ablation and confounder diagnostics.\n"
+        "```"
+    )
+
+
+def _confounder_summary(confounder_diagnostics: dict[str, object]) -> str:
+    risk = confounder_diagnostics.get("risk_summary", {})
+    temporal = confounder_diagnostics.get("temporal_label_concentration", {})
+    persona = confounder_diagnostics.get("persona_label_concentration", {})
+    flagged_temporal = temporal.get("flagged_typologies", []) if isinstance(temporal, dict) else []
+    zero_personas = persona.get("zero_suspicious_personas_over_5pct_population", []) if isinstance(persona, dict) else []
+    return (
+        "```text\n"
+        f"review_required: {bool(risk.get('review_required'))}\n"
+        f"temporal_review_required: {bool(risk.get('temporal_confounding_review_required'))}\n"
+        f"persona_review_required: {bool(risk.get('persona_confounding_review_required'))}\n"
+        f"temporal_flagged_typologies: {flagged_temporal}\n"
+        f"zero_suspicious_personas_over_5pct_population: {zero_personas}\n"
+        f"max_typology_persona_share: {persona.get('max_typology_persona_share') if isinstance(persona, dict) else 'n/a'}\n"
         "```"
     )
 
@@ -395,7 +593,8 @@ def _known_limitations() -> str:
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
-- `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that either approach is production-ready.
+- `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that ML outperforms rules.
+- `benchmark_confounder_diagnostics.json` reports temporal and persona/static-attribute concentration risks that can inflate ML metrics without explicit label leakage.
 - The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
 """
 

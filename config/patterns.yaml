@@ -21,3 +21,5 @@ patterns:
       enabled: true
     FAKE_AFFORDABILITY_BEFORE_LOAN:
       enabled: true
+    DEVICE_SHARING_MULE_NETWORK:
+      enabled: true
