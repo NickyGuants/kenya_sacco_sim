@@ -1,0 +1,10 @@
+# Dependencies for the tutorial notebooks under notebooks/.
+# Pandas is pinned below 3.0 because the 3.0 plot dispatcher leaks
+# DatetimeIndex converter state across cells, breaking later bar plots
+# on regular Index. See notebooks/01_getting_started.ipynb cell 31.
+pandas>=2.2,<3.0
+scikit-learn>=1.4
+matplotlib>=3.7
+networkx>=3.2
+jupyterlab>=4.0
+ipykernel>=6.29
