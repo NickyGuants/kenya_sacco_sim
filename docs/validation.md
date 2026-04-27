@@ -64,6 +64,14 @@ columns. They look for benchmark shortcuts such as suspicious labels clustering
 in a narrow time window or being heavily predictable from persona/static
 attributes.
 
+The temporal concentration warning fires when a typology has at least 10
+suspicious transactions and either:
+
+```text
+max_month_share > 0.40
+window_span_days < 120
+```
+
 ## Device Validation
 
 Digital channels requiring `device_id`:
@@ -131,9 +139,11 @@ arrears_share
 default_share
 ```
 
-The multi-seed report also summarizes full-feature and ablated ML F1 stability.
-Those numbers are diagnostic only; they should be read together with
-`ml_leakage_ablation.json` and `benchmark_confounder_diagnostics.json`.
+The multi-seed report also summarizes full-feature ML F1, ablated ML F1,
+ablation F1-drop stability, and per-seed confounder diagnostic flags. Those
+numbers are diagnostic only; they should be read together with
+`ml_leakage_ablation.json`, `benchmark_confounder_diagnostics.json`, and the
+dataset card's rule-proxy-dependence section.
 
 ## Reading Errors And Warnings
 

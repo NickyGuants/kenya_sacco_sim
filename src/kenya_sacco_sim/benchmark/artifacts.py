@@ -17,6 +17,8 @@ MIN_VALID_TYPOLOGY_MEMBERS = 30
 MIN_VALID_POSITIVES_PER_SPLIT = 5
 MIN_VALID_PATTERNS_PER_SPLIT = 5
 MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT = 10
+TEMPORAL_MAX_MONTH_SHARE_THRESHOLD = 0.40
+TEMPORAL_MIN_WINDOW_SPAN_DAYS = 120.0
 
 
 def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
@@ -36,7 +38,7 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
         "rule_vs_ml_comparison.json": comparison,
         "benchmark_confounder_diagnostics.json": confounder_diagnostics,
         "feature_documentation.json": feature_docs,
-        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, comparison, confounder_diagnostics),
+        "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, ml_ablation, comparison, confounder_diagnostics),
         "known_limitations.md": _known_limitations(),
     }
 
@@ -248,13 +250,17 @@ def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]
         for typology, metrics in per_typology.items()
         if int(metrics.get("suspicious_transaction_count") or 0) >= 10
         and (
-            float(metrics.get("max_month_share") or 0.0) > 0.45
-            or float(metrics.get("window_span_days") or 0.0) < 120.0
+            float(metrics.get("max_month_share") or 0.0) > TEMPORAL_MAX_MONTH_SHARE_THRESHOLD
+            or float(metrics.get("window_span_days") or 0.0) < TEMPORAL_MIN_WINDOW_SPAN_DAYS
         )
     ]
     return {
         "review_required": bool(flagged),
-        "review_rule": "Flag typologies with >=10 suspicious transactions and max_month_share > 0.45 or window_span_days < 120.",
+        "review_rule": (
+            "Flag typologies with >=10 suspicious transactions and "
+            f"max_month_share > {TEMPORAL_MAX_MONTH_SHARE_THRESHOLD:.2f} or "
+            f"window_span_days < {TEMPORAL_MIN_WINDOW_SPAN_DAYS:.0f}."
+        ),
         "flagged_typologies": flagged,
         "overall": _temporal_distribution(all_suspicious),
         "per_typology": per_typology,
@@ -412,11 +418,13 @@ def _dataset_card(
     split_manifest: dict[str, object],
     baseline_results: dict[str, object],
     ml_results: dict[str, object],
+    ml_ablation: dict[str, object],
     comparison: dict[str, object],
     confounder_diagnostics: dict[str, object],
 ) -> str:
     rule_summary = _rule_performance_summary(baseline_results)
     ml_summary = _ml_performance_summary(ml_results)
+    ablation_summary = _ablation_summary(ml_ablation)
     comparison_summary = _comparison_summary(comparison)
     confounder_summary = _confounder_summary(confounder_diagnostics)
     validity = split_manifest.get("checks", {}).get("evaluation_validity", {})
@@ -462,6 +470,10 @@ The deterministic rule baseline macro precision is `{baseline_results["macro_pre
 The ML baseline is `{ml_results.get("baseline_name", "not_available")}`. It trains member-level LogisticRegression and RandomForestClassifier one-vs-rest models per typology when train labels are sufficient; split-level label scarcity is reported explicitly.
 
 {ml_summary}
+
+### Rule-Proxy Dependence
+
+{ablation_summary}
 
 ### Rule vs ML Comparison
 
@@ -560,6 +572,40 @@ def _comparison_summary(comparison: dict[str, object]) -> str:
         "Interpret split-level ML scores with the ablation and confounder diagnostics.\n"
         "```"
     )
+
+
+def _ablation_summary(ml_ablation: dict[str, object]) -> str:
+    if not isinstance(ml_ablation, dict) or ml_ablation.get("baseline_name") is None:
+        return "Rule-proxy ablation was not emitted for this package."
+    risk = ml_ablation.get("risk_summary", {})
+    notable = risk.get("notable_f1_drops", []) if isinstance(risk, dict) else []
+    rows = [
+        row
+        for row in notable
+        if isinstance(row, dict)
+        and row.get("split") in {"validation", "test"}
+        and isinstance(row.get("f1_drop"), (int, float))
+    ]
+    rows = sorted(rows, key=lambda row: float(row["f1_drop"]), reverse=True)[:6]
+    lines = [
+        "```text",
+        "interpretation: Full-feature ML scores can reflect rule-proxy features; use ablated scores before claiming ML advantage.",
+        f"high_rule_proxy_dependency: {bool(risk.get('high_rule_proxy_dependency')) if isinstance(risk, dict) else False}",
+        f"max_validation_or_test_f1_drop: {_metric(risk.get('max_validation_or_test_f1_drop')) if isinstance(risk, dict) else 'n/a'}",
+        "largest_validation_test_drops:",
+    ]
+    if rows:
+        for row in rows:
+            lines.append(
+                f"- {row.get('model')} {row.get('typology')} {row.get('split')}: "
+                f"full_f1 {_metric(row.get('full_f1'))} -> "
+                f"ablated_f1 {_metric(row.get('ablated_f1'))} "
+                f"(drop {_metric(row.get('f1_drop'))})"
+            )
+    else:
+        lines.append("- none")
+    lines.append("```")
+    return "\n".join(lines)
 
 
 def _confounder_summary(confounder_diagnostics: dict[str, object]) -> str:

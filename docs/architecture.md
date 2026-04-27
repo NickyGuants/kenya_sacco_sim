@@ -125,10 +125,12 @@ The benchmark layer is downstream of generation. It produces:
 - feature importances
 - rule-proxy leakage ablation
 - rule-vs-ML comparison
+- temporal/persona confounder diagnostics
 - dataset card and limitations
 
 The `benchmark` command wraps the full generation pipeline in a multi-seed loop
-and writes `multi_seed_results.json`.
+and writes `multi_seed_results.json`, including full-feature ML stability,
+ablated ML stability, ablation F1-drop stability, and per-seed confounder flags.
 
 ## Adding A New Typology
 

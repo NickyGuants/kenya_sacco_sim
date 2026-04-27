@@ -223,6 +223,16 @@ If either review flag is true, `rule_vs_ml_comparison.json` must be read only
 as a descriptive score table, not as evidence that ML outperforms deterministic
 rules.
 
+The temporal review flag uses a deliberately conservative month-concentration
+threshold:
+
+```text
+max_month_share > 0.40
+```
+
+This is intended to catch typologies that cluster just below an obvious
+single-month majority, including ambiguous loan-window behavior.
+
 Benchmark validity is explicit in `split_manifest.json` under
 `checks.evaluation_validity`. A valid benchmark evaluation requires:
 
@@ -291,6 +301,8 @@ Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
 Rule-vs-ML comparison is descriptive. Use ablation and confounder diagnostics
 before making ML superiority claims.
+ML outperformance on direct rule-proxy features is not treated as benchmark
+evidence unless the ablated feature set and multi-seed diagnostics support it.
 100-member runs are smoke tests only, not valid benchmark evaluations.
 ```
 

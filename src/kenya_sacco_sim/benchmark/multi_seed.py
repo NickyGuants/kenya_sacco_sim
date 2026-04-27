@@ -240,7 +240,9 @@ def _ml_stability_report(seed_results: list[dict[str, object]]) -> dict[str, obj
     return {
         "full_feature_f1": _nested_ml_stability(seed_results, "ml_metrics"),
         "ablated_feature_f1": _nested_ml_stability(seed_results, "ml_ablation_metrics"),
-        "interpretation": "Single-seed ML scores are anecdotal; use these ranges to assess seed sensitivity.",
+        "ablation_f1_drop": _ml_ablation_drop_stability(seed_results),
+        "confounder_diagnostic_stability": _confounder_stability(seed_results),
+        "interpretation": "Single-seed ML scores are anecdotal; use full, ablated, and confounder ranges to assess seed sensitivity.",
     }
 
 
@@ -263,6 +265,71 @@ def _nested_ml_stability(seed_results: list[dict[str, object]], key: str) -> dic
     for (model_name, typology, split), values in sorted(bucket.items()):
         rows.setdefault(model_name, {}).setdefault(typology, {})[split] = _series_stats(values)
     return rows
+
+
+def _ml_ablation_drop_stability(seed_results: list[dict[str, object]]) -> dict[str, object]:
+    bucket: dict[tuple[str, str, str], list[float]] = {}
+    for seed in seed_results:
+        full_models = seed.get("ml_metrics", {})
+        ablated_models = seed.get("ml_ablation_metrics", {})
+        if not isinstance(full_models, dict) or not isinstance(ablated_models, dict):
+            continue
+        for model_name, typologies in full_models.items():
+            if not isinstance(typologies, dict):
+                continue
+            ablated_typologies = ablated_models.get(model_name, {})
+            if not isinstance(ablated_typologies, dict):
+                continue
+            for typology, splits in typologies.items():
+                if not isinstance(splits, dict):
+                    continue
+                ablated_splits = ablated_typologies.get(typology, {})
+                if not isinstance(ablated_splits, dict):
+                    continue
+                for split, full_value in splits.items():
+                    ablated_value = ablated_splits.get(split)
+                    if isinstance(full_value, (int, float)) and isinstance(ablated_value, (int, float)):
+                        drop = round(max(0.0, float(full_value) - float(ablated_value)), 4)
+                        bucket.setdefault((str(model_name), str(typology), str(split)), []).append(drop)
+
+    rows: dict[str, object] = {}
+    for (model_name, typology, split), values in sorted(bucket.items()):
+        rows.setdefault(model_name, {}).setdefault(typology, {})[split] = _series_stats(values)
+    return rows
+
+
+def _confounder_stability(seed_results: list[dict[str, object]]) -> dict[str, object]:
+    per_seed = []
+    review_count = 0
+    temporal_count = 0
+    persona_count = 0
+    for seed in seed_results:
+        diagnostics = seed.get("confounder_diagnostics", {})
+        if not isinstance(diagnostics, dict):
+            diagnostics = {}
+        review = bool(diagnostics.get("review_required"))
+        temporal = bool(diagnostics.get("temporal_confounding_review_required"))
+        persona = bool(diagnostics.get("persona_confounding_review_required"))
+        review_count += int(review)
+        temporal_count += int(temporal)
+        persona_count += int(persona)
+        per_seed.append(
+            {
+                "seed": seed.get("seed"),
+                "review_required": review,
+                "temporal_confounding_review_required": temporal,
+                "persona_confounding_review_required": persona,
+            }
+        )
+    seed_count = len(seed_results)
+    return {
+        "seed_count": seed_count,
+        "all_clear": review_count == 0,
+        "review_required_count": review_count,
+        "temporal_confounding_review_required_count": temporal_count,
+        "persona_confounding_review_required_count": persona_count,
+        "per_seed": per_seed,
+    }
 
 
 def _per_typology(seed_result: dict[str, object]) -> dict[str, Any]:

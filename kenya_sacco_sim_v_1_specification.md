@@ -353,6 +353,7 @@ Rules:
 7. Leakage ablation must remove typology-specific rule-proxy features and rerun ML baselines.
 8. Confounder diagnostics must report temporal label concentration and persona/static-attribute label concentration.
 9. Rule-vs-ML comparison is descriptive and must not be framed as ML superiority evidence without ablation and confounder support.
+10. Multi-seed results must summarize full-feature ML F1, ablated ML F1, ablation F1 drops, and confounder diagnostic flags.
 ```
 
 Blocked ML input fields:
@@ -437,7 +438,7 @@ Warnings:
 2. Shared-device baseline outside expected range.
 3. Institution split drift above threshold.
 4. Rule precision for intentionally ambiguous typologies is low but documented.
-5. Suspicious labels are concentrated in narrow time windows.
+5. Suspicious labels are concentrated in narrow time windows: `max_month_share > 0.40` or `window_span_days < 120`.
 6. Suspicious labels are concentrated by persona/static attributes.
 ```
 
