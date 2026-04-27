@@ -3,14 +3,159 @@ from __future__ import annotations
 import unittest
 
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
-from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates
+from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates, wallet_funneling_candidates
 from kenya_sacco_sim.core.config import WorldConfig
+from kenya_sacco_sim.generators.typologies import _merge_near_miss_stats
 from kenya_sacco_sim.validation.distribution import validate_distribution
 from kenya_sacco_sim.validation.labels import validate_labels
 from kenya_sacco_sim.validation.report import build_validation_report
 
 
 class BenchmarkHardeningTests(unittest.TestCase):
+    def test_near_miss_merge_preserves_device_summary_after_guarantor_merge(self) -> None:
+        general = {
+            "families": {
+                "legitimate_structuring_like": {
+                    "member_count": 2,
+                    "transaction_count": 10,
+                }
+            }
+        }
+        device = {
+            "families": {
+                "normal_shared_device_low_value": {
+                    "member_count": 6,
+                    "transaction_count": 12,
+                    "group_count": 2,
+                }
+            },
+            "device_sharing_near_miss_group_count": 2,
+            "device_sharing_near_miss_member_count": 6,
+            "device_sharing_near_miss_transaction_count": 12,
+        }
+        guarantor = {
+            "families": {
+                "trusted_guarantor_star": {
+                    "member_count": 3,
+                    "transaction_count": 0,
+                    "guarantee_count": 4,
+                }
+            }
+        }
+
+        merged = _merge_near_miss_stats(_merge_near_miss_stats(general, device), guarantor)
+
+        self.assertEqual(merged["device_sharing_near_miss_group_count"], 2)
+        self.assertEqual(merged["device_sharing_near_miss_member_count"], 6)
+        self.assertEqual(merged["device_sharing_near_miss_transaction_count"], 12)
+        self.assertEqual(merged["near_miss_member_count"], 11)
+        self.assertEqual(merged["near_miss_transaction_count"], 22)
+        self.assertEqual(merged["near_miss_guarantee_count"], 4)
+
+    def test_wallet_funneling_rule_detects_multi_wallet_fan_in_and_dispersion(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(6):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-04-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "amount_kes": 70_000,
+                    "counterparty_id_hash": f"CP_IN_{index}",
+                }
+            )
+        for index in range(2):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 7:012d}",
+                    "timestamp": f"2024-04-08T1{index}:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": account_id,
+                    "account_id_cr": "SINK",
+                    "txn_type": "MPESA_WALLET_TOPUP" if index == 0 else "PESALINK_OUT",
+                    "amount_kes": 130_000,
+                    "counterparty_id_hash": f"CP_OUT_{index}",
+                }
+            )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {"MEM0000001": True})
+
+    def test_wallet_funneling_rule_ignores_low_fanout_near_miss(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(6):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-04-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "amount_kes": 70_000,
+                    "counterparty_id_hash": "CP_SHARED" if index < 4 else f"CP_IN_{index}",
+                }
+            )
+        transactions.append(
+            {
+                "txn_id": "TXN000000000007",
+                "timestamp": "2024-04-08T10:00:00+03:00",
+                "member_id_primary": "MEM0000001",
+                "account_id_dr": account_id,
+                "account_id_cr": "SINK",
+                "txn_type": "MPESA_WALLET_TOPUP",
+                "amount_kes": 290_000,
+                "counterparty_id_hash": "CP_OUT_ONLY",
+            }
+        )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {})
+
+    def test_wallet_funneling_rule_flags_legitimate_chama_payout_false_positive(self) -> None:
+        account_id = "ACC00000001"
+        accounts_by_member = {"MEM0000001": {account_id}}
+        transactions = []
+        for index in range(7):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 1:012d}",
+                    "timestamp": f"2024-06-{index + 1:02d}T10:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": account_id,
+                    "txn_type": ["MPESA_PAYBILL_IN", "WALLET_P2P_IN", "BUSINESS_SETTLEMENT_IN"][index % 3],
+                    "amount_kes": 75_000,
+                    "counterparty_id_hash": f"CHAMA_PAYER_{index}",
+                }
+            )
+        for index in range(3):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index + 8:012d}",
+                    "timestamp": f"2024-06-08T1{index}:00:00+03:00",
+                    "member_id_primary": "MEM0000001",
+                    "account_id_dr": account_id,
+                    "account_id_cr": "SINK",
+                    "txn_type": ["SUPPLIER_PAYMENT_OUT", "PESALINK_OUT", "WALLET_P2P_OUT"][index],
+                    "amount_kes": 110_000,
+                    "counterparty_id_hash": f"LEGIT_PAYOUT_{index}",
+                }
+            )
+
+        candidates = wallet_funneling_candidates(transactions, accounts_by_member)
+
+        self.assertEqual(candidates, {"MEM0000001": True})
+
     def test_guarantor_fraud_ring_rule_detects_directed_cycle(self) -> None:
         loans = [
             _loan("LOAN000001", "MEM0000001"),
@@ -54,6 +199,19 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertTrue(docs["files"]["alerts_truth.csv"]["label_file"])
         self.assertEqual(docs["feature_files"]["transactions.csv"]["file_role"], "feature")
         self.assertEqual(docs["feature_files"]["transactions.csv"]["split_key"], "member_id_primary")
+
+    def test_benchmark_artifacts_can_skip_ml_baseline_for_large_generation(self) -> None:
+        artifacts = build_benchmark_artifacts(
+            {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
+            {},
+            WorldConfig(member_count=0, suspicious_ratio=0),
+            include_ml_baseline=False,
+        )
+
+        self.assertEqual(artifacts["ml_baseline_results.json"]["status"], "skipped")
+        self.assertEqual(artifacts["feature_importance.json"]["status"], "skipped")
+        self.assertEqual(artifacts["ml_leakage_ablation.json"]["status"], "skipped")
+        self.assertEqual(artifacts["rule_vs_ml_comparison.json"]["status"], "skipped")
 
     def test_split_manifest_reports_unassigned_member_references(self) -> None:
         artifacts = build_benchmark_artifacts(
@@ -211,6 +369,52 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertIn("max_month_share > 0.40", temporal["review_rule"])
         self.assertIn("STRUCTURING", temporal["flagged_typologies"])
 
+    def test_temporal_confounder_flags_too_few_active_months(self) -> None:
+        transactions = []
+        for index, month in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2], start=1):
+            transactions.append(
+                {
+                    "txn_id": f"TXN{index:012d}",
+                    "member_id_primary": "MEM0000001",
+                    "timestamp": f"2024-{month:02d}-05T10:00:00+03:00",
+                    "account_id_dr": "SRC",
+                    "account_id_cr": "ACC00000001",
+                    "amount_kes": 50_000,
+                    "rail": "MPESA",
+                    "channel": "PAYBILL",
+                    "txn_type": "MPESA_PAYBILL_IN",
+                    "counterparty_id_hash": f"CP{index:04d}",
+                }
+            )
+        alerts = [
+            {
+                "alert_id": f"ALT{index:08d}",
+                "typology": "WALLET_FUNNELING",
+                "member_id": "MEM0000001",
+                "txn_id": transaction["txn_id"],
+                "pattern_id": "PAT00000001",
+                "entity_type": "TRANSACTION",
+            }
+            for index, transaction in enumerate(transactions, start=1)
+        ]
+
+        artifacts = build_benchmark_artifacts(
+            {
+                "members.csv": [{"member_id": "MEM0000001", "persona_type": "SME_OWNER"}],
+                "accounts.csv": [{"account_id": "ACC00000001", "member_id": "MEM0000001"}],
+                "transactions.csv": transactions,
+                "alerts_truth.csv": alerts,
+            },
+            {},
+            WorldConfig(member_count=1, suspicious_ratio=1),
+        )
+
+        temporal = artifacts["benchmark_confounder_diagnostics.json"]["temporal_label_concentration"]
+
+        self.assertTrue(temporal["review_required"])
+        self.assertIn("active_month_count < 10", temporal["review_rule"])
+        self.assertIn("WALLET_FUNNELING", temporal["flagged_typologies"])
+
     def test_label_validation_uses_half_up_target_count(self) -> None:
         rows_by_file = {
             "members.csv": [{"member_id": f"MEM{i:07d}"} for i in range(1, 101)],
@@ -305,6 +509,9 @@ class BenchmarkHardeningTests(unittest.TestCase):
                     "family_count": 1,
                     "near_miss_member_count": 3,
                     "near_miss_transaction_count": 12,
+                    "device_sharing_near_miss_group_count": 2,
+                    "device_sharing_near_miss_member_count": 6,
+                    "device_sharing_near_miss_transaction_count": 12,
                     "families": {
                         "near_rapid_low_exit": {
                             "target_typology": "RAPID_PASS_THROUGH",
@@ -321,6 +528,9 @@ class BenchmarkHardeningTests(unittest.TestCase):
 
         self.assertEqual(near_miss["status"], "available")
         self.assertEqual(near_miss["near_miss_member_count"], 3)
+        self.assertEqual(near_miss["device_sharing_near_miss_group_count"], 2)
+        self.assertEqual(near_miss["device_sharing_near_miss_member_count"], 6)
+        self.assertEqual(near_miss["device_sharing_near_miss_transaction_count"], 12)
         self.assertIn("near_rapid_low_exit", near_miss["families"])
 
 

@@ -25,6 +25,7 @@ Implemented:
   - `FAKE_AFFORDABILITY_BEFORE_LOAN`
   - `DEVICE_SHARING_MULE_NETWORK`
   - `GUARANTOR_FRAUD_RING`
+  - `WALLET_FUNNELING`
 - Rich near-miss and negative-control families for active typologies, reported
   in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
 - Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
@@ -40,7 +41,8 @@ Implemented:
 - Multi-seed stability harness.
 - Validation for schema, foreign keys, balances, distributions, credit,
   guarantors, support entities, devices, labels, typology metrics, benchmark
-  validity, split leakage, ID/reference leakage, and device-sharing mule rules.
+  validity, split leakage, ID/reference leakage, device-sharing mule rules, and
+  wallet-funneling rules.
 
 Current specification:
 
@@ -88,6 +90,7 @@ Run the multi-seed stability harness:
 python3 -m kenya_sacco_sim benchmark \
   --members 10000 \
   --seeds 42 1337 2026 9001 314159 \
+  --jobs 4 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
@@ -95,6 +98,9 @@ The harness writes `multi_seed_results.json` with per-seed validation status,
 rule precision/recall, evaluation-validity status, and distribution stability
 statistics. It fails if any seed has validation errors or if typology
 precision/recall ranges exceed the stability threshold of `0.10`.
+Seed runs execute in parallel by default with up to four worker processes. Use
+`--jobs 1` for serial debugging or pass a larger `--jobs` value when the host
+has enough CPU and memory headroom.
 
 If your environment maps `python` to Python 3, `python -m kenya_sacco_sim ...`
 is equivalent.
@@ -112,6 +118,7 @@ RAPID_PASS_THROUGH
 FAKE_AFFORDABILITY_BEFORE_LOAN
 DEVICE_SHARING_MULE_NETWORK
 GUARANTOR_FRAUD_RING
+WALLET_FUNNELING
 ```
 
 Sub-1,000-member smoke runs do not request partial device-sharing mule groups.
@@ -121,6 +128,15 @@ zero for the run.
 `--with-benchmark` emits benchmark artifacts, including deterministic rule
 results, member-level ML baseline results, feature importances, rule-vs-ML
 comparison, and leakage-ablation diagnostics. It requires `--with-typologies`.
+
+For larger generated packages, use `--skip-ml-baseline` with `--with-benchmark`
+to emit rule, split, leakage, and dataset-card artifacts without training
+sklearn models during generation. Run ML later from the generated CSV package:
+
+```bash
+python3 -m kenya_sacco_sim ml-baseline \
+  --input ./datasets/KENYA_SACCO_SIM_v1_10k
+```
 
 `--config-dir` defaults to `./config`. Missing config files fall back to built-in
 defaults, and CLI arguments override loaded config values.
@@ -214,6 +230,7 @@ near_miss_validation
 fake_affordability_validation
 device_sharing_mule_network_validation
 guarantor_fraud_ring_validation
+wallet_funneling_validation
 benchmark_validation
 ```
 
@@ -234,10 +251,13 @@ threshold:
 
 ```text
 max_month_share > 0.40
+window_span_days < 120
+active_month_count < 10
 ```
 
 This is intended to catch typologies that cluster just below an obvious
-single-month majority, including ambiguous loan-window behavior.
+single-month majority, have too short a calendar span, or are absent from too
+many simulation months.
 
 Benchmark validity is explicit in `split_manifest.json` under
 `checks.evaluation_validity`. A valid benchmark evaluation requires:
@@ -262,21 +282,21 @@ Latest verified 10,000-member benchmark run:
 command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
 manifest version:    1.0.0-dev
 validation errors:   0
-validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
+validation warnings: 0
 members:             10,000
 accounts:            41,003
-transactions:        511,243
+transactions:        512,109
 loans:               2,352
 guarantors:          3,418
-alerts_truth:        923
+alerts_truth:        1,411
 devices:             10,000
 device coverage:     100.00% of digital transactions
-shared devices:      343
-max members/device:  5
+shared devices:      345
+max members/device:  3
 evaluation validity: valid
-near-miss families:  10
-near-miss members:   120
-near-miss txns:      330
+near-miss families:  12
+near-miss members:   211
+near-miss txns:      858
 near-miss guarantees: 16
 ```
 
@@ -285,27 +305,51 @@ Rule-baseline metrics from that run:
 ```text
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
 GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
-FAKE_AFFORDABILITY precision:          0.2083 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.5455 / recall: 0.8000
-STRUCTURING precision:                 0.6818 / recall: 1.0000
+WALLET_FUNNELING precision:            0.5833 / recall: 0.9333
+FAKE_AFFORDABILITY precision:          0.1974 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.4615 / recall: 0.8000
+STRUCTURING precision:                 0.3571 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
 
 ```text
-command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --jobs 4 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
-shared-device member share mean: 0.0434
-cash rail share mean: 0.1938
+shared-device member share mean: 0.0429
+cash rail share mean: 0.1935
 loan active member mean: 0.2385
 arrears share mean: 0.0927
-near-miss member count mean: 121.8
-near-miss transaction count mean: 330.4
-near-miss guarantee count mean: 18.0
+near-miss member count mean: 213.8
+near-miss transaction count mean: 860.2
+near-miss guarantee count mean: 18.8
+wall clock: 89.0s on this 11-CPU local machine with --jobs 4
+first four seeds completed in ~49-50s; final queued seed completed at 88.6s
+single 10k package wall clock: 44.4s
 ```
+
+The benchmark runner now caps parallel workers by both CPU count and an
+estimated memory budget. On this local 11-CPU, ~18 GB host, 10k runs use four
+workers.
+
+Latest local scale probe:
+
+```text
+20k core:              1,025,544 transactions / 1,990,754 selected rows / 59.9s
+20k benchmark no ML:   1,025,544 transactions / 1,990,754 selected rows / 66.0s
+30k core:              1,539,183 transactions / 2,986,102 selected rows / 102.9s
+50k core:              2,566,066 transactions / 5,027,944 total CSV rows / 230.6s
+100k benchmark no ML:  5,127,914 transactions / 10,050,945 total CSV rows / 732.7s
+scale artifact:        ./benchmarks/KENYA_SACCO_SIM_scale_probe_results.json
+```
+
+The 100k no-ML benchmark run verifies ten-million-row generation with zero
+validation errors and zero warnings. Full in-generation ML remains decoupled:
+use `--skip-ml-baseline` for generation and run the standalone `ml-baseline`
+command afterward when model artifacts are needed.
 
 Known benchmark behavior:
 
@@ -320,6 +364,8 @@ before making ML superiority claims.
 ML outperformance on direct rule-proxy features is not treated as benchmark
 evidence unless the ablated feature set and multi-seed diagnostics support it.
 100-member runs are smoke tests only, not valid benchmark evaluations.
+100,000-member generation is validated through the no-ML benchmark path. Full
+in-generation ML at that scale remains intentionally decoupled.
 ```
 
 ## Development Discipline

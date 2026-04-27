@@ -4,7 +4,7 @@ import hashlib
 from collections import Counter, defaultdict
 from datetime import datetime
 
-from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
+from kenya_sacco_sim.benchmark.ml_baseline import TYPOLOGY_NAMES, build_member_feature_table, build_ml_baseline_artifacts, build_ml_leakage_ablation_artifact, member_labels_by_typology
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.validation.labels import _reference_leakage_metrics, _txn_id_leakage_metrics
 from kenya_sacco_sim.validation.schema import REQUIRED_COLUMNS
@@ -19,14 +19,26 @@ MIN_VALID_PATTERNS_PER_SPLIT = 5
 MIN_VALID_TXNS_PER_TYPOLOGY_SPLIT = 10
 TEMPORAL_MAX_MONTH_SHARE_THRESHOLD = 0.40
 TEMPORAL_MIN_WINDOW_SPAN_DAYS = 120.0
+TEMPORAL_MIN_ACTIVE_MONTHS = 10
 
 
-def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
+def build_benchmark_artifacts(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    rule_results: dict[str, object],
+    config: WorldConfig,
+    include_ml_baseline: bool = True,
+) -> dict[str, object]:
     split_manifest = _build_split_manifest(rows_by_file, config)
     confounder_diagnostics = _build_confounder_diagnostics(rows_by_file)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest, confounder_diagnostics)
-    ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config)
-    ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results)
+    if include_ml_baseline:
+        feature_table = build_member_feature_table(rows_by_file)
+        ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config, feature_table=feature_table)
+        ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results, feature_table=feature_table)
+    else:
+        ml_results = _skipped_ml_artifact("ml_baseline_disabled")
+        feature_importance = _skipped_ml_artifact("ml_baseline_disabled")
+        ml_ablation = _skipped_ml_artifact("ml_baseline_disabled")
     comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results, ml_ablation, confounder_diagnostics)
     feature_docs = _build_feature_documentation()
     return {
@@ -40,6 +52,15 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
         "feature_documentation.json": feature_docs,
         "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, ml_ablation, comparison, confounder_diagnostics),
         "known_limitations.md": _known_limitations(),
+    }
+
+
+def _skipped_ml_artifact(reason: str) -> dict[str, object]:
+    return {
+        "status": "skipped",
+        "reason": reason,
+        "baseline_name": "skipped",
+        "models": {},
     }
 
 
@@ -114,7 +135,7 @@ def _build_baseline_results(
 
     return {
         "baseline_name": "deterministic_v1_rules",
-        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, and guarantor fraud ring definitions.",
+        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, guarantor fraud ring, and wallet-funneling definitions.",
         "per_typology": per_typology,
         "near_miss_disclosure": rule_results.get("near_miss_disclosure", {"status": "not_available"}),
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
@@ -141,6 +162,17 @@ def _build_rule_vs_ml_comparison(
     models = ml_results.get("models", {})
     if not isinstance(rule_metrics, dict) or not isinstance(models, dict):
         return {"status": "not_available", "per_typology": {}, "ml_outperforms_rules": [], "rules_dominate": []}
+    if not models:
+        return {
+            "status": "skipped",
+            "reason": ml_results.get("reason", "ml_results_not_available"),
+            "claim_status": "not_available_without_ml_baseline",
+            "per_typology": {},
+            "ml_f1_greater_than_rule_cases": [],
+            "rule_f1_greater_than_ml_cases": [],
+            "ml_outperforms_rules": [],
+            "rules_dominate": [],
+        }
 
     for typology in TYPOLOGY_NAMES:
         rule = rule_metrics.get(typology, {})
@@ -253,6 +285,7 @@ def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]
         and (
             float(metrics.get("max_month_share") or 0.0) > TEMPORAL_MAX_MONTH_SHARE_THRESHOLD
             or float(metrics.get("window_span_days") or 0.0) < TEMPORAL_MIN_WINDOW_SPAN_DAYS
+            or int(metrics.get("active_month_count") or 0) < TEMPORAL_MIN_ACTIVE_MONTHS
         )
     ]
     return {
@@ -260,7 +293,8 @@ def _temporal_label_concentration(rows_by_file: dict[str, list[dict[str, object]
         "review_rule": (
             "Flag typologies with >=10 suspicious transactions and "
             f"max_month_share > {TEMPORAL_MAX_MONTH_SHARE_THRESHOLD:.2f} or "
-            f"window_span_days < {TEMPORAL_MIN_WINDOW_SPAN_DAYS:.0f}."
+            f"window_span_days < {TEMPORAL_MIN_WINDOW_SPAN_DAYS:.0f} or "
+            f"active_month_count < {TEMPORAL_MIN_ACTIVE_MONTHS}."
         ),
         "flagged_typologies": flagged,
         "overall": _temporal_distribution(all_suspicious),
@@ -388,10 +422,10 @@ def _build_feature_documentation() -> dict[str, object]:
             "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
         },
         "derived_ml_features": {
-            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio"],
+            "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio", "max_wallet_fan_in_counterparties_7d", "max_wallet_fan_in_value_7d_kes"],
             "graph": ["graph_degree", "account_degree", "guarantor_out_degree", "guarantor_in_degree", "distinct_counterparty_count", "device_peer_member_count"],
             "device": ["transaction_device_count", "shared_device_txn_share", "max_members_per_used_device", "device_network_value_kes"],
-            "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes"],
+            "behavioral": ["persona_txn_count_ratio", "persona_inflow_ratio", "external_credit_share_before_loan", "balance_growth_30d_before_loan_kes", "max_wallet_funnel_exit_ratio_7d"],
         },
         "ml_leakage_ablation": {
             "artifact": "ml_leakage_ablation.json",
@@ -442,7 +476,7 @@ Do not use this dataset for real customer risk decisions, regulatory filings, pr
 
 ## Scope
 
-The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` when v1 typologies are enabled.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` when v1 typologies are enabled.
 
 ## Benchmark Task
 
@@ -667,9 +701,10 @@ def _metric(value: object) -> str:
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` suspicious typologies.
+- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
-- Wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
+- `WALLET_FUNNELING` includes legitimate chama, welfare, church, and project collection near-misses, so deterministic wallet fan-in/fan-out rules can produce false positives even when the ledger behavior is legitimate.
+- Dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.

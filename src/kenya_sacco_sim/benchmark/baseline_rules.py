@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 from kenya_sacco_sim.core.rules import (
@@ -9,6 +9,7 @@ from kenya_sacco_sim.core.rules import (
     GUARANTOR_FRAUD_RING_RULE_CONFIG,
     RAPID_PASS_THROUGH_RULE_CONFIG,
     STRUCTURING_RULE_CONFIG,
+    WALLET_FUNNELING_RULE_CONFIG,
 )
 
 
@@ -25,6 +26,7 @@ def build_rule_results(
     fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
     device_sharing = device_sharing_mule_candidates(transactions, member_accounts)
     guarantor_ring = guarantor_fraud_ring_candidates(guarantors or [], loans or [])
+    wallet_funneling = wallet_funneling_candidates(transactions, member_accounts)
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -59,6 +61,12 @@ def build_rule_results(
             GUARANTOR_FRAUD_RING_RULE_CONFIG,
             guarantor_ring,
             truth_by_typology["GUARANTOR_FRAUD_RING"],
+        ),
+        "WALLET_FUNNELING": rule_section(
+            "Many wallet/paybill credits fan into one member account within 7 days and disperse quickly to multiple counterparties",
+            WALLET_FUNNELING_RULE_CONFIG,
+            wallet_funneling,
+            truth_by_typology["WALLET_FUNNELING"],
         ),
     }
 
@@ -175,13 +183,34 @@ def guarantor_fraud_ring_candidates(guarantors: list[dict[str, object]], loans: 
     return candidates
 
 
+def wallet_funneling_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    candidates: dict[str, object] = {}
+    for member_id, rows in by_member.items():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        if has_wallet_funneling(rows, member_accounts.get(member_id, set())):
+            candidates[member_id] = True
+    return candidates
+
+
 def has_structuring_window(deposits: list[tuple[datetime, float]]) -> bool:
     deposits.sort(key=lambda item: item[0])
     window_days = int(STRUCTURING_RULE_CONFIG["window_days"])
-    for start_index, (start_ts, _) in enumerate(deposits):
-        window = [(ts, amount) for ts, amount in deposits[start_index:] if ts <= start_ts + timedelta(days=window_days)]
-        if len(window) >= int(STRUCTURING_RULE_CONFIG["min_deposit_count"]) and sum(amount for _, amount in window) >= float(STRUCTURING_RULE_CONFIG["min_total_deposit_kes"]):
+    min_count = int(STRUCTURING_RULE_CONFIG["min_deposit_count"])
+    min_total = float(STRUCTURING_RULE_CONFIG["min_total_deposit_kes"])
+    total = 0.0
+    right = 0
+    for left, (start_ts, _) in enumerate(deposits):
+        while right < len(deposits) and deposits[right][0] <= start_ts + timedelta(days=window_days):
+            total += deposits[right][1]
+            right += 1
+        if right - left >= min_count and total >= min_total:
             return True
+        total -= deposits[left][1]
     return False
 
 
@@ -221,6 +250,120 @@ def has_rapid_pass_through(rows: list[dict[str, object]], accounts: set[str]) ->
     return False
 
 
+def has_wallet_funneling(rows: list[dict[str, object]], accounts: set[str]) -> bool:
+    inbound_types = set(WALLET_FUNNELING_RULE_CONFIG["inbound_txn_types"])
+    outbound_types = set(WALLET_FUNNELING_RULE_CONFIG["outbound_txn_types"])
+    fan_in_window = timedelta(days=int(WALLET_FUNNELING_RULE_CONFIG["window_days"]))
+    dispersion_window = timedelta(hours=int(WALLET_FUNNELING_RULE_CONFIG["dispersion_window_hours"]))
+    min_inbound_count = int(WALLET_FUNNELING_RULE_CONFIG["min_inbound_count"])
+    min_inbound_value = float(WALLET_FUNNELING_RULE_CONFIG["min_inbound_value_kes"])
+    min_inbound_counterparties = int(WALLET_FUNNELING_RULE_CONFIG["min_inbound_counterparties"])
+    min_outbound_share = float(WALLET_FUNNELING_RULE_CONFIG["min_outbound_share"])
+    min_outbound_counterparties = int(WALLET_FUNNELING_RULE_CONFIG["min_outbound_counterparties"])
+    by_account: dict[str, list[tuple[datetime, str, float, str, str, str]]] = defaultdict(list)
+    for row in rows:
+        txn_type = str(row.get("txn_type") or "")
+        if txn_type not in inbound_types and txn_type not in outbound_types:
+            continue
+        credit_account = str(row.get("account_id_cr") or "")
+        debit_account = str(row.get("account_id_dr") or "")
+        account_id = credit_account if credit_account in accounts else debit_account if debit_account in accounts else ""
+        if not account_id:
+            continue
+        by_account[account_id].append(
+            (
+                datetime.fromisoformat(str(row["timestamp"])),
+                txn_type,
+                float(row["amount_kes"]),
+                str(row.get("counterparty_id_hash") or ""),
+                credit_account,
+                debit_account,
+            )
+        )
+
+    for account_id, account_rows in by_account.items():
+        account_rows.sort(key=lambda item: item[0])
+        outbound_windows = _wallet_outbound_windows(account_rows, outbound_types, dispersion_window)
+        right = 0
+        inbound_count = 0
+        inbound_value = 0.0
+        inbound_counterparties: Counter[str] = Counter()
+        last_inbound_ts: datetime | None = None
+        for left, start in enumerate(account_rows):
+            start_ts = start[0]
+            while right < len(account_rows) and account_rows[right][0] <= start_ts + fan_in_window:
+                timestamp, txn_type, amount, counterparty, credit_account, _ = account_rows[right]
+                if credit_account == account_id and txn_type in inbound_types:
+                    inbound_count += 1
+                    inbound_value += amount
+                    last_inbound_ts = timestamp
+                    if counterparty:
+                        inbound_counterparties[counterparty] += 1
+                right += 1
+            if (
+                inbound_count >= min_inbound_count
+                and inbound_value >= min_inbound_value
+                and len(inbound_counterparties) >= min_inbound_counterparties
+                and last_inbound_ts is not None
+            ):
+                outbound_value, outbound_counterparties = outbound_windows.get(last_inbound_ts, (0.0, 0))
+                if inbound_value > 0 and outbound_value / inbound_value >= min_outbound_share and outbound_counterparties >= min_outbound_counterparties:
+                    return True
+            timestamp, txn_type, amount, counterparty, credit_account, _ = start
+            if credit_account == account_id and txn_type in inbound_types:
+                inbound_count -= 1
+                inbound_value -= amount
+                if counterparty:
+                    inbound_counterparties[counterparty] -= 1
+                    if inbound_counterparties[counterparty] <= 0:
+                        del inbound_counterparties[counterparty]
+                if timestamp == last_inbound_ts:
+                    last_inbound_ts = _latest_inbound_timestamp(account_rows, left + 1, right, account_id, inbound_types)
+    return False
+
+
+def _wallet_outbound_windows(
+    rows: list[tuple[datetime, str, float, str, str, str]],
+    outbound_types: set[str],
+    dispersion_window: timedelta,
+) -> dict[datetime, tuple[float, int]]:
+    windows: dict[datetime, tuple[float, int]] = {}
+    right = 0
+    outbound_value = 0.0
+    counterparties: Counter[str] = Counter()
+    for left, row in enumerate(rows):
+        timestamp = row[0]
+        while right < len(rows) and rows[right][0] <= timestamp + dispersion_window:
+            _, txn_type, amount, counterparty, _, debit_account = rows[right]
+            if debit_account and txn_type in outbound_types:
+                outbound_value += amount
+                if counterparty:
+                    counterparties[counterparty] += 1
+            right += 1
+        windows[timestamp] = (outbound_value, len(counterparties))
+        _, txn_type, amount, counterparty, _, debit_account = row
+        if debit_account and txn_type in outbound_types:
+            outbound_value -= amount
+            if counterparty:
+                counterparties[counterparty] -= 1
+                if counterparties[counterparty] <= 0:
+                    del counterparties[counterparty]
+    return windows
+
+
+def _latest_inbound_timestamp(
+    rows: list[tuple[datetime, str, float, str, str, str]],
+    start: int,
+    end: int,
+    account_id: str,
+    inbound_types: set[str],
+) -> datetime | None:
+    for timestamp, txn_type, _, _, credit_account, _ in reversed(rows[start:end]):
+        if credit_account == account_id and txn_type in inbound_types:
+            return timestamp
+    return None
+
+
 def has_fake_affordability_window(rows: list[dict[str, object]], accounts: set[str], application_ts: datetime) -> bool:
     inbound_types = set(FAKE_AFFORDABILITY_RULE_CONFIG["inbound_txn_types"])
     excluded_stable = set(FAKE_AFFORDABILITY_RULE_CONFIG["excluded_stable_income_types"])
@@ -256,28 +399,51 @@ def _device_mule_windows(rows: list[dict[str, object]], member_accounts: dict[st
     min_txns = int(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_device_txn_count"])
     min_total = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_total_value_kes"])
     min_outbound_share = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_outbound_share"])
-    for start_index, start_row in enumerate(rows):
-        start_ts = datetime.fromisoformat(str(start_row["timestamp"]))
-        cutoff = start_ts + timedelta(days=window_days)
-        window = [row for row in rows[start_index:] if datetime.fromisoformat(str(row["timestamp"])) <= cutoff]
-        members = {str(row.get("member_id_primary") or "") for row in window if row.get("member_id_primary")}
-        if len(members) < min_members or len(window) < min_txns:
-            continue
-        inbound = 0.0
-        outbound = 0.0
-        for row in window:
-            member_id = str(row.get("member_id_primary") or "")
-            accounts = member_accounts.get(member_id, set())
-            amount = float(row.get("amount_kes") or 0)
-            txn_type = str(row.get("txn_type") or "")
-            if txn_type in inbound_types and str(row.get("account_id_cr") or "") in accounts:
-                inbound += amount
-            if txn_type in outbound_types and str(row.get("account_id_dr") or "") in accounts:
-                outbound += amount
-        total_value = inbound + outbound
-        if total_value >= min_total and inbound > 0 and outbound / inbound >= min_outbound_share:
-            windows.append(members)
+    parsed_rows = [(_device_event(row, member_accounts, inbound_types, outbound_types), row) for row in rows]
+    parsed_rows.sort(key=lambda item: item[0][0])
+    member_counts: Counter[str] = Counter()
+    inbound = 0.0
+    outbound = 0.0
+    right = 0
+    for left, (start_event, _) in enumerate(parsed_rows):
+        start_ts = start_event[0]
+        while right < len(parsed_rows) and parsed_rows[right][0][0] <= start_ts + timedelta(days=window_days):
+            _, member_id, inbound_amount, outbound_amount = parsed_rows[right][0]
+            if member_id:
+                member_counts[member_id] += 1
+            inbound += inbound_amount
+            outbound += outbound_amount
+            right += 1
+        members = set(member_counts)
+        if len(members) < min_members or right - left < min_txns:
+            pass
+        else:
+            total_value = inbound + outbound
+            if total_value >= min_total and inbound > 0 and outbound / inbound >= min_outbound_share:
+                windows.append(members)
+        _, member_id, inbound_amount, outbound_amount = start_event
+        if member_id:
+            member_counts[member_id] -= 1
+            if member_counts[member_id] <= 0:
+                del member_counts[member_id]
+        inbound -= inbound_amount
+        outbound -= outbound_amount
     return windows
+
+
+def _device_event(
+    row: dict[str, object],
+    member_accounts: dict[str, set[str]],
+    inbound_types: set[str],
+    outbound_types: set[str],
+) -> tuple[datetime, str, float, float]:
+    member_id = str(row.get("member_id_primary") or "")
+    accounts = member_accounts.get(member_id, set())
+    amount = float(row.get("amount_kes") or 0)
+    txn_type = str(row.get("txn_type") or "")
+    inbound = amount if txn_type in inbound_types and str(row.get("account_id_cr") or "") in accounts else 0.0
+    outbound = amount if txn_type in outbound_types and str(row.get("account_id_dr") or "") in accounts else 0.0
+    return datetime.fromisoformat(str(row["timestamp"])), member_id, inbound, outbound
 
 
 def _strongly_connected_components(graph: dict[str, set[str]]) -> list[set[str]]:
@@ -355,7 +521,9 @@ __all__ = [
     "fake_affordability_candidates",
     "guarantor_fraud_ring_candidates",
     "device_sharing_mule_candidates",
+    "has_wallet_funneling",
     "rapid_pass_through_candidates",
     "rule_section",
     "structuring_candidates",
+    "wallet_funneling_candidates",
 ]

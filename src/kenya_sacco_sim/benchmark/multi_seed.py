@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import os
+import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import replace
 from pathlib import Path
 from statistics import mean, pstdev
-from typing import Any
+from time import perf_counter
+from typing import Any, Callable
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
 from kenya_sacco_sim.core.config import WorldConfig, start_timestamp, with_cli_overrides
@@ -23,14 +27,23 @@ from kenya_sacco_sim.validation.report import build_validation_report
 STABILITY_THRESHOLD = 0.10
 
 
-def run_multi_seed_benchmark(config: WorldConfig, seeds: list[int], output_dir: Path, write_seed_datasets: bool = False) -> dict[str, object]:
+ProgressCallback = Callable[[str], None]
+
+
+def run_multi_seed_benchmark(
+    config: WorldConfig,
+    seeds: list[int],
+    output_dir: Path,
+    write_seed_datasets: bool = False,
+    max_workers: int | None = None,
+    include_ml_baseline: bool = True,
+    progress: ProgressCallback | None = None,
+) -> dict[str, object]:
     seeds = _validate_seeds(seeds)
     output_dir.mkdir(parents=True, exist_ok=True)
-    seed_results: list[dict[str, object]] = []
-    for seed in seeds:
-        seed_config = with_cli_overrides(config, seed=seed)
-        seed_output = output_dir / f"seed_{seed}" if write_seed_datasets else None
-        seed_results.append(_run_seed(seed_config, seed_output))
+    worker_count = _worker_count(max_workers, len(seeds), member_count=config.member_count)
+    _emit_progress(progress, f"running {len(seeds)} seeds with {worker_count} worker(s)")
+    seed_results = _run_seeds_parallel(config, seeds, output_dir, write_seed_datasets, worker_count, include_ml_baseline, progress)
 
     result = _multi_seed_result(config, seeds, seed_results)
     write_json(output_dir / "multi_seed_results.json", result)
@@ -47,7 +60,91 @@ def _validate_seeds(seeds: list[int]) -> list[int]:
     return list(seeds)
 
 
-def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, object]:
+def _worker_count(max_workers: int | None, seed_count: int, member_count: int = 10_000, total_memory_gb: float | None = None) -> int:
+    if max_workers is not None and max_workers < 1:
+        raise ValueError("--jobs must be at least 1")
+    if seed_count <= 1:
+        return 1
+    memory_limit = _memory_worker_cap(member_count, total_memory_gb)
+    if max_workers is not None:
+        return min(max_workers, seed_count, memory_limit)
+    cpu_count = os.cpu_count() or 2
+    return min(seed_count, max(1, cpu_count - 1), 4, memory_limit)
+
+
+def _memory_worker_cap(member_count: int, total_memory_gb: float | None = None) -> int:
+    total_gb = total_memory_gb if total_memory_gb is not None else _system_memory_gb()
+    if total_gb <= 0:
+        return 4
+    estimated_worker_gb = max(1.5, member_count / 25_000)
+    usable_gb = total_gb * 0.55
+    return max(1, min(4, int(usable_gb // estimated_worker_gb)))
+
+
+def _system_memory_gb() -> float:
+    try:
+        page_size = int(os.sysconf("SC_PAGE_SIZE"))
+        pages = int(os.sysconf("SC_PHYS_PAGES"))
+        return page_size * pages / (1024**3)
+    except (AttributeError, OSError, ValueError):
+        return 0.0
+
+
+def _run_seeds_parallel(
+    config: WorldConfig,
+    seeds: list[int],
+    output_dir: Path,
+    write_seed_datasets: bool,
+    worker_count: int,
+    include_ml_baseline: bool,
+    progress: ProgressCallback | None,
+) -> list[dict[str, object]]:
+    if worker_count == 1:
+        results_by_seed = {}
+        for seed in seeds:
+            _emit_progress(progress, f"seed {seed} started")
+            started_at = perf_counter()
+            results_by_seed[seed] = _run_seed_job(config, seed, output_dir, write_seed_datasets, include_ml_baseline)
+            _emit_progress(progress, f"seed {seed} finished in {perf_counter() - started_at:.1f}s")
+        return [results_by_seed[seed] for seed in seeds]
+
+    started_at_by_seed: dict[int, float] = {}
+    results_by_seed: dict[int, dict[str, object]] = {}
+    with ProcessPoolExecutor(max_workers=worker_count) as executor:
+        futures = {}
+        for seed in seeds:
+            _emit_progress(progress, f"seed {seed} queued")
+            future = executor.submit(_run_seed_job, config, seed, output_dir, write_seed_datasets, include_ml_baseline)
+            futures[future] = seed
+            started_at_by_seed[seed] = perf_counter()
+        for future in as_completed(futures):
+            seed = futures[future]
+            try:
+                results_by_seed[seed] = future.result()
+            except Exception as exc:
+                for pending in futures:
+                    pending.cancel()
+                raise RuntimeError(f"Benchmark seed {seed} failed") from exc
+            _emit_progress(progress, f"seed {seed} finished in {perf_counter() - started_at_by_seed[seed]:.1f}s")
+    return [results_by_seed[seed] for seed in seeds]
+
+
+def _run_seed_job(config: WorldConfig, seed: int, output_dir: Path, write_seed_datasets: bool, include_ml_baseline: bool) -> dict[str, object]:
+    seed_config = with_cli_overrides(config, seed=seed)
+    seed_output = output_dir / f"seed_{seed}" if write_seed_datasets else None
+    return _run_seed(seed_config, seed_output, include_ml_baseline)
+
+
+def _emit_progress(progress: ProgressCallback | None, message: str) -> None:
+    if progress is not None:
+        progress(message)
+
+
+def stderr_progress(message: str) -> None:
+    print(f"[benchmark] {message}", file=sys.stderr, flush=True)
+
+
+def _run_seed(config: WorldConfig, output_dir: Path | None = None, include_ml_baseline: bool = True) -> dict[str, object]:
     institution_world = generate_institution_world(config)
     members = generate_members(config, institution_world)
     devices = generate_devices(config, members)
@@ -73,7 +170,7 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, 
         "guarantors.csv": guarantors,
         "alerts_truth.csv": alerts_truth,
     }
-    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config)
+    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=include_ml_baseline)
     benchmark_validation = benchmark_artifacts["baseline_model_results.json"]["benchmark_checks"]
     report = build_validation_report(rows_by_file, config, rule_results, benchmark_validation)
 
@@ -260,6 +357,9 @@ def _near_miss_summary(disclosure: object) -> dict[str, object]:
         "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
         "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
         "near_miss_guarantee_count": disclosure.get("near_miss_guarantee_count", 0),
+        "device_sharing_near_miss_group_count": disclosure.get("device_sharing_near_miss_group_count", 0),
+        "device_sharing_near_miss_member_count": disclosure.get("device_sharing_near_miss_member_count", 0),
+        "device_sharing_near_miss_transaction_count": disclosure.get("device_sharing_near_miss_transaction_count", 0),
         "family_counts": family_counts,
     }
 

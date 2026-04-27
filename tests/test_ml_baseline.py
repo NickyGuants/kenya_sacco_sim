@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timedelta
 
 from kenya_sacco_sim.benchmark.ml_baseline import (
     BLOCKED_FEATURE_TOKENS,
@@ -8,6 +9,7 @@ from kenya_sacco_sim.benchmark.ml_baseline import (
     build_ml_baseline_artifacts,
     build_ml_leakage_ablation_artifact,
     member_labels_by_typology,
+    _wallet_funnel_features,
 )
 from kenya_sacco_sim.core.config import WorldConfig
 
@@ -69,6 +71,19 @@ class MlBaselineTests(unittest.TestCase):
         self.assertIn("max_sub_100k_deposits_7d", ablation["rule_proxy_features_by_typology"]["STRUCTURING"])
         self.assertIn("shared_device_txn_share", ablation["rule_proxy_features_by_typology"]["DEVICE_SHARING_MULE_NETWORK"])
         self.assertIn("risk_summary", ablation)
+
+    def test_wallet_funnel_features_are_same_account_only(self) -> None:
+        start = datetime.fromisoformat("2024-06-01T09:00:00+03:00")
+        events = [
+            _wallet_event(start, 200_000, "ACC1", inbound=True),
+            _wallet_event(start + timedelta(hours=2), 200_000, "ACC2", inbound=True),
+            _wallet_event(start + timedelta(hours=4), 300_000, "ACC2", outbound=True),
+        ]
+
+        features = _wallet_funnel_features(events, timedelta(days=7), timedelta(hours=72))
+
+        self.assertEqual(features["max_wallet_funnel_exit_ratio_7d"], 1.5)
+        self.assertEqual(features["max_wallet_fan_in_value_7d_kes"], 200_000)
 
 
 def _split_manifest() -> dict[str, object]:
@@ -144,6 +159,17 @@ def _txn(index: int, member_id: str, account_id_dr: str, account_id_cr: str, txn
         "channel": channel,
         "device_id": "DEVICE000001",
         "amount_kes": amount,
+    }
+
+
+def _wallet_event(timestamp: datetime, amount: float, account_id: str, inbound: bool = False, outbound: bool = False) -> dict[str, object]:
+    return {
+        "timestamp": timestamp,
+        "amount": amount,
+        "counterparty": f"CP_{account_id}_{timestamp.hour}",
+        "owned_account_id": account_id,
+        "wallet_funnel_inbound": inbound,
+        "wallet_funnel_outbound": outbound,
     }
 
 

@@ -15,7 +15,8 @@ Ship every typology with a rule, near-misses, candidate IDs, split coverage, and
 ```
 
 The first v1 typology is `DEVICE_SHARING_MULE_NETWORK`.
-The current v1 slice adds `GUARANTOR_FRAUD_RING`.
+The current v1 benchmark also includes `GUARANTOR_FRAUD_RING` and
+`WALLET_FUNNELING`.
 
 ---
 
@@ -79,6 +80,7 @@ active_typologies:
   - FAKE_AFFORDABILITY_BEFORE_LOAN
   - DEVICE_SHARING_MULE_NETWORK
   - GUARANTOR_FRAUD_RING
+  - WALLET_FUNNELING
 ```
 
 A benchmark-grade run must satisfy:
@@ -267,6 +269,48 @@ Injection contract:
 7. Candidate selection must avoid fixed persona-only assignment.
 ```
 
+### 4.6 WALLET_FUNNELING
+
+Purpose:
+
+```text
+Detect many wallet/paybill credits fanning into one member account followed by
+quick dispersion to multiple counterparties.
+```
+
+Rule contract:
+
+```text
+same account only
+fan-in window = 7 days
+dispersion window after last inbound = 72 hours
+inbound count >= 6
+inbound counterparties >= 5
+inbound value >= KES 350,000
+outbound value / inbound value >= 0.55
+outbound counterparties >= 2
+included inbound types:
+  MPESA_PAYBILL_IN
+  WALLET_P2P_IN
+  BUSINESS_SETTLEMENT_IN
+included outbound types:
+  MPESA_WALLET_TOPUP
+  WALLET_P2P_OUT
+  PESALINK_OUT
+  SUPPLIER_PAYMENT_OUT
+```
+
+Injection contract:
+
+```text
+1. Suspicious wallet-funneling members must use real FOSA accounts.
+2. Inbound counterparties must be distinct enough to create fan-in behavior.
+3. Outbound dispersion must happen after the fan-in window and use multiple counterparties.
+4. Every suspicious member must keep at least 50% normal transaction share.
+5. Candidate selection must avoid fixed persona-only assignment.
+6. Normal chama, welfare, project, and low-fanout collection near-misses must remain unlabeled.
+```
+
 ---
 
 ## 5. Normal Near-Misses
@@ -286,7 +330,15 @@ near_affordability_low_growth
 normal_shared_device_low_value
 legitimate_two_member_reciprocal_guarantee
 trusted_guarantor_star
+legitimate_chama_wallet_collection
+near_wallet_funnel_low_fanout
 ```
+
+`legitimate_chama_wallet_collection` is intentional false-positive pressure for
+`WALLET_FUNNELING`: normal chama, welfare, church, or project collections may
+receive many wallet/paybill credits and make quick legitimate vendor or member
+payouts. `near_wallet_funnel_low_fanout` remains a negative control that should
+miss the executable rule through too few source or destination counterparties.
 
 Near-misses must not appear in `alerts_truth.csv`, but their counts should be
 reported in validation or rule artifacts when applicable.
@@ -448,6 +500,9 @@ temporal burst counts
 rolling 24h/7d aggregates
 48h inflow-to-outflow exit ratios
 counterparty diversity and concentration
+wallet fan-in counterparty count
+wallet fan-in value
+wallet funnel exit ratio
 persona-relative transaction behavior
 graph degree
 account degree
@@ -464,6 +519,7 @@ The validation report must include:
 ```text
 device_sharing_mule_network_validation
 guarantor_fraud_ring_validation
+wallet_funneling_validation
 benchmark_validation
 typology_runtime_metrics
 label_validation
@@ -493,7 +549,7 @@ Warnings:
 2. Shared-device baseline outside expected range.
 3. Institution split drift above threshold.
 4. Rule precision for intentionally ambiguous typologies is low but documented.
-5. Suspicious labels are concentrated in narrow time windows: `max_month_share > 0.40` or `window_span_days < 120`.
+5. Suspicious labels are concentrated in narrow time windows: `max_month_share > 0.40`, `window_span_days < 120`, or `active_month_count < 10`.
 6. Suspicious labels are concentrated by persona/static attributes.
 ```
 
@@ -539,40 +595,58 @@ Current accepted metrics:
 
 ```text
 validation errors: 0
-validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
+validation warnings: 0
 digital device coverage: 100%
-max members per device: 5
-near-miss families: 10
-near-miss members: 120
-near-miss transactions: 330
+max members per device: 3
+near-miss families: 12
+near-miss members: 211
+near-miss transactions: 858
 near-miss guarantees: 16
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000
 DEVICE_SHARING_MULE_NETWORK recall: 1.0000
 GUARANTOR_FRAUD_RING precision: 1.0000
 GUARANTOR_FRAUD_RING recall: 1.0000
-FAKE_AFFORDABILITY precision: 0.2083
-RAPID_PASS_THROUGH precision: 0.5455
-STRUCTURING precision: 0.6818
+WALLET_FUNNELING precision: 0.5833
+WALLET_FUNNELING recall: 0.9333
+FAKE_AFFORDABILITY precision: 0.1974
+RAPID_PASS_THROUGH precision: 0.4615
+STRUCTURING precision: 0.3571
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
+single 10k package wall clock: 44.4s
+five-seed 10k benchmark wall clock: 89.0s with --jobs 4
+50k core generation wall clock: 230.6s
+50k core generated CSV rows: 5,027,944
+100k benchmark-no-ML wall clock: 732.7s
+100k benchmark-no-ML generated CSV rows: 10,050,945
+100k benchmark-no-ML validation errors: 0
+100k benchmark-no-ML validation warnings: 0
 ```
+
+The benchmark runner caps parallel seed workers by CPU count and estimated
+memory budget. The current local gate uses four workers for 10k runs.
+Generation and ML are decoupled for larger packages: use
+`--with-benchmark --skip-ml-baseline` during generation, then run
+`ml-baseline --input <dataset_dir>` from the exported CSV package. The 100k
+no-ML benchmark path is validated; full in-generation ML at that scale remains
+intentionally decoupled.
 
 ---
 
 ## 12. Next Implementation Slice
 
-Current implementation slice:
+Latest implementation slice:
 
 ```text
-GUARANTOR_FRAUD_RING
+WALLET_FUNNELING
 ```
 
 Why:
 
 ```text
-The credit and guarantor graph already exists.
-The behavior is SACCO-specific.
-It exercises graph motifs rather than only transaction aggregates.
+MPESA, paybill, and counterparty structure already exist.
+The behavior is Kenyan-specific and SACCO-relevant.
+It extends rapid-pass-through into multi-counterparty wallet fan-in behavior.
 ```
 
 Acceptance requirements for the next typology:
@@ -590,5 +664,5 @@ Acceptance requirements for the next typology:
 Next candidate after this slice:
 
 ```text
-WALLET_FUNNELING
+CHURCH_CHARITY_MISUSE
 ```

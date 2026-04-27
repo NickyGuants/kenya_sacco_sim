@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from kenya_sacco_sim.benchmark.multi_seed import _stability_report, _validate_seeds, run_multi_seed_benchmark
+from kenya_sacco_sim.benchmark.multi_seed import _stability_report, _validate_seeds, _worker_count, run_multi_seed_benchmark
 from kenya_sacco_sim.core.config import load_world_config, with_cli_overrides
 
 
@@ -16,6 +16,19 @@ class MultiSeedBenchmarkTests(unittest.TestCase):
     def test_seed_validation_rejects_duplicates(self) -> None:
         with self.assertRaisesRegex(ValueError, "Duplicate seeds"):
             _validate_seeds([42, 1337, 42])
+
+    def test_worker_count_caps_to_seed_count(self) -> None:
+        self.assertEqual(_worker_count(10, 3), 3)
+        self.assertEqual(_worker_count(1, 3), 1)
+        self.assertEqual(_worker_count(None, 1), 1)
+
+    def test_worker_count_caps_large_runs_by_memory_estimate(self) -> None:
+        self.assertEqual(_worker_count(4, 5, member_count=100_000, total_memory_gb=18), 2)
+        self.assertEqual(_worker_count(None, 5, member_count=10_000, total_memory_gb=18), 4)
+
+    def test_worker_count_rejects_non_positive_jobs(self) -> None:
+        with self.assertRaisesRegex(ValueError, "--jobs"):
+            _worker_count(0, 3)
 
     def test_stability_report_flags_precision_recall_range(self) -> None:
         report = _stability_report(

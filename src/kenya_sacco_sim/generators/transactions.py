@@ -11,8 +11,6 @@ from kenya_sacco_sim.generators.repayment_schedule import missed_payment_count, 
 
 def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]], world=None, loans: list[dict[str, object]] | None = None) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 303)
-    account_by_id = {str(account["account_id"]): account for account in accounts}
-    balances = {account_id: float(account["opening_balance_kes"]) for account_id, account in account_by_id.items()}
     ids = IdFactory()
     by_member = _accounts_by_member(accounts)
     source_accounts = [account for account in accounts if account["account_type"] == "SOURCE_ACCOUNT"]
@@ -22,6 +20,10 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
     agents_by_branch = _agents_by_branch(world.agents if world else [])
     devices_by_member = _devices_by_member(world.devices if world else [])
     devices_by_group = _devices_by_group(world.devices if world else [])
+    external_account_cache: dict[tuple[str, str, str], dict[str, object]] = {}
+    counterparty_cache: dict[tuple[object, ...], str | None] = {}
+    start_dt = datetime.fromisoformat(f"{config.start_date}T00:00:00+03:00")
+    end_dt = datetime.fromisoformat(f"{config.end_date}T23:59:59+03:00")
     transactions: list[dict[str, object]] = []
     def emit(
         timestamp: datetime,
@@ -39,16 +41,14 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         amount = _realistic_amount(round(float(amount), 2), txn_type, rail, rng)
         if amount <= 0:
             return
-        timestamp = _bounded_timestamp(timestamp, config)
-        debit_account = _select_external_account(debit_account, source_accounts, txn_type, member, "dr")
-        credit_account = _select_external_account(credit_account, sink_accounts, txn_type, member, "cr")
+        timestamp = _bounded_timestamp(timestamp, start_dt, end_dt)
+        debit_account = _select_external_account(debit_account, source_accounts, txn_type, member, "dr", external_account_cache)
+        credit_account = _select_external_account(credit_account, sink_accounts, txn_type, member, "cr", external_account_cache)
         debit_id = str(debit_account["account_id"])
         credit_id = str(credit_account["account_id"])
         agent_id = _select_agent_id(agents_by_branch, branch_id, rng) if rail == "CASH_AGENT" else None
         device_id = _select_device_id(devices_by_member, devices_by_group, member, channel, rng)
-        counterparty_id_hash = _counterparty_hash(counterparty_type, txn_type, member, debit_id, credit_id, branch_id, agent_id)
-        _apply_movement(balances, account_by_id, debit_id, "dr", amount)
-        _apply_movement(balances, account_by_id, credit_id, "cr", amount)
+        counterparty_id_hash = _counterparty_hash(counterparty_type, txn_type, member, debit_id, credit_id, branch_id, agent_id, counterparty_cache)
         txn_id = ids.next("TXN")
         transactions.append(
             {
@@ -74,8 +74,8 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
                 "device_id": device_id,
                 "geo_bucket": member["county"] if member else None,
                 "batch_id": None,
-                "balance_after_dr_kes": round(balances[debit_id], 2),
-                "balance_after_cr_kes": round(balances[credit_id], 2),
+                "balance_after_dr_kes": 0.0,
+                "balance_after_cr_kes": 0.0,
                 "is_reversal": False,
             }
         )
@@ -530,6 +530,7 @@ def _select_external_account(
     txn_type: str,
     member: dict[str, object] | None,
     side: str,
+    cache: dict[tuple[str, str, str], dict[str, object]] | None = None,
 ) -> dict[str, object]:
     if not pool:
         return account
@@ -537,15 +538,33 @@ def _select_external_account(
         return account
     if side == "cr" and account["account_type"] != "SINK_ACCOUNT":
         return account
-    key = f"{txn_type}:{member.get('member_id') if member else ''}:{side}"
+    member_id = str(member.get("member_id") if member else "")
+    cache_key = (txn_type, member_id, side)
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
+    key = f"{txn_type}:{member_id}:{side}"
     index = int(IdFactory.hash_id("H", key).split("_", 1)[1][:8], 16) % len(pool)
+    if cache is not None:
+        cache[cache_key] = pool[index]
     return pool[index]
 
 
-def _counterparty_hash(counterparty_type: str, txn_type: str, member: dict[str, object] | None, debit_id: str, credit_id: str, branch_id: object | None, agent_id: str | None) -> str | None:
+def _counterparty_hash(
+    counterparty_type: str,
+    txn_type: str,
+    member: dict[str, object] | None,
+    debit_id: str,
+    credit_id: str,
+    branch_id: object | None,
+    agent_id: str | None,
+    cache: dict[tuple[object, ...], str | None] | None = None,
+) -> str | None:
     if counterparty_type in {"SOURCE", "SINK"}:
         return None
     member_id = member.get("member_id") if member else ""
+    cache_key = (counterparty_type, txn_type, member_id, debit_id, credit_id, branch_id, agent_id)
+    if cache is not None and cache_key in cache:
+        return cache[cache_key]
     if counterparty_type == "EMPLOYER":
         seed = member.get("employer_id") if member else ""
     elif counterparty_type == "AGENT":
@@ -554,7 +573,10 @@ def _counterparty_hash(counterparty_type: str, txn_type: str, member: dict[str, 
         seed = member.get("institution_id") if member else ""
     else:
         seed = f"{counterparty_type}:{txn_type}:{member_id}:{debit_id}:{credit_id}:{branch_id}"
-    return IdFactory.hash_id("CP", seed)
+    value = IdFactory.hash_id("CP", seed)
+    if cache is not None:
+        cache[cache_key] = value
+    return value
 
 
 def _first(accounts: list[dict[str, object]], account_types: set[str]) -> dict[str, object] | None:
@@ -594,13 +616,11 @@ def _round_to_nearest(amount: float, increment: int) -> float:
     return round(max(increment, round(amount / increment) * increment), 2)
 
 
-def _bounded_timestamp(timestamp: datetime, config: WorldConfig) -> datetime:
+def _bounded_timestamp(timestamp: datetime, start: datetime, end: datetime) -> datetime:
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=EAT)
     else:
         timestamp = timestamp.astimezone(EAT)
-    start = datetime.fromisoformat(f"{config.start_date}T00:00:00+03:00")
-    end = datetime.fromisoformat(f"{config.end_date}T23:59:59+03:00")
     if timestamp < start:
         return start
     if timestamp > end:

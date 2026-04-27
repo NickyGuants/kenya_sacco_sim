@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from statistics import mean
@@ -10,7 +11,9 @@ from kenya_sacco_sim.core.config import WorldConfig
 
 DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
-TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING")
+WALLET_FUNNEL_INBOUND_TYPES = {"MPESA_PAYBILL_IN", "WALLET_P2P_IN", "BUSINESS_SETTLEMENT_IN"}
+WALLET_FUNNEL_OUTBOUND_TYPES = {"MPESA_WALLET_TOPUP", "WALLET_P2P_OUT", "PESALINK_OUT", "SUPPLIER_PAYMENT_OUT"}
+TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING", "WALLET_FUNNELING")
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
@@ -47,11 +50,23 @@ RULE_PROXY_FEATURES_BY_TYPOLOGY = {
         "guarantor_in_degree",
         "graph_degree",
     },
+    "WALLET_FUNNELING": {
+        "wallet_inbound_count",
+        "max_wallet_fan_in_counterparties_7d",
+        "max_wallet_fan_in_value_7d_kes",
+        "max_wallet_funnel_exit_ratio_7d",
+        "counterparty_diversity_ratio",
+    },
 }
 
 
-def build_ml_baseline_artifacts(rows_by_file: dict[str, list[dict[str, object]]], split_manifest: dict[str, object], config: WorldConfig) -> tuple[dict[str, object], dict[str, object]]:
-    feature_table = build_member_feature_table(rows_by_file)
+def build_ml_baseline_artifacts(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    split_manifest: dict[str, object],
+    config: WorldConfig,
+    feature_table: dict[str, object] | None = None,
+) -> tuple[dict[str, object], dict[str, object]]:
+    feature_table = feature_table or build_member_feature_table(rows_by_file)
     labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
     member_split = {str(member_id): str(split) for member_id, split in dict(split_manifest.get("member_id_to_split", {})).items()}
     ml_results, feature_importance = _train_models(feature_table, labels_by_typology, member_split, config)
@@ -63,8 +78,9 @@ def build_ml_leakage_ablation_artifact(
     split_manifest: dict[str, object],
     config: WorldConfig,
     full_results: dict[str, object],
+    feature_table: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    feature_table = build_member_feature_table(rows_by_file)
+    feature_table = feature_table or build_member_feature_table(rows_by_file)
     labels_by_typology = member_labels_by_typology(rows_by_file.get("alerts_truth.csv", []))
     member_split = {str(member_id): str(split) for member_id, split in dict(split_manifest.get("member_id_to_split", {})).items()}
     return _rule_proxy_ablation(feature_table, labels_by_typology, member_split, config, full_results)
@@ -132,6 +148,10 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
         "account_degree",
         "guarantor_out_degree",
         "guarantor_in_degree",
+        "wallet_inbound_count",
+        "max_wallet_fan_in_counterparties_7d",
+        "max_wallet_fan_in_value_7d_kes",
+        "max_wallet_funnel_exit_ratio_7d",
         "persona_txn_count_ratio",
         "persona_inflow_ratio",
         "persona_outflow_ratio",
@@ -169,6 +189,8 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
                 salary_income_totals[member_id] += amount
             if str(txn.get("txn_type") or "") in EXTERNAL_CREDIT_TYPES:
                 external_credit_totals[member_id] += amount
+            if str(txn.get("txn_type") or "") in WALLET_FUNNEL_INBOUND_TYPES:
+                features["wallet_inbound_count"] += 1.0
             if _is_counted_deposit(txn) and amount < 100_000:
                 features["sub_100k_inbound_deposit_count"] += 1.0
         if debit_owned:
@@ -207,9 +229,12 @@ def build_member_feature_table(rows_by_file: dict[str, list[dict[str, object]]])
                     "amount": amount,
                     "txn_type": str(txn.get("txn_type") or ""),
                     "counterparty": counterparty,
+                    "owned_account_id": str(txn.get("account_id_cr") if credit_owned else txn.get("account_id_dr") if debit_owned else ""),
                     "credit_owned": credit_owned,
                     "debit_owned": debit_owned,
                     "counted_deposit": credit_owned and _is_counted_deposit(txn) and amount < 100_000,
+                    "wallet_funnel_inbound": credit_owned and str(txn.get("txn_type") or "") in WALLET_FUNNEL_INBOUND_TYPES,
+                    "wallet_funnel_outbound": debit_owned and str(txn.get("txn_type") or "") in WALLET_FUNNEL_OUTBOUND_TYPES,
                 }
             )
         except ValueError:
@@ -371,6 +396,7 @@ def _temporal_features(events: list[dict[str, object]]) -> dict[str, float]:
         "min_inbound_to_outbound_hours": _min_inbound_to_outbound_hours(events),
         "max_outbound_counterparties_48h": float(_max_outbound_counterparties(events, timedelta(hours=48))),
         "max_sub_100k_deposits_7d": float(_max_flagged_count_window(events, timedelta(days=7), "counted_deposit")),
+        **_wallet_funnel_features(events, timedelta(days=7), timedelta(hours=72)),
     }
 
 
@@ -397,73 +423,153 @@ def _avg_hours_between(events: list[dict[str, object]]) -> float:
 
 def _max_amount_window(events: list[dict[str, object]], window: timedelta, direction_key: str) -> float:
     max_amount = 0.0
-    for start_index, start_event in enumerate(events):
-        total = 0.0
-        for event in events[start_index:]:
-            if event["timestamp"] - start_event["timestamp"] > window:
-                break
-            if event.get(direction_key):
-                total += float(event["amount"])
+    total = 0.0
+    left = 0
+    for right, event in enumerate(events):
+        if event.get(direction_key):
+            total += float(event["amount"])
+        while event["timestamp"] - events[left]["timestamp"] > window:
+            if events[left].get(direction_key):
+                total -= float(events[left]["amount"])
+            left += 1
         max_amount = max(max_amount, total)
     return max_amount
 
 
 def _max_flagged_count_window(events: list[dict[str, object]], window: timedelta, flag_key: str) -> int:
     max_count = 0
-    for start_index, start_event in enumerate(events):
-        count = 0
-        for event in events[start_index:]:
-            if event["timestamp"] - start_event["timestamp"] > window:
-                break
-            if event.get(flag_key):
-                count += 1
+    count = 0
+    left = 0
+    for right, event in enumerate(events):
+        if event.get(flag_key):
+            count += 1
+        while event["timestamp"] - events[left]["timestamp"] > window:
+            if events[left].get(flag_key):
+                count -= 1
+            left += 1
         max_count = max(max_count, count)
     return max_count
 
 
 def _max_exit_ratio(events: list[dict[str, object]], window: timedelta) -> float:
     max_ratio = 0.0
-    for event in events:
+    outbound_total = 0.0
+    right = 0
+    for index, event in enumerate(events):
+        while right < len(events) and events[right]["timestamp"] <= event["timestamp"] + window:
+            if events[right].get("debit_owned"):
+                outbound_total += float(events[right]["amount"])
+            right += 1
         if not event.get("credit_owned") or float(event["amount"]) <= 0:
+            if event.get("debit_owned"):
+                outbound_total -= float(event["amount"])
             continue
-        outbound_total = sum(
-            float(candidate["amount"])
-            for candidate in events
-            if candidate.get("debit_owned")
-            and event["timestamp"] <= candidate["timestamp"] <= event["timestamp"] + window
-        )
         max_ratio = max(max_ratio, outbound_total / float(event["amount"]))
+        if event.get("debit_owned"):
+            outbound_total -= float(event["amount"])
     return max_ratio
 
 
 def _min_inbound_to_outbound_hours(events: list[dict[str, object]]) -> float:
     best: float | None = None
-    for event in events:
-        if not event.get("credit_owned"):
-            continue
-        for candidate in events:
-            if not candidate.get("debit_owned") or candidate["timestamp"] < event["timestamp"]:
-                continue
-            hours = (candidate["timestamp"] - event["timestamp"]).total_seconds() / 3600.0
+    next_debit_ts: datetime | None = None
+    for event in reversed(events):
+        if event.get("debit_owned"):
+            next_debit_ts = event["timestamp"]
+        if event.get("credit_owned") and next_debit_ts is not None and next_debit_ts >= event["timestamp"]:
+            hours = (next_debit_ts - event["timestamp"]).total_seconds() / 3600.0
             best = hours if best is None else min(best, hours)
-            break
     return best if best is not None else -1.0
 
 
 def _max_outbound_counterparties(events: list[dict[str, object]], window: timedelta) -> int:
     max_count = 0
+    right = 0
+    counterparties: Counter[str] = Counter()
     for event in events:
-        if not event.get("credit_owned"):
-            continue
-        counterparties = {
-            str(candidate.get("counterparty") or "")
-            for candidate in events
-            if candidate.get("debit_owned")
-            and event["timestamp"] <= candidate["timestamp"] <= event["timestamp"] + window
-            and candidate.get("counterparty")
-        }
-        max_count = max(max_count, len(counterparties))
+        while right < len(events) and events[right]["timestamp"] <= event["timestamp"] + window:
+            if events[right].get("debit_owned") and events[right].get("counterparty"):
+                counterparties[str(events[right]["counterparty"])] += 1
+            right += 1
+        if event.get("credit_owned"):
+            max_count = max(max_count, len(counterparties))
+        if event.get("debit_owned") and event.get("counterparty"):
+            counterparty = str(event["counterparty"])
+            counterparties[counterparty] -= 1
+            if counterparties[counterparty] <= 0:
+                del counterparties[counterparty]
     return max_count
+
+
+def _wallet_funnel_features(events: list[dict[str, object]], fan_in_window: timedelta, dispersion_window: timedelta) -> dict[str, float]:
+    max_counterparties = 0
+    max_value = 0.0
+    max_exit_ratio = 0.0
+    for account_events in _events_by_owned_account(events).values():
+        outflow_times, outflow_prefix = _outbound_prefix(account_events)
+        inbound_counterparties: Counter[str] = Counter()
+        inbound_value = 0.0
+        last_inbound_ts: datetime | None = None
+        right = 0
+        for left, start_event in enumerate(account_events):
+            start_ts = start_event["timestamp"]
+            while right < len(account_events) and account_events[right]["timestamp"] <= start_ts + fan_in_window:
+                event = account_events[right]
+                if event.get("wallet_funnel_inbound"):
+                    inbound_value += float(event["amount"])
+                    last_inbound_ts = event["timestamp"]
+                    if event.get("counterparty"):
+                        inbound_counterparties[str(event["counterparty"])] += 1
+                right += 1
+            if inbound_value > 0 and last_inbound_ts is not None:
+                outbound_value = _prefix_sum_between(outflow_times, outflow_prefix, last_inbound_ts, last_inbound_ts + dispersion_window)
+                max_counterparties = max(max_counterparties, len(inbound_counterparties))
+                max_value = max(max_value, inbound_value)
+                max_exit_ratio = max(max_exit_ratio, _safe_ratio(outbound_value, inbound_value))
+            if start_event.get("wallet_funnel_inbound"):
+                inbound_value -= float(start_event["amount"])
+                if start_event.get("counterparty"):
+                    counterparty = str(start_event["counterparty"])
+                    inbound_counterparties[counterparty] -= 1
+                    if inbound_counterparties[counterparty] <= 0:
+                        del inbound_counterparties[counterparty]
+                if start_event["timestamp"] == last_inbound_ts:
+                    remaining_inbounds = [
+                        event["timestamp"]
+                        for event in account_events[left + 1 : right]
+                        if event.get("wallet_funnel_inbound")
+                    ]
+                    last_inbound_ts = max(remaining_inbounds) if remaining_inbounds else None
+    return {
+        "max_wallet_fan_in_counterparties_7d": float(max_counterparties),
+        "max_wallet_fan_in_value_7d_kes": max_value,
+        "max_wallet_funnel_exit_ratio_7d": max_exit_ratio,
+    }
+
+
+def _events_by_owned_account(events: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    grouped: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for event in events:
+        account_id = str(event.get("owned_account_id") or "")
+        if account_id:
+            grouped[account_id].append(event)
+    return grouped
+
+
+def _outbound_prefix(events: list[dict[str, object]]) -> tuple[list[datetime], list[float]]:
+    times: list[datetime] = []
+    prefix = [0.0]
+    for event in events:
+        if event.get("wallet_funnel_outbound"):
+            times.append(event["timestamp"])
+            prefix.append(prefix[-1] + float(event["amount"]))
+    return times, prefix
+
+
+def _prefix_sum_between(times: list[datetime], prefix: list[float], start: datetime, end: datetime) -> float:
+    left = bisect_left(times, start)
+    right = bisect_right(times, end)
+    return prefix[right] - prefix[left]
 
 
 def _persona_baselines(features_by_member: dict[str, dict[str, float]], persona_by_member: dict[str, str]) -> dict[str, dict[str, float]]:

@@ -57,7 +57,7 @@ recovery transactions.
 | File | What it is |
 | --- | --- |
 | `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
-| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, and guarantor near-misses. |
+| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, and wallet-funnel near-misses. |
 
 ## With `--with-benchmark`
 
@@ -71,10 +71,15 @@ These files require `--with-typologies`.
 | `feature_importance.json` | Logistic Regression coefficient rankings and Random Forest importances. |
 | `ml_leakage_ablation.json` | ML baselines retrained with rule-proxy features removed; the dataset card summarizes the largest validation/test F1 drops. |
 | `rule_vs_ml_comparison.json` | Descriptive rule-vs-ML precision, recall, and F1 deltas. This is not a superiority claim. |
-| `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. Temporal concentration uses `max_month_share > 0.40` or `window_span_days < 120`. |
+| `benchmark_confounder_diagnostics.json` | Temporal and persona/static-attribute concentration diagnostics for ML benchmark interpretation. Temporal concentration uses `max_month_share > 0.40`, `window_span_days < 120`, or `active_month_count < 10`. |
 | `feature_documentation.json` | Per-file feature dictionary and split guidance. |
 | `dataset_card.md` | Human-readable run summary, intended use, near-miss coverage, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |
+
+When `--skip-ml-baseline` is passed, `ml_baseline_results.json`,
+`feature_importance.json`, and `ml_leakage_ablation.json` are still emitted as
+explicit skipped artifacts. Run `python3 -m kenya_sacco_sim ml-baseline --input
+<dataset_dir>` later to generate the ML artifacts from the exported CSVs.
 
 ## Always Emitted Last
 
@@ -88,6 +93,10 @@ These files require `--with-typologies`.
 | File | What it is |
 | --- | --- |
 | `multi_seed_results.json` | Per-seed validation status, rule metrics, evaluation-validity status, and distribution stability statistics. |
+
+`benchmarks/KENYA_SACCO_SIM_scale_probe_results.json` records local scale-probe
+measurements for larger generation runs. It is a diagnostic artifact, not a
+dataset package.
 
 If `--write-seed-datasets` is passed, each seed's full `generate` output is
 also written in a `seed_<seed>` subfolder.

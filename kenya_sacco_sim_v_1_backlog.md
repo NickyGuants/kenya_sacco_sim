@@ -1,7 +1,7 @@
 # KENYA_SACCO_SIM v1 Backlog
 
 This backlog captures future v1 work that is not part of the current
-`GUARANTOR_FRAUD_RING` slice.
+implemented typology set.
 
 The current v1 contract lives in:
 
@@ -12,18 +12,19 @@ kenya_sacco_sim_v_1_specification.md
 ## Active Slice
 
 ```text
-GUARANTOR_FRAUD_RING
+none
 ```
 
-This slice adds a graph-credit typology using reciprocal or circular guarantor
-relationships. It must update guarantors, graph projections, executable rules,
-near-misses, validation, benchmark artifacts, and docs together.
+The latest completed slice adds `WALLET_FUNNELING`, a multi-counterparty
+wallet/paybill fan-in typology with normal chama/project collection near-misses.
 
 Completed v1 slices:
 
 ```text
 DEVICE_SHARING_MULE_NETWORK
 NEGATIVE_CONTROLS_AND_NEAR_MISSES
+GUARANTOR_FRAUD_RING
+WALLET_FUNNELING
 ```
 
 ## Next Typology Candidates
@@ -31,7 +32,6 @@ NEGATIVE_CONTROLS_AND_NEAR_MISSES
 Priority order:
 
 ```text
-WALLET_FUNNELING
 CHURCH_CHARITY_MISUSE
 DORMANT_REACTIVATION_ABUSE
 REMITTANCE_LAYERING
@@ -43,16 +43,16 @@ TILL_PAYBILL_SHELL_ACTIVITY
 ## Next Recommended Slice
 
 ```text
-WALLET_FUNNELING
+CHURCH_CHARITY_MISUSE
 ```
 
 Rationale:
 
 ```text
-MPESA, paybill, and counterparty structure already exist
-it extends rapid-pass-through into multi-member funnel behavior
-it can use current near-miss and confounder diagnostics
-it should be deferred until the guarantor-ring slice passes the 10k and multi-seed gates
+church/org normal behavior, paybill collections, supplier outflows, and
+bulk-family/church near-miss patterns already exist
+it extends the blueprint's charity/church misuse risk without adding new tables
+it should reuse the current near-miss, confounder, and split diagnostics
 ```
 
 ## Benchmark Backlog
@@ -84,7 +84,6 @@ institution concentration calibration
 ## Validation Backlog
 
 ```text
-guarantor-cycle detection
 guarantor concentration false-positive baselines
 dormancy reactivation anomaly baselines
 remittance corridor fan-out baselines
