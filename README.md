@@ -342,13 +342,14 @@ Latest local scale probe:
 20k benchmark no ML:   1,025,544 transactions / 1,990,754 selected rows / 66.0s
 30k core:              1,539,183 transactions / 2,986,102 selected rows / 102.9s
 50k core:              2,566,066 transactions / 5,027,944 total CSV rows / 230.6s
+100k benchmark no ML:  5,127,914 transactions / 10,050,945 total CSV rows / 732.7s
 scale artifact:        ./benchmarks/KENYA_SACCO_SIM_scale_probe_results.json
 ```
 
-The 50k run verifies multi-million-record generation. A 100k full benchmark run
-is still a separate scaling target and should use `--skip-ml-baseline` or the
-standalone `ml-baseline` command until the remaining validation/export path is
-made streaming-friendly.
+The 100k no-ML benchmark run verifies ten-million-row generation with zero
+validation errors and zero warnings. Full in-generation ML remains decoupled:
+use `--skip-ml-baseline` for generation and run the standalone `ml-baseline`
+command afterward when model artifacts are needed.
 
 Known benchmark behavior:
 
@@ -363,8 +364,8 @@ before making ML superiority claims.
 ML outperformance on direct rule-proxy features is not treated as benchmark
 evidence unless the ablated feature set and multi-seed diagnostics support it.
 100-member runs are smoke tests only, not valid benchmark evaluations.
-100,000-member full benchmark runs are not yet a release gate; use the
-generation/ML decoupling path for large-scale probes.
+100,000-member generation is validated through the no-ML benchmark path. Full
+in-generation ML at that scale remains intentionally decoupled.
 ```
 
 ## Development Discipline

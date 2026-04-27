@@ -146,6 +146,7 @@ def inject_typologies(
     )
     next_txn, device_near_miss_stats = _inject_device_sharing_decoys(
         rng,
+        config,
         members,
         account_by_member,
         source_accounts,
@@ -950,6 +951,7 @@ def _inject_guarantor_ring_decoys(
 
 def _inject_device_sharing_decoys(
     rng: random.Random,
+    config: WorldConfig,
     members: list[dict[str, object]],
     account_by_member: dict[str, list[dict[str, object]]],
     source_accounts: list[dict[str, object]],
@@ -980,7 +982,7 @@ def _inject_device_sharing_decoys(
             continue
         used_members.update(group_member_ids)
         group_count += 1
-        start = datetime(2024, 11, 5, 9, 0, tzinfo=EAT) + timedelta(days=group_count * 4)
+        start = _distributed_pattern_start(config, rng, group_count, target_group_count, max_duration_days=2)
         for offset, member in enumerate(group):
             member_id = str(member["member_id"])
             fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})

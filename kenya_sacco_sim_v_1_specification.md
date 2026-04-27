@@ -617,15 +617,19 @@ single 10k package wall clock: 44.4s
 five-seed 10k benchmark wall clock: 89.0s with --jobs 4
 50k core generation wall clock: 230.6s
 50k core generated CSV rows: 5,027,944
+100k benchmark-no-ML wall clock: 732.7s
+100k benchmark-no-ML generated CSV rows: 10,050,945
+100k benchmark-no-ML validation errors: 0
+100k benchmark-no-ML validation warnings: 0
 ```
 
 The benchmark runner caps parallel seed workers by CPU count and estimated
 memory budget. The current local gate uses four workers for 10k runs.
 Generation and ML are decoupled for larger packages: use
 `--with-benchmark --skip-ml-baseline` during generation, then run
-`ml-baseline --input <dataset_dir>` from the exported CSV package. 100k remains
-an experimental scaling target until the validation/export path is
-streaming-friendly.
+`ml-baseline --input <dataset_dir>` from the exported CSV package. The 100k
+no-ML benchmark path is validated; full in-generation ML at that scale remains
+intentionally decoupled.
 
 ---
 

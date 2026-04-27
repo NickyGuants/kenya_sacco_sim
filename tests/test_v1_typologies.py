@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import random
 import unittest
 
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.generators.typologies import (
+    _distributed_pattern_start,
     _ensure_member_alert_rows,
     _target_counts,
     _wallet_funnel_inbound_counterparty_type,
@@ -70,6 +72,14 @@ class V1TypologyTargetTests(unittest.TestCase):
         self.assertEqual(_wallet_funnel_outbound_counterparty_type("PESALINK_OUT"), "BANK")
         self.assertEqual(_wallet_funnel_outbound_counterparty_type("SUPPLIER_PAYMENT_OUT"), "MERCHANT")
         self.assertEqual(_wallet_funnel_outbound_counterparty_type("WALLET_P2P_OUT"), "WALLET_USER")
+
+    def test_distributed_pattern_start_keeps_large_decoy_sets_inside_window(self) -> None:
+        config = WorldConfig(member_count=100_000)
+        for index in range(1, 80):
+            start = _distributed_pattern_start(config, random.Random(42 + index), index, 79, max_duration_days=2)
+
+            self.assertGreaterEqual(start.date().isoformat(), config.start_date)
+            self.assertLessEqual((start.date()).isoformat(), config.end_date)
 
 def _alert(
     alert_id: str,

@@ -10,7 +10,8 @@
     "Core runs use --with-loans --with-typologies without --with-benchmark.",
     "Benchmark no-ML run uses --with-benchmark --skip-ml-baseline.",
     "All listed runs completed with zero validation errors and zero validation warnings.",
-    "50k core generation produced more than five million CSV rows across all exported CSV files."
+    "50k core generation produced more than five million CSV rows across all exported CSV files.",
+    "100k benchmark-no-ML generation produced more than ten million CSV rows across all exported CSV files."
   ],
   "runs": [
     {
@@ -59,13 +60,29 @@
       "selected_csv_rows": 4977819,
       "all_csv_rows": 5027944,
       "output_size_mb": 939.5
+    },
+    {
+      "name": "100k_benchmark_no_ml",
+      "command": "python3 -m kenya_sacco_sim generate --members 100000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --output ./datasets/KENYA_SACCO_SIM_scale_100k_benchmark_no_ml",
+      "members": 100000,
+      "wall_seconds": 732.74,
+      "validation_errors": 0,
+      "validation_warnings": 0,
+      "transactions": 5127914,
+      "graph_edges": 3635062,
+      "selected_csv_rows": 10050945,
+      "all_csv_rows": 10050945,
+      "output_size_mb": 1882.1,
+      "ml_status": "skipped",
+      "digital_device_coverage": 1.0,
+      "max_members_per_device": 4
     }
   ],
   "interpretation": {
-    "generation_status": "multi_million_record_generation_verified",
+    "generation_status": "ten_million_record_generation_verified",
     "ml_decoupling_status": "implemented",
     "remaining_scaling_work": [
-      "100k full benchmark still needs streaming or chunked validation/artifact generation.",
+      "100k full benchmark with in-generation ML still needs streaming or chunked validation/artifact generation.",
       "CSV writing and full in-memory validation remain major costs at larger scales.",
       "ML should be run as a separate downstream step for large generated packages."
     ]

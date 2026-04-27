@@ -110,9 +110,10 @@ python3 -m kenya_sacco_sim ml-baseline \
   --input ./datasets/KENYA_SACCO_SIM_v1_50k
 ```
 
-The current local scale probe reached 50,000 members, 2,566,066 transactions,
-and 5,027,944 total CSV rows with zero validation errors. The probe summary is
-tracked in `benchmarks/KENYA_SACCO_SIM_scale_probe_results.json`.
+The current local scale probe reached 100,000 members, 5,127,914 transactions,
+and 10,050,945 total CSV rows with zero validation errors through the
+`--skip-ml-baseline` benchmark path. The probe summary is tracked in
+`benchmarks/KENYA_SACCO_SIM_scale_probe_results.json`.
 
 ## Sanity Tests
 
