@@ -1,43 +1,73 @@
 personas:
   SALARIED_TEACHER:
-    share: 0.22
+    share: 0.13
     monthly_income_kes: [45000, 78000, 120000]
     wallet_adoption_probability: 0.95
     rural_probability: 0.35
     loan_probability_annual: 0.35
   COUNTY_WORKER:
-    share: 0.13
+    share: 0.08
     monthly_income_kes: [35000, 65000, 95000]
     wallet_adoption_probability: 0.95
     rural_probability: 0.30
     loan_probability_annual: 0.30
+  UNIFORMED_OFFICER:
+    share: 0.05
+    monthly_income_kes: [40000, 72000, 115000]
+    wallet_adoption_probability: 0.94
+    rural_probability: 0.32
+    loan_probability_annual: 0.32
+  PRIVATE_SECTOR_EMPLOYEE:
+    share: 0.10
+    monthly_income_kes: [30000, 68000, 160000]
+    wallet_adoption_probability: 0.96
+    rural_probability: 0.22
+    loan_probability_annual: 0.24
   SME_OWNER:
-    share: 0.18
+    share: 0.14
     monthly_income_kes: [30000, 120000, 300000]
     wallet_adoption_probability: 0.98
     rural_probability: 0.25
     loan_probability_annual: 0.25
+  MICRO_TRADER:
+    share: 0.11
+    monthly_income_kes: [18000, 55000, 140000]
+    wallet_adoption_probability: 0.98
+    rural_probability: 0.38
+    loan_probability_annual: 0.18
   FARMER_SEASONAL:
-    share: 0.17
+    share: 0.14
     monthly_income_kes: [10000, 35000, 150000]
     wallet_adoption_probability: 0.80
     rural_probability: 0.85
     loan_probability_annual: 0.20
   DIASPORA_SUPPORTED:
-    share: 0.10
+    share: 0.08
     monthly_income_kes: [15000, 50000, 180000]
     wallet_adoption_probability: 0.95
     rural_probability: 0.45
     loan_probability_annual: 0.15
   BODA_BODA_OPERATOR:
-    share: 0.15
+    share: 0.09
     monthly_income_kes: [20000, 45000, 80000]
     wallet_adoption_probability: 0.98
     rural_probability: 0.40
     loan_probability_annual: 0.22
+  CHAMA_GROUP:
+    share: 0.04
+    monthly_income_kes: [25000, 100000, 300000]
+    wallet_adoption_probability: 0.92
+    rural_probability: 0.55
+    loan_probability_annual: 0.08
   CHURCH_ORG:
-    share: 0.05
+    share: 0.03
     monthly_income_kes: [30000, 150000, 600000]
     wallet_adoption_probability: 0.90
     rural_probability: 0.50
     loan_probability_annual: 0.10
+  SACCO_STAFF:
+    share: 0.01
+    monthly_income_kes: [45000, 85000, 150000]
+    wallet_adoption_probability: 0.96
+    rural_probability: 0.25
+    loan_probability_annual: 0.20

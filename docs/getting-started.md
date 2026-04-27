@@ -6,7 +6,7 @@ package on disk.
 ## Requirements
 
 - Python 3.11 or newer.
-- Roughly 1 GB of free disk space for a 10,000-member run.
+- Roughly 2 GB of free disk space for a 100,000-member no-ML benchmark run.
 - The Python packages declared in `pyproject.toml`, including `PyYAML` and
   `scikit-learn`.
 
@@ -47,15 +47,17 @@ repayments are ledger events.
 
 ## Full Benchmark Run
 
-This is the current benchmark-quality run:
+This is the current release-scale benchmark run:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
-  --members 10000 \
+  --members 100000 \
   --with-loans \
   --with-typologies \
   --with-benchmark \
-  --output ./datasets/KENYA_SACCO_SIM_v1_10k
+  --skip-ml-baseline \
+  --suspicious-ratio 0.015 \
+  --output ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 When it finishes, inspect these first:
@@ -110,10 +112,9 @@ python3 -m kenya_sacco_sim ml-baseline \
   --input ./datasets/KENYA_SACCO_SIM_v1_50k
 ```
 
-The current local scale probe reached 100,000 members, 5,127,914 transactions,
-and 10,050,945 total CSV rows with zero validation errors through the
-`--skip-ml-baseline` benchmark path. The probe summary is tracked in
-`benchmarks/KENYA_SACCO_SIM_scale_probe_results.json`.
+The current generated package is a richer 100,000-member no-ML package with
+12 personas, nine active typologies, corrected dormant semantics, 5,305,344
+transactions, and 10,196,191 total CSV rows.
 
 ## Sanity Tests
 

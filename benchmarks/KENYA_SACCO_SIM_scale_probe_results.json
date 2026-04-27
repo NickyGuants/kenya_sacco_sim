@@ -1,90 +1,160 @@
 {
   "status": "available",
-  "purpose": "Local scaling probe for generation without mandatory ML training.",
+  "purpose": "Current local scale benchmark summary for the latest v1 100k no-ML package.",
   "machine_context": {
     "cpu_count": 11,
     "memory_gb_approx": 18,
     "date": "2026-04-27"
   },
-  "notes": [
-    "Core runs use --with-loans --with-typologies without --with-benchmark.",
-    "Benchmark no-ML run uses --with-benchmark --skip-ml-baseline.",
-    "All listed runs completed with zero validation errors and zero validation warnings.",
-    "50k core generation produced more than five million CSV rows across all exported CSV files.",
-    "100k benchmark-no-ML generation produced more than ten million CSV rows across all exported CSV files."
-  ],
-  "runs": [
-    {
-      "name": "20k_core",
-      "command": "python3 -m kenya_sacco_sim generate --members 20000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_20k_core",
-      "members": 20000,
-      "wall_seconds": 59.94,
-      "validation_errors": 0,
-      "validation_warnings": 0,
-      "transactions": 1025544,
-      "graph_edges": 727469,
-      "selected_csv_rows": 1990754
+  "current_package": {
+    "name": "KENYA_SACCO_SIM_v1_100k",
+    "path": "datasets/KENYA_SACCO_SIM_v1_100k",
+    "command": "python3 -m kenya_sacco_sim generate --members 100000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --suspicious-ratio 0.015 --output ./datasets/KENYA_SACCO_SIM_v1_100k",
+    "members": 100000,
+    "wall_seconds": 719.9,
+    "validation_errors": 0,
+    "validation_warnings": 0,
+    "ml_status": "skipped_for_generation_scale",
+    "active_personas": 12,
+    "active_typologies": 9,
+    "output_size_mb": 1942.0
+  },
+  "raw_row_counts": {
+    "members.csv": 100000,
+    "accounts.csv": 404592,
+    "transactions.csv": 5305344,
+    "alerts_truth.csv": 11749,
+    "loans.csv": 20404,
+    "guarantors.csv": 29287,
+    "devices.csv": 100000,
+    "nodes.csv": 604717,
+    "graph_edges.csv": 3619973,
+    "institutions.csv": 5,
+    "branches.csv": 10,
+    "agents.csv": 50,
+    "employers.csv": 60,
+    "all_csv_rows": 10196191
+  },
+  "acceptance_checks": {
+    "transactions_exceed_previous_100k_baseline": true,
+    "all_csv_rows_exceed_previous_100k_baseline": true,
+    "ledger_replay_mismatches": 0,
+    "duplicate_primary_keys_found": 0,
+    "tested_foreign_key_misses": 0,
+    "forbidden_label_columns_in_feature_files": 0,
+    "digital_required_device_coverage": 1.0,
+    "cash_agent_missing_agent_id": 0,
+    "counterparty_id_hash_missing": 0,
+    "reference_mirroring_count": 0,
+    "txn_id_threshold_best_f1": 0.005,
+    "confounder_review_required": false
+  },
+  "dormant_lifecycle": {
+    "dormant_member_count": 7913,
+    "dormant_member_share": 0.0791,
+    "active_dormant_member_count": 1258,
+    "active_dormant_member_share": 0.159,
+    "reactivated_dormant_member_count": 1258,
+    "dormant_transactions_without_reactivation_count": 0,
+    "high_throughput_unlabeled_dormant_member_count": 0
+  },
+  "typology_member_counts": {
+    "CHURCH_CHARITY_MISUSE": 166,
+    "DEVICE_SHARING_MULE_NETWORK": 167,
+    "DORMANT_REACTIVATION_ABUSE": 166,
+    "FAKE_AFFORDABILITY_BEFORE_LOAN": 167,
+    "GUARANTOR_FRAUD_RING": 167,
+    "RAPID_PASS_THROUGH": 167,
+    "REMITTANCE_LAYERING": 166,
+    "STRUCTURING": 167,
+    "WALLET_FUNNELING": 167
+  },
+  "rule_reconstruction": {
+    "CHURCH_CHARITY_MISUSE": {
+      "truth": 166,
+      "candidates": 201,
+      "true_positives": 162,
+      "false_positives": 39,
+      "false_negatives": 4,
+      "precision": 0.806,
+      "recall": 0.9759
     },
-    {
-      "name": "20k_benchmark_no_ml",
-      "command": "python3 -m kenya_sacco_sim generate --members 20000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --output ./datasets/KENYA_SACCO_SIM_scale_20k_benchmark_no_ml",
-      "members": 20000,
-      "wall_seconds": 66.03,
-      "validation_errors": 0,
-      "validation_warnings": 0,
-      "transactions": 1025544,
-      "graph_edges": 727469,
-      "selected_csv_rows": 1990754,
-      "ml_status": "skipped"
+    "DEVICE_SHARING_MULE_NETWORK": {
+      "truth": 167,
+      "candidates": 167,
+      "true_positives": 167,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0
     },
-    {
-      "name": "30k_core",
-      "command": "python3 -m kenya_sacco_sim generate --members 30000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_30k_core",
-      "members": 30000,
-      "wall_seconds": 102.93,
-      "validation_errors": 0,
-      "validation_warnings": 0,
-      "transactions": 1539183,
-      "graph_edges": 1090707,
-      "selected_csv_rows": 2986102
+    "DORMANT_REACTIVATION_ABUSE": {
+      "truth": 166,
+      "candidates": 166,
+      "true_positives": 166,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0
     },
-    {
-      "name": "50k_core",
-      "command": "python3 -m kenya_sacco_sim generate --members 50000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_50k_core",
-      "members": 50000,
-      "wall_seconds": 230.57,
-      "validation_errors": 0,
-      "validation_warnings": 0,
-      "transactions": 2566066,
-      "graph_edges": 1818163,
-      "selected_csv_rows": 4977819,
-      "all_csv_rows": 5027944,
-      "output_size_mb": 939.5
+    "FAKE_AFFORDABILITY_BEFORE_LOAN": {
+      "truth": 167,
+      "candidates": 1152,
+      "true_positives": 165,
+      "false_positives": 987,
+      "false_negatives": 2,
+      "precision": 0.1432,
+      "recall": 0.988
     },
-    {
-      "name": "100k_benchmark_no_ml",
-      "command": "python3 -m kenya_sacco_sim generate --members 100000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --output ./datasets/KENYA_SACCO_SIM_scale_100k_benchmark_no_ml",
-      "members": 100000,
-      "wall_seconds": 732.74,
-      "validation_errors": 0,
-      "validation_warnings": 0,
-      "transactions": 5127914,
-      "graph_edges": 3635062,
-      "selected_csv_rows": 10050945,
-      "all_csv_rows": 10050945,
-      "output_size_mb": 1882.1,
-      "ml_status": "skipped",
-      "digital_device_coverage": 1.0,
-      "max_members_per_device": 4
+    "GUARANTOR_FRAUD_RING": {
+      "truth": 167,
+      "candidates": 167,
+      "true_positives": 167,
+      "false_positives": 0,
+      "false_negatives": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "RAPID_PASS_THROUGH": {
+      "truth": 167,
+      "candidates": 497,
+      "true_positives": 135,
+      "false_positives": 362,
+      "false_negatives": 32,
+      "precision": 0.2716,
+      "recall": 0.8084
+    },
+    "REMITTANCE_LAYERING": {
+      "truth": 166,
+      "candidates": 162,
+      "true_positives": 162,
+      "false_positives": 0,
+      "false_negatives": 4,
+      "precision": 1.0,
+      "recall": 0.9759
+    },
+    "STRUCTURING": {
+      "truth": 167,
+      "candidates": 588,
+      "true_positives": 167,
+      "false_positives": 421,
+      "false_negatives": 0,
+      "precision": 0.284,
+      "recall": 1.0
+    },
+    "WALLET_FUNNELING": {
+      "truth": 167,
+      "candidates": 308,
+      "true_positives": 159,
+      "false_positives": 149,
+      "false_negatives": 8,
+      "precision": 0.5162,
+      "recall": 0.9521
     }
-  ],
+  },
   "interpretation": {
-    "generation_status": "ten_million_record_generation_verified",
-    "ml_decoupling_status": "implemented",
-    "remaining_scaling_work": [
-      "100k full benchmark with in-generation ML still needs streaming or chunked validation/artifact generation.",
-      "CSV writing and full in-memory validation remain major costs at larger scales.",
-      "ML should be run as a separate downstream step for large generated packages."
-    ]
+    "generation_status": "latest_v1_100k_no_ml_benchmark_verified",
+    "ml_decoupling_status": "100k generation intentionally skips in-generation ML; downstream ML runs should use the exported feature package.",
+    "current_output_policy": "Only datasets/KENYA_SACCO_SIM_v1_100k is retained as the visible generated dataset."
   }
 }

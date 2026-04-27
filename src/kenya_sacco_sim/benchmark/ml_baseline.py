@@ -13,7 +13,17 @@ DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
 WALLET_FUNNEL_INBOUND_TYPES = {"MPESA_PAYBILL_IN", "WALLET_P2P_IN", "BUSINESS_SETTLEMENT_IN"}
 WALLET_FUNNEL_OUTBOUND_TYPES = {"MPESA_WALLET_TOPUP", "WALLET_P2P_OUT", "PESALINK_OUT", "SUPPLIER_PAYMENT_OUT"}
-TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING", "WALLET_FUNNELING")
+TYPOLOGY_NAMES = (
+    "STRUCTURING",
+    "RAPID_PASS_THROUGH",
+    "FAKE_AFFORDABILITY_BEFORE_LOAN",
+    "DEVICE_SHARING_MULE_NETWORK",
+    "GUARANTOR_FRAUD_RING",
+    "WALLET_FUNNELING",
+    "DORMANT_REACTIVATION_ABUSE",
+    "REMITTANCE_LAYERING",
+    "CHURCH_CHARITY_MISUSE",
+)
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
@@ -56,6 +66,27 @@ RULE_PROXY_FEATURES_BY_TYPOLOGY = {
         "max_wallet_fan_in_value_7d_kes",
         "max_wallet_funnel_exit_ratio_7d",
         "counterparty_diversity_ratio",
+    },
+    "DORMANT_REACTIVATION_ABUSE": {
+        "max_48h_exit_ratio",
+        "min_inbound_to_outbound_hours",
+        "max_outbound_counterparties_48h",
+        "external_credit_share",
+        "digital_txn_count",
+    },
+    "REMITTANCE_LAYERING": {
+        "pesalink_share",
+        "max_48h_exit_ratio",
+        "max_outbound_counterparties_48h",
+        "external_credit_share",
+        "counterparty_diversity_ratio",
+    },
+    "CHURCH_CHARITY_MISUSE": {
+        "wallet_inbound_count",
+        "max_wallet_fan_in_value_7d_kes",
+        "max_outflow_7d_kes",
+        "counterparty_diversity_ratio",
+        "distinct_counterparty_count",
     },
 }
 

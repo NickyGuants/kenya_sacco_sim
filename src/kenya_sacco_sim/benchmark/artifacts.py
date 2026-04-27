@@ -135,7 +135,7 @@ def _build_baseline_results(
 
     return {
         "baseline_name": "deterministic_v1_rules",
-        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, guarantor fraud ring, and wallet-funneling definitions.",
+        "description": "Rule baseline using exported v1 executable typology definitions.",
         "per_typology": per_typology,
         "near_miss_disclosure": rule_results.get("near_miss_disclosure", {"status": "not_available"}),
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
@@ -464,6 +464,7 @@ def _dataset_card(
     comparison_summary = _comparison_summary(comparison)
     confounder_summary = _confounder_summary(confounder_diagnostics)
     validity = split_manifest.get("checks", {}).get("evaluation_validity", {})
+    typology_list = ", ".join(f"`{typology}`" for typology in TYPOLOGY_NAMES)
     return f"""# KENYA_SACCO_SIM v1 Dataset Card
 
 ## Intended Use
@@ -476,7 +477,7 @@ Do not use this dataset for real customer risk decisions, regulatory filings, pr
 
 ## Scope
 
-The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` when v1 typologies are enabled.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, dormant-account lifecycle behavior, and labeled suspicious typologies: {typology_list} when v1 typologies are enabled.
 
 ## Benchmark Task
 
@@ -533,11 +534,11 @@ Single generated packages are one-seed artifacts. Multi-seed stability is report
 
 ## Known Biases and Failure Modes
 
-`FAKE_AFFORDABILITY_BEFORE_LOAN` intentionally has low rule precision because normal borrowers can receive legitimate large external inflows before loan applications. Small samples can distort positive-label availability and model metrics.
+`FAKE_AFFORDABILITY_BEFORE_LOAN` intentionally has low rule precision because normal borrowers can receive legitimate large external inflows before loan applications. Dormant reactivation, remittance, and church/charity patterns are intentionally mixed with legitimate near-misses so deterministic rules should have false positives. Small samples can distort positive-label availability and model metrics.
 
 ## Minimum Valid Sample Size
 
-100-member runs are smoke tests only. Use 10,000-member runs for benchmark evaluation and multi-seed stability claims.
+100-member and 1,000-member runs are smoke tests only. Use at least 10,000 members for benchmark evaluation and use the 100,000-member no-ML path for release-scale data volume checks.
 """
 
 
@@ -701,16 +702,16 @@ def _metric(value: object) -> str:
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, and `WALLET_FUNNELING` suspicious typologies.
+- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, `GUARANTOR_FRAUD_RING`, `WALLET_FUNNELING`, `DORMANT_REACTIVATION_ABUSE`, `REMITTANCE_LAYERING`, and `CHURCH_CHARITY_MISUSE` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
 - `WALLET_FUNNELING` includes legitimate chama, welfare, church, and project collection near-misses, so deterministic wallet fan-in/fan-out rules can produce false positives even when the ledger behavior is legitimate.
-- Dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
+- Dormant reactivation abuse, remittance layering, and church/charity misuse include legitimate near-miss families, so rule precision should be read alongside candidate IDs and `near_miss_disclosure`.
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
 - `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that ML outperforms rules.
 - `benchmark_confounder_diagnostics.json` reports temporal and persona/static-attribute concentration risks that can inflate ML metrics without explicit label leakage.
-- The benchmark is calibrated for 10,000 members and should be re-audited before scaling materially beyond that.
+- The release-scale package is generated through the 100,000-member no-ML path. Full ML artifacts remain intentionally downstream at that scale.
 """
 
 

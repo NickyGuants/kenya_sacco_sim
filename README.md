@@ -26,6 +26,15 @@ Implemented:
   - `DEVICE_SHARING_MULE_NETWORK`
   - `GUARANTOR_FRAUD_RING`
   - `WALLET_FUNNELING`
+  - `DORMANT_REACTIVATION_ABUSE`
+  - `REMITTANCE_LAYERING`
+  - `CHURCH_CHARITY_MISUSE`
+- Twelve-persona world model including formal workers, SME owners, micro
+  traders, farmers, diaspora-supported members, boda operators, chama groups,
+  church/org accounts, and SACCO staff.
+- Dormant lifecycle semantics: dormant members start inactive, require
+  `KYC_REFRESH` and `ACCOUNT_REACTIVATION` before renewed activity, and are
+  validated for dormant-throughput abuse.
 - Rich near-miss and negative-control families for active typologies, reported
   in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
 - Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
@@ -51,11 +60,12 @@ Current specification:
 Research source:
 
 - `docs/research/deep-research-report.md`
+- `docs/research/current-calibration-notes.md`
 
 Latest local output locations:
 
 ```text
-datasets/KENYA_SACCO_SIM_v1_10k
+datasets/KENYA_SACCO_SIM_v1_100k
 benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
@@ -77,11 +87,13 @@ Generate the full benchmark package:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
-  --members 10000 \
+  --members 100000 \
   --with-loans \
   --with-typologies \
   --with-benchmark \
-  --output ./datasets/KENYA_SACCO_SIM_v1_10k
+  --skip-ml-baseline \
+  --suspicious-ratio 0.015 \
+  --output ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 Run the multi-seed stability harness:
@@ -119,6 +131,9 @@ FAKE_AFFORDABILITY_BEFORE_LOAN
 DEVICE_SHARING_MULE_NETWORK
 GUARANTOR_FRAUD_RING
 WALLET_FUNNELING
+DORMANT_REACTIVATION_ABUSE
+REMITTANCE_LAYERING
+CHURCH_CHARITY_MISUSE
 ```
 
 Sub-1,000-member smoke runs do not request partial device-sharing mule groups.
@@ -135,7 +150,7 @@ sklearn models during generation. Run ML later from the generated CSV package:
 
 ```bash
 python3 -m kenya_sacco_sim ml-baseline \
-  --input ./datasets/KENYA_SACCO_SIM_v1_10k
+  --input ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 `--config-dir` defaults to `./config`. Missing config files fall back to built-in
@@ -181,7 +196,7 @@ datasets/KENYA_SACCO_SIM_v1
 For current benchmark work, pass an explicit v1 output path:
 
 ```text
-datasets/KENYA_SACCO_SIM_v1_10k
+datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 ## Validation
@@ -202,11 +217,13 @@ Representative full-package validation:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
-  --members 10000 \
+  --members 100000 \
   --with-loans \
   --with-typologies \
   --with-benchmark \
-  --output ./datasets/KENYA_SACCO_SIM_v1_10k
+  --skip-ml-baseline \
+  --suspicious-ratio 0.015 \
+  --output ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 Validation includes:
@@ -231,6 +248,7 @@ fake_affordability_validation
 device_sharing_mule_network_validation
 guarantor_fraud_ring_validation
 wallet_funneling_validation
+dormant_lifecycle metrics
 benchmark_validation
 ```
 
@@ -274,41 +292,19 @@ labeled transactions per typology split >= 10
 Smaller runs are marked `smoke_only`; full-size runs that miss these thresholds
 fail benchmark validation.
 
-## Latest Verified Gate
+## Current Release Gate
 
-Latest verified 10,000-member benchmark run:
+Current target package:
 
 ```text
-command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
+command: python3 -m kenya_sacco_sim generate --members 100000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --suspicious-ratio 0.015 --output ./datasets/KENYA_SACCO_SIM_v1_100k
 manifest version:    1.0.0-dev
-validation errors:   0
-validation warnings: 0
-members:             10,000
-accounts:            41,003
-transactions:        512,109
-loans:               2,352
-guarantors:          3,418
-alerts_truth:        1,411
-devices:             10,000
-device coverage:     100.00% of digital transactions
-shared devices:      345
-max members/device:  3
-evaluation validity: valid
-near-miss families:  12
-near-miss members:   211
-near-miss txns:      858
-near-miss guarantees: 16
-```
-
-Rule-baseline metrics from that run:
-
-```text
-DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
-GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
-WALLET_FUNNELING precision:            0.5833 / recall: 0.9333
-FAKE_AFFORDABILITY precision:          0.1974 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.4615 / recall: 0.8000
-STRUCTURING precision:                 0.3571 / recall: 1.0000
+validation target:   0 errors / 0 warnings
+active typologies:   9
+personas:            12
+ML baseline:         skipped during generation; run downstream with ml-baseline
+transactions:        5,305,344
+total CSV rows:      10,196,191
 ```
 
 Latest multi-seed stability gate:
@@ -338,18 +334,18 @@ workers.
 Latest local scale probe:
 
 ```text
-20k core:              1,025,544 transactions / 1,990,754 selected rows / 59.9s
-20k benchmark no ML:   1,025,544 transactions / 1,990,754 selected rows / 66.0s
-30k core:              1,539,183 transactions / 2,986,102 selected rows / 102.9s
-50k core:              2,566,066 transactions / 5,027,944 total CSV rows / 230.6s
-100k benchmark no ML:  5,127,914 transactions / 10,050,945 total CSV rows / 732.7s
+100k benchmark no ML:  5,305,344 transactions / 10,196,191 total CSV rows / 719.9s
+active personas:       12
+active typologies:     9
+validation result:     0 errors / 0 warnings
+ledger replay:         0 mismatches
 scale artifact:        ./benchmarks/KENYA_SACCO_SIM_scale_probe_results.json
 ```
 
-The 100k no-ML benchmark run verifies ten-million-row generation with zero
-validation errors and zero warnings. Full in-generation ML remains decoupled:
-use `--skip-ml-baseline` for generation and run the standalone `ml-baseline`
-command afterward when model artifacts are needed.
+The current package is the release-scale no-ML generation path and preserves
+zero validation errors and zero warnings. Full in-generation ML remains
+decoupled: use `--skip-ml-baseline` for generation and run the standalone
+`ml-baseline` command afterward when model artifacts are needed.
 
 Known benchmark behavior:
 

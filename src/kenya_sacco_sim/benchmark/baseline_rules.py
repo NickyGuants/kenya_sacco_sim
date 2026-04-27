@@ -4,10 +4,13 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 from kenya_sacco_sim.core.rules import (
+    CHURCH_CHARITY_MISUSE_RULE_CONFIG,
     DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
+    DORMANT_REACTIVATION_ABUSE_RULE_CONFIG,
     FAKE_AFFORDABILITY_RULE_CONFIG,
     GUARANTOR_FRAUD_RING_RULE_CONFIG,
     RAPID_PASS_THROUGH_RULE_CONFIG,
+    REMITTANCE_LAYERING_RULE_CONFIG,
     STRUCTURING_RULE_CONFIG,
     WALLET_FUNNELING_RULE_CONFIG,
 )
@@ -19,14 +22,19 @@ def build_rule_results(
     alerts: list[dict[str, object]],
     loans: list[dict[str, object]] | None = None,
     guarantors: list[dict[str, object]] | None = None,
+    members: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
     member_accounts = member_account_ids(accounts)
+    member_personas = {str(member["member_id"]): str(member.get("persona_type") or "") for member in members or []}
     structuring = structuring_candidates(transactions, member_accounts)
     rapid = rapid_pass_through_candidates(transactions, member_accounts)
     fake_affordability = fake_affordability_candidates(transactions, member_accounts, loans or [])
     device_sharing = device_sharing_mule_candidates(transactions, member_accounts)
     guarantor_ring = guarantor_fraud_ring_candidates(guarantors or [], loans or [])
     wallet_funneling = wallet_funneling_candidates(transactions, member_accounts)
+    dormant_abuse = dormant_reactivation_abuse_candidates(transactions, member_accounts)
+    remittance_layering = remittance_layering_candidates(transactions, member_accounts)
+    church_misuse = church_charity_misuse_candidates(transactions, member_accounts, member_personas)
     truth_by_typology: dict[str, list[dict[str, object]]] = defaultdict(list)
     for alert in alerts:
         if alert["entity_type"] == "PATTERN":
@@ -67,6 +75,24 @@ def build_rule_results(
             WALLET_FUNNELING_RULE_CONFIG,
             wallet_funneling,
             truth_by_typology["WALLET_FUNNELING"],
+        ),
+        "DORMANT_REACTIVATION_ABUSE": rule_section(
+            "Dormant account reactivation followed by large first credit and rapid 7-day fanout",
+            DORMANT_REACTIVATION_ABUSE_RULE_CONFIG,
+            dormant_abuse,
+            truth_by_typology["DORMANT_REACTIVATION_ABUSE"],
+        ),
+        "REMITTANCE_LAYERING": rule_section(
+            "Remittance inbound followed within 72 hours by rapid redistribution across multiple counterparties",
+            REMITTANCE_LAYERING_RULE_CONFIG,
+            remittance_layering,
+            truth_by_typology["REMITTANCE_LAYERING"],
+        ),
+        "CHURCH_CHARITY_MISUSE": rule_section(
+            "Church or group account receives abnormal donor inflow and disperses funds outside normal collection rhythm",
+            CHURCH_CHARITY_MISUSE_RULE_CONFIG,
+            church_misuse,
+            truth_by_typology["CHURCH_CHARITY_MISUSE"],
         ),
     }
 
@@ -197,6 +223,51 @@ def wallet_funneling_candidates(transactions: list[dict[str, object]], member_ac
     return candidates
 
 
+def dormant_reactivation_abuse_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    candidates: dict[str, object] = {}
+    for member_id, rows in by_member.items():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        if has_dormant_reactivation_abuse(rows, member_accounts.get(member_id, set())):
+            candidates[member_id] = True
+    return candidates
+
+
+def remittance_layering_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]]) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    candidates: dict[str, object] = {}
+    for member_id, rows in by_member.items():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        if has_remittance_layering(rows, member_accounts.get(member_id, set())):
+            candidates[member_id] = True
+    return candidates
+
+
+def church_charity_misuse_candidates(transactions: list[dict[str, object]], member_accounts: dict[str, set[str]], member_personas: dict[str, str] | None = None) -> dict[str, object]:
+    by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id:
+            by_member[member_id].append(txn)
+    eligible_personas = set(CHURCH_CHARITY_MISUSE_RULE_CONFIG["candidate_personas"])
+    candidates: dict[str, object] = {}
+    for member_id, rows in by_member.items():
+        if member_personas and member_personas.get(member_id) not in eligible_personas:
+            continue
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        if has_church_charity_misuse(rows, member_accounts.get(member_id, set())):
+            candidates[member_id] = True
+    return candidates
+
+
 def has_structuring_window(deposits: list[tuple[datetime, float]]) -> bool:
     deposits.sort(key=lambda item: item[0])
     window_days = int(STRUCTURING_RULE_CONFIG["window_days"])
@@ -319,6 +390,118 @@ def has_wallet_funneling(rows: list[dict[str, object]], accounts: set[str]) -> b
                         del inbound_counterparties[counterparty]
                 if timestamp == last_inbound_ts:
                     last_inbound_ts = _latest_inbound_timestamp(account_rows, left + 1, right, account_id, inbound_types)
+    return False
+
+
+def has_dormant_reactivation_abuse(rows: list[dict[str, object]], accounts: set[str]) -> bool:
+    reactivation_types = set(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["reactivation_txn_types"])
+    inbound_types = set(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["inbound_txn_types"])
+    outbound_types = set(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["outbound_txn_types"])
+    min_credit = float(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["min_first_credit_kes"])
+    min_exit_ratio = float(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["min_exit_ratio"])
+    min_outflows = int(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["min_outflow_count"])
+    min_counterparties = int(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["min_outbound_counterparties"])
+    window = timedelta(days=int(DORMANT_REACTIVATION_ABUSE_RULE_CONFIG["window_days_after_reactivation"]))
+    reactivation_times = [
+        datetime.fromisoformat(str(row["timestamp"]))
+        for row in rows
+        if str(row.get("txn_type") or "") in reactivation_types and str(row.get("account_id_cr") or "") in accounts
+    ]
+    for reactivation_ts in reactivation_times:
+        window_end = reactivation_ts + window
+        for inbound in rows:
+            inbound_ts = datetime.fromisoformat(str(inbound["timestamp"]))
+            inbound_amount = float(inbound.get("amount_kes") or 0)
+            if inbound_ts <= reactivation_ts or inbound_ts > window_end:
+                continue
+            if inbound_amount < min_credit or str(inbound.get("txn_type") or "") not in inbound_types or str(inbound.get("account_id_cr") or "") not in accounts:
+                continue
+            outbound_value = 0.0
+            outbound_count = 0
+            counterparties: set[str] = set()
+            for outbound in rows:
+                outbound_ts = datetime.fromisoformat(str(outbound["timestamp"]))
+                if outbound_ts <= inbound_ts or outbound_ts > window_end:
+                    continue
+                if str(outbound.get("txn_type") or "") not in outbound_types or str(outbound.get("account_id_dr") or "") not in accounts:
+                    continue
+                outbound_value += float(outbound.get("amount_kes") or 0)
+                outbound_count += 1
+                if outbound.get("counterparty_id_hash"):
+                    counterparties.add(str(outbound["counterparty_id_hash"]))
+            if outbound_count >= min_outflows and outbound_value / inbound_amount >= min_exit_ratio and len(counterparties) >= min_counterparties:
+                return True
+    return False
+
+
+def has_remittance_layering(rows: list[dict[str, object]], accounts: set[str]) -> bool:
+    inbound_types = set(REMITTANCE_LAYERING_RULE_CONFIG["inbound_txn_types"])
+    inbound_rails = set(REMITTANCE_LAYERING_RULE_CONFIG["inbound_rails"])
+    outbound_types = set(REMITTANCE_LAYERING_RULE_CONFIG["outbound_txn_types"])
+    window = timedelta(hours=int(REMITTANCE_LAYERING_RULE_CONFIG["window_hours"]))
+    min_inbound = float(REMITTANCE_LAYERING_RULE_CONFIG["min_inbound_kes"])
+    min_exit_ratio = float(REMITTANCE_LAYERING_RULE_CONFIG["min_exit_ratio"])
+    min_outflows = int(REMITTANCE_LAYERING_RULE_CONFIG["min_outflow_count"])
+    min_counterparties = int(REMITTANCE_LAYERING_RULE_CONFIG["min_outbound_counterparties"])
+    for inbound in rows:
+        inbound_amount = float(inbound.get("amount_kes") or 0)
+        if inbound_amount < min_inbound:
+            continue
+        if str(inbound.get("txn_type") or "") not in inbound_types or str(inbound.get("rail") or "") not in inbound_rails:
+            continue
+        if str(inbound.get("account_id_cr") or "") not in accounts:
+            continue
+        inbound_ts = datetime.fromisoformat(str(inbound["timestamp"]))
+        cutoff = inbound_ts + window
+        outbound_value = 0.0
+        outbound_count = 0
+        counterparties: set[str] = set()
+        for outbound in rows:
+            outbound_ts = datetime.fromisoformat(str(outbound["timestamp"]))
+            if outbound_ts <= inbound_ts or outbound_ts > cutoff:
+                continue
+            if str(outbound.get("txn_type") or "") not in outbound_types or str(outbound.get("account_id_dr") or "") not in accounts:
+                continue
+            outbound_value += float(outbound.get("amount_kes") or 0)
+            outbound_count += 1
+            if outbound.get("counterparty_id_hash"):
+                counterparties.add(str(outbound["counterparty_id_hash"]))
+        if outbound_count >= min_outflows and outbound_value / inbound_amount >= min_exit_ratio and len(counterparties) >= min_counterparties:
+            return True
+    return False
+
+
+def has_church_charity_misuse(rows: list[dict[str, object]], accounts: set[str]) -> bool:
+    inbound_types = set(CHURCH_CHARITY_MISUSE_RULE_CONFIG["inbound_txn_types"])
+    outbound_types = set(CHURCH_CHARITY_MISUSE_RULE_CONFIG["outbound_txn_types"])
+    window = timedelta(hours=int(CHURCH_CHARITY_MISUSE_RULE_CONFIG["window_hours"]))
+    min_inbound = float(CHURCH_CHARITY_MISUSE_RULE_CONFIG["min_inbound_kes"])
+    min_exit_ratio = float(CHURCH_CHARITY_MISUSE_RULE_CONFIG["min_exit_ratio"])
+    min_outflows = int(CHURCH_CHARITY_MISUSE_RULE_CONFIG["min_outflow_count"])
+    min_counterparties = int(CHURCH_CHARITY_MISUSE_RULE_CONFIG["min_outbound_counterparties"])
+    for inbound in rows:
+        inbound_amount = float(inbound.get("amount_kes") or 0)
+        if inbound_amount < min_inbound:
+            continue
+        if str(inbound.get("txn_type") or "") not in inbound_types or str(inbound.get("account_id_cr") or "") not in accounts:
+            continue
+        inbound_ts = datetime.fromisoformat(str(inbound["timestamp"]))
+        cutoff = inbound_ts + window
+        outbound_value = 0.0
+        outbound_count = 0
+        counterparties: set[str] = set()
+        for outbound in rows:
+            outbound_ts = datetime.fromisoformat(str(outbound["timestamp"]))
+            if outbound_ts <= inbound_ts or outbound_ts > cutoff:
+                continue
+            if str(outbound.get("txn_type") or "") not in outbound_types or str(outbound.get("account_id_dr") or "") not in accounts:
+                continue
+            outbound_value += float(outbound.get("amount_kes") or 0)
+            outbound_count += 1
+            if outbound.get("counterparty_id_hash"):
+                counterparties.add(str(outbound["counterparty_id_hash"]))
+        if outbound_count >= min_outflows and outbound_value / inbound_amount >= min_exit_ratio and len(counterparties) >= min_counterparties:
+            return True
     return False
 
 
@@ -521,9 +704,15 @@ __all__ = [
     "fake_affordability_candidates",
     "guarantor_fraud_ring_candidates",
     "device_sharing_mule_candidates",
+    "dormant_reactivation_abuse_candidates",
     "has_wallet_funneling",
+    "has_church_charity_misuse",
+    "has_dormant_reactivation_abuse",
+    "has_remittance_layering",
     "rapid_pass_through_candidates",
+    "remittance_layering_candidates",
     "rule_section",
+    "church_charity_misuse_candidates",
     "structuring_candidates",
     "wallet_funneling_candidates",
 ]

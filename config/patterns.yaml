@@ -12,6 +12,15 @@ patterns:
     DIASPORA_SUPPORT_HOUSEHOLD:
       enabled: true
       monthly_probability: 0.65
+    MICRO_TRADER_DAILY_SETTLEMENT:
+      enabled: true
+      monthly_probability: 0.95
+    CHAMA_GROUP_COLLECTIONS:
+      enabled: true
+      monthly_probability: 0.90
+    DORMANT_REACTIVATION_NORMAL:
+      enabled: true
+      annual_probability: 0.18
     LOAN_LIFECYCLE_NORMAL:
       enabled: true
   suspicious:
@@ -22,4 +31,14 @@ patterns:
     FAKE_AFFORDABILITY_BEFORE_LOAN:
       enabled: true
     DEVICE_SHARING_MULE_NETWORK:
+      enabled: true
+    GUARANTOR_FRAUD_RING:
+      enabled: true
+    WALLET_FUNNELING:
+      enabled: true
+    DORMANT_REACTIVATION_ABUSE:
+      enabled: true
+    REMITTANCE_LAYERING:
+      enabled: true
+    CHURCH_CHARITY_MISUSE:
       enabled: true

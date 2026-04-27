@@ -9,6 +9,10 @@ from kenya_sacco_sim.core.id_factory import IdFactory
 from kenya_sacco_sim.generators.repayment_schedule import missed_payment_count, scheduled_repayment_count
 
 
+FORMAL_PAYROLL_PERSONAS = {"SALARIED_TEACHER", "COUNTY_WORKER", "UNIFORMED_OFFICER", "PRIVATE_SECTOR_EMPLOYEE", "SACCO_STAFF"}
+ZERO_AMOUNT_OPERATIONAL_TXN_TYPES = {"KYC_REFRESH", "ACCOUNT_REACTIVATION"}
+
+
 def generate_transactions(config: WorldConfig, members: list[dict[str, object]], accounts: list[dict[str, object]], world=None, loans: list[dict[str, object]] | None = None) -> list[dict[str, object]]:
     rng = random.Random(config.seed + 303)
     ids = IdFactory()
@@ -39,8 +43,10 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
         branch_id: object | None = None,
     ) -> None:
         amount = _realistic_amount(round(float(amount), 2), txn_type, rail, rng)
-        if amount <= 0:
+        if amount <= 0 and txn_type not in ZERO_AMOUNT_OPERATIONAL_TXN_TYPES:
             return
+        if txn_type in ZERO_AMOUNT_OPERATIONAL_TXN_TYPES:
+            amount = 0.0
         timestamp = _bounded_timestamp(timestamp, start_dt, end_dt)
         debit_account = _select_external_account(debit_account, source_accounts, txn_type, member, "dr", external_account_cache)
         credit_account = _select_external_account(credit_account, sink_accounts, txn_type, member, "cr", external_account_cache)
@@ -90,16 +96,25 @@ def generate_transactions(config: WorldConfig, members: list[dict[str, object]],
 
         persona = str(member["persona_type"])
         monthly_income = float(member["declared_monthly_income_kes"])
-        if persona in {"SALARIED_TEACHER", "COUNTY_WORKER"} and bosa:
+        if bool(member.get("dormant_flag")):
+            if rng.random() < 0.12:
+                _legitimate_dormant_reactivation(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit, member_accounts)
+            continue
+
+        if persona in FORMAL_PAYROLL_PERSONAS and bosa:
             _salary_checkoff_wallet_spend(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "SME_OWNER":
             _sme_receipts_monday_deposit(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
+        elif persona == "MICRO_TRADER":
+            _micro_trader_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "DIASPORA_SUPPORTED":
             _diaspora_support_household(config, rng, member, fosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "BODA_BODA_OPERATOR":
             _boda_cash_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "FARMER_SEASONAL":
             _farmer_cash_cycle(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
+        elif persona == "CHAMA_GROUP":
+            _chama_group_collections(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
         elif persona == "CHURCH_ORG":
             _church_org_collections(config, rng, member, fosa, bosa, wallet, source_account, sink_account, monthly_income, emit)
 
@@ -192,6 +207,41 @@ def _sme_receipts_monday_deposit(
         if wallet and rng.random() < 0.55:
             cashout = round(inflow_total * rng.uniform(0.08, 0.18), 2)
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(24, 28)), 16, 0), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", cashout, "MPESA", "WALLET_USER")
+
+
+def _micro_trader_cycle(
+    config: WorldConfig,
+    rng: random.Random,
+    member: dict[str, object],
+    fosa: dict[str, object],
+    bosa: dict[str, object] | None,
+    wallet: dict[str, object] | None,
+    source: dict[str, object],
+    sink: dict[str, object],
+    monthly_income: float,
+    emit,
+) -> None:
+    for month in range(1, config.months + 1):
+        inflow_count = rng.randint(5, 9)
+        inflow_total = 0.0
+        for index in range(inflow_count):
+            day = min(_last_day(2024, month), 2 + index * 3 + rng.randint(0, 2))
+            amount = round(monthly_income * rng.uniform(0.035, 0.085), 2)
+            inflow_total += amount
+            rail = rng.choices(["MPESA", "CASH_AGENT", "CASH_BRANCH", "AIRTEL_MONEY"], weights=[0.58, 0.26, 0.10, 0.06], k=1)[0]
+            channel = "PAYBILL" if rail in {"MPESA", "AIRTEL_MONEY"} else "AGENT" if rail == "CASH_AGENT" else "BRANCH"
+            txn_type = "BUSINESS_SETTLEMENT_IN" if rail in {"MPESA", "AIRTEL_MONEY"} else "FOSA_CASH_DEPOSIT"
+            provider = "MPESA" if rail == "MPESA" else "AIRTEL" if rail == "AIRTEL_MONEY" else "SACCO_CORE"
+            emit(datetime(2024, month, day, rng.randint(8, 20), rng.choice([0, 10, 20, 30, 40, 50])), source, fosa, member, txn_type, rail, channel, amount, provider, "CUSTOMER", fosa.get("branch_id"))
+
+        supplier = round(inflow_total * rng.uniform(0.28, 0.48), 2)
+        emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(22, 28)), rng.randint(10, 18), 0), fosa, sink, member, "SUPPLIER_PAYMENT_OUT", rng.choice(["MPESA", "PESALINK"]), rng.choice(["PAYBILL", "BANK_TRANSFER"]), supplier, "BANK_PARTNER", "MERCHANT")
+        if wallet and rng.random() < 0.65:
+            topup = round(inflow_total * rng.uniform(0.08, 0.20), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(23, 28)), 16, 30), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
+        if bosa and rng.random() < 0.22:
+            topup = round(inflow_total * rng.uniform(0.03, 0.07), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(24, 28)), 9, 45), fosa, bosa, member, "BOSA_DEP_TOPUP", "SACCO_INTERNAL", "MOBILE_APP", topup, "SACCO_CORE", "SACCO")
 
 
 def _diaspora_support_household(
@@ -311,6 +361,42 @@ def _farmer_cash_cycle(
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(22, 28)), 16, 30), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
 
 
+def _chama_group_collections(
+    config: WorldConfig,
+    rng: random.Random,
+    member: dict[str, object],
+    fosa: dict[str, object],
+    bosa: dict[str, object] | None,
+    wallet: dict[str, object] | None,
+    source: dict[str, object],
+    sink: dict[str, object],
+    monthly_income: float,
+    emit,
+) -> None:
+    for month in range(1, config.months + 1):
+        collection_count = rng.randint(3, 6)
+        collected = 0.0
+        for index in range(collection_count):
+            day = min(_last_day(2024, month), 4 + index * 5 + rng.randint(0, 2))
+            amount = round(monthly_income * rng.uniform(0.035, 0.08), 2)
+            collected += amount
+            rail = rng.choices(["MPESA", "CASH_AGENT", "PESALINK"], weights=[0.68, 0.20, 0.12], k=1)[0]
+            channel = "PAYBILL" if rail == "MPESA" else "AGENT" if rail == "CASH_AGENT" else "BANK_TRANSFER"
+            txn_type = "MPESA_PAYBILL_IN" if rail == "MPESA" else "FOSA_CASH_DEPOSIT" if rail == "CASH_AGENT" else "PESALINK_IN"
+            provider = "MPESA" if rail == "MPESA" else "SACCO_CORE" if rail == "CASH_AGENT" else "BANK_PARTNER"
+            emit(datetime(2024, month, day, rng.randint(8, 19), rng.choice([0, 15, 30, 45])), source, fosa, member, txn_type, rail, channel, amount, provider, "MEMBER", fosa.get("branch_id"))
+        if collected <= 0:
+            continue
+        payout = round(collected * rng.uniform(0.20, 0.42), 2)
+        emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(23, 28)), 12, 0), fosa, sink, member, "PESALINK_OUT", "PESALINK", "BANK_TRANSFER", payout, "BANK_PARTNER", "MEMBER", fosa.get("branch_id"))
+        if bosa and rng.random() < 0.35:
+            reserve = round(collected * rng.uniform(0.06, 0.12), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(25, 28)), 10, 30), fosa, bosa, member, "BOSA_DEP_TOPUP", "SACCO_INTERNAL", "MOBILE_APP", reserve, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+        if wallet and rng.random() < 0.24:
+            petty = round(collected * rng.uniform(0.04, 0.10), 2)
+            emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(24, 28)), 17, 0), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", petty, "MPESA", "WALLET_USER")
+
+
 def _church_org_collections(
     config: WorldConfig,
     rng: random.Random,
@@ -402,6 +488,41 @@ def _church_org_collections(
         if wallet and rng.random() < 0.18:
             petty_cash = round(monthly_collections * rng.uniform(0.04, 0.08), 2)
             emit(datetime(2024, month, min(_last_day(2024, month), rng.randint(21, 27)), 16, 0), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", petty_cash, "MPESA", "WALLET_USER")
+
+
+def _legitimate_dormant_reactivation(
+    config: WorldConfig,
+    rng: random.Random,
+    member: dict[str, object],
+    fosa: dict[str, object],
+    bosa: dict[str, object] | None,
+    wallet: dict[str, object] | None,
+    source: dict[str, object],
+    sink: dict[str, object],
+    monthly_income: float,
+    emit,
+    member_accounts: list[dict[str, object]],
+) -> None:
+    reactivation_month = rng.randint(2, 10)
+    reactivation_day = rng.randint(3, 18)
+    base_ts = datetime(2024, reactivation_month, reactivation_day, rng.randint(9, 15), rng.choice([0, 15, 30, 45]))
+    for account in member_accounts:
+        if account.get("status") == "DORMANT":
+            account["status"] = "ACTIVE"
+    emit(base_ts, source, fosa, member, "KYC_REFRESH", "SACCO_INTERNAL", "SYSTEM", 0.0, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+    emit(base_ts + timedelta(minutes=10), source, fosa, member, "ACCOUNT_REACTIVATION", "SACCO_INTERNAL", "SYSTEM", 0.0, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+    inflow = round(monthly_income * rng.uniform(0.35, 0.90), 2)
+    rail = rng.choice(["CASH_BRANCH", "CASH_AGENT"])
+    deposit_ts = base_ts + timedelta(days=rng.randint(2, 6))
+    emit(deposit_ts, source, fosa, member, "FOSA_CASH_DEPOSIT", rail, "AGENT" if rail == "CASH_AGENT" else "BRANCH", inflow, "SACCO_CORE", "CUSTOMER", fosa.get("branch_id"))
+    if wallet and rng.random() < 0.45:
+        topup = round(inflow * rng.uniform(0.12, 0.28), 2)
+        emit(deposit_ts + timedelta(days=rng.randint(1, 4)), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", topup, "MPESA", "WALLET_USER")
+    if bosa and rng.random() < 0.30:
+        reserve = round(inflow * rng.uniform(0.04, 0.10), 2)
+        emit(deposit_ts + timedelta(days=rng.randint(2, 7)), fosa, bosa, member, "BOSA_DEP_TOPUP", "SACCO_INTERNAL", "BRANCH", reserve, "SACCO_CORE", "SACCO", fosa.get("branch_id"))
+    small_spend = round(inflow * rng.uniform(0.10, 0.22), 2)
+    emit(deposit_ts + timedelta(days=rng.randint(6, 15)), fosa, sink, member, "HOUSEHOLD_SPEND_OUT", "SACCO_INTERNAL", "MOBILE_APP", small_spend, "SACCO_CORE", "MERCHANT")
 
 
 def _loan_lifecycle_transactions(

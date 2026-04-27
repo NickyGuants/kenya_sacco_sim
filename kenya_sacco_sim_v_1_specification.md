@@ -14,9 +14,9 @@ Add graph/device behavioral ambiguity before adding more typologies.
 Ship every typology with a rule, near-misses, candidate IDs, split coverage, and validation.
 ```
 
-The first v1 typology is `DEVICE_SHARING_MULE_NETWORK`.
-The current v1 benchmark also includes `GUARANTOR_FRAUD_RING` and
-`WALLET_FUNNELING`.
+The current v1 benchmark expands the financial world before further scaling:
+12 personas, corrected dormant lifecycle semantics, and nine active suspicious
+typologies with rule configs, near-misses, candidate IDs, and validation.
 
 ---
 
@@ -70,10 +70,10 @@ Rules:
 The benchmark-grade run target is:
 
 ```yaml
-members: 10000
+members: 100000
 months: 12
 institutions: 5
-suspicious_member_ratio: 0.01
+suspicious_member_ratio: 0.015
 active_typologies:
   - STRUCTURING
   - RAPID_PASS_THROUGH
@@ -81,6 +81,9 @@ active_typologies:
   - DEVICE_SHARING_MULE_NETWORK
   - GUARANTOR_FRAUD_RING
   - WALLET_FUNNELING
+  - DORMANT_REACTIVATION_ABUSE
+  - REMITTANCE_LAYERING
+  - CHURCH_CHARITY_MISUSE
 ```
 
 A benchmark-grade run must satisfy:
@@ -95,7 +98,9 @@ patterns per split >= 5 for each active typology
 labeled transactions per typology split >= 10
 ```
 
-Smaller runs are smoke tests only.
+Smaller runs are smoke tests only. The 100k release-scale generation path uses
+`--skip-ml-baseline`; model artifacts should be generated downstream from the
+exported package when needed.
 
 ---
 
@@ -311,6 +316,78 @@ Injection contract:
 6. Normal chama, welfare, project, and low-fanout collection near-misses must remain unlabeled.
 ```
 
+### 4.7 DORMANT_REACTIVATION_ABUSE
+
+Purpose:
+
+```text
+Detect dormant accounts that are reactivated and immediately used for large
+first-credit velocity and multi-counterparty fanout.
+```
+
+Dormant semantics:
+
+```text
+dormant_flag=True means dormant at simulation start.
+Non-reactivated dormant members receive no routine monthly normal transactions.
+Any reactivated dormant member must have KYC_REFRESH and ACCOUNT_REACTIVATION before later activity.
+```
+
+Rule contract:
+
+```text
+KYC_REFRESH and ACCOUNT_REACTIVATION observed
+large first credit >= KES 120,000 after reactivation
+window = 7 days after reactivation
+outbound value / first credit >= 0.70
+outflow count >= 2
+outbound counterparties >= 2
+```
+
+### 4.8 REMITTANCE_LAYERING
+
+Purpose:
+
+```text
+Detect remittance inbound followed by rapid redistribution across wallet, bank,
+cash, or supplier counterparties.
+```
+
+Rule contract:
+
+```text
+inbound rail = REMITTANCE
+inbound txn type = PESALINK_IN
+inbound amount >= KES 140,000
+window = 72 hours
+outbound value / inbound value >= 0.68
+outflow count >= 3
+outbound counterparties >= 3
+```
+
+### 4.9 CHURCH_CHARITY_MISUSE
+
+Purpose:
+
+```text
+Detect church/org or chama accounts receiving abnormal donor inflows and
+dispersing funds to unrelated merchants or individuals outside normal Sunday
+collection and project-payment rhythm.
+```
+
+Rule contract:
+
+```text
+candidate personas:
+  CHURCH_ORG
+  CHAMA_GROUP
+inbound amount >= KES 180,000
+window = 96 hours
+outbound value / inbound value >= 0.55
+outflow count >= 3
+outbound counterparties >= 3
+```
+
 ---
 
 ## 5. Normal Near-Misses
@@ -332,6 +409,9 @@ legitimate_two_member_reciprocal_guarantee
 trusted_guarantor_star
 legitimate_chama_wallet_collection
 near_wallet_funnel_low_fanout
+legitimate_dormant_reactivation_low_velocity
+legitimate_remittance_family_distribution
+legitimate_church_project_disbursement
 ```
 
 `legitimate_chama_wallet_collection` is intentional false-positive pressure for
@@ -459,6 +539,7 @@ Rules:
 9. Rule-vs-ML comparison is descriptive and must not be framed as ML superiority evidence without ablation and confounder support.
 10. Multi-seed results must summarize full-feature ML F1, ablated ML F1, ablation F1 drops, and confounder diagnostic flags.
 11. Dataset card must summarize near-miss and negative-control coverage.
+12. 100k generation should use `--skip-ml-baseline` and keep ML artifacts downstream.
 ```
 
 Blocked ML input fields:
@@ -527,6 +608,24 @@ device_validation
 near_miss_validation
 ```
 
+Dormant lifecycle validation must report:
+
+```text
+dormant_member_share
+active_dormant_member_share
+dormant_transactions_without_reactivation_count
+high_throughput_unlabeled_dormant_member_count
+```
+
+Hard dormant rules:
+
+```text
+dormant_member_share must stay within 0.05-0.15 for benchmark runs
+active_dormant_member_share <= 0.25
+dormant_transactions_without_reactivation_count = 0
+high_throughput_unlabeled_dormant_member_count = 0
+```
+
 Hard errors:
 
 ```text
@@ -577,12 +676,12 @@ distribution stability reported for cash, devices, loan activity, arrears, and d
 
 ---
 
-## 11. Latest Verified v1 Gate
+## 11. Current v1 Release Gate
 
-Latest verified generated package:
+Current generated package target:
 
 ```text
-datasets/KENYA_SACCO_SIM_v1_10k
+datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 Latest verified multi-seed package:
@@ -591,36 +690,17 @@ Latest verified multi-seed package:
 benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
-Current accepted metrics:
+Current acceptance metrics:
 
 ```text
-validation errors: 0
-validation warnings: 0
-digital device coverage: 100%
-max members per device: 3
-near-miss families: 12
-near-miss members: 211
-near-miss transactions: 858
-near-miss guarantees: 16
-DEVICE_SHARING_MULE_NETWORK precision: 1.0000
-DEVICE_SHARING_MULE_NETWORK recall: 1.0000
-GUARANTOR_FRAUD_RING precision: 1.0000
-GUARANTOR_FRAUD_RING recall: 1.0000
-WALLET_FUNNELING precision: 0.5833
-WALLET_FUNNELING recall: 0.9333
-FAKE_AFFORDABILITY precision: 0.1974
-RAPID_PASS_THROUGH precision: 0.4615
-STRUCTURING precision: 0.3571
-evaluation validity: valid
-multi-seed precision/recall variance: within threshold
-single 10k package wall clock: 44.4s
-five-seed 10k benchmark wall clock: 89.0s with --jobs 4
-50k core generation wall clock: 230.6s
-50k core generated CSV rows: 5,027,944
-100k benchmark-no-ML wall clock: 732.7s
-100k benchmark-no-ML generated CSV rows: 10,050,945
-100k benchmark-no-ML validation errors: 0
-100k benchmark-no-ML validation warnings: 0
+validation target: 0 errors / 0 warnings
+members: 100,000
+suspicious ratio: 0.015
+active typologies: 9
+personas: 12
+ML baseline during generation: skipped
+transactions: 5,305,344
+total CSV rows: 10,196,191
 ```
 
 The benchmark runner caps parallel seed workers by CPU count and estimated
@@ -635,34 +715,11 @@ intentionally decoupled.
 
 ## 12. Next Implementation Slice
 
-Latest implementation slice:
+After the current 100k package, the next slice is benchmark stability and
+release hygiene, not immediate typology expansion:
 
 ```text
-WALLET_FUNNELING
-```
-
-Why:
-
-```text
-MPESA, paybill, and counterparty structure already exist.
-The behavior is Kenyan-specific and SACCO-relevant.
-It extends rapid-pass-through into multi-counterparty wallet fan-in behavior.
-```
-
-Acceptance requirements for the next typology:
-
-```text
-1. Add executable rule config.
-2. Add injector with normal blending.
-3. Add normal near-misses.
-4. Export candidate IDs, false positives, and false negatives.
-5. Add validation section.
-6. Add ML features only if they are non-leaky.
-7. Update README, docs, dataset card, known limitations, and this spec in the same implementation slice.
-```
-
-Next candidate after this slice:
-
-```text
-CHURCH_CHARITY_MISUSE
+1. Keep tracked benchmark summaries synchronized with the latest 100k package.
+2. Continue targeted leakage/confounder audits against the nine-typology mix.
+3. Only then consider additional v1 typologies or larger scale.
 ```

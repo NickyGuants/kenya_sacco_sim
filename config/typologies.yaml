@@ -1,18 +1,18 @@
 typologies:
   STRUCTURING:
-    candidate_personas: [SME_OWNER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED]
+    candidate_personas: [SME_OWNER, MICRO_TRADER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED, CHAMA_GROUP]
     deposit_count_7d: [5, 12]
     amount_each_kes: [70000, 99000]
     window_days: [2, 7]
     rails: [CASH_BRANCH, CASH_AGENT, MPESA]
   RAPID_PASS_THROUGH:
-    candidate_personas: [DIASPORA_SUPPORTED, SME_OWNER, CHURCH_ORG]
+    candidate_personas: [DIASPORA_SUPPORTED, SME_OWNER, MICRO_TRADER, CHURCH_ORG, CHAMA_GROUP]
     inflow_amount_kes: [100000, 750000]
     exit_ratio: [0.75, 0.98]
     exit_delay_hours: [1, 48]
     outflow_count: [2, 8]
   FAKE_AFFORDABILITY_BEFORE_LOAN:
-    candidate_personas: [SME_OWNER, DIASPORA_SUPPORTED, COUNTY_WORKER, SALARIED_TEACHER]
+    candidate_personas: [SME_OWNER, MICRO_TRADER, DIASPORA_SUPPORTED, COUNTY_WORKER, SALARIED_TEACHER, PRIVATE_SECTOR_EMPLOYEE, FARMER_SEASONAL]
     lookback_days: 30
     min_external_credit_share: 0.55
     min_balance_growth_kes: 50000
@@ -20,7 +20,7 @@ typologies:
     credit_amount_kes: [25000, 150000]
     eligible_loan_products: [DEVELOPMENT_LOAN, SCHOOL_FEES_LOAN, BIASHARA_LOAN]
   DEVICE_SHARING_MULE_NETWORK:
-    candidate_personas: [SME_OWNER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED, CHURCH_ORG]
+    candidate_personas: [SME_OWNER, MICRO_TRADER, BODA_BODA_OPERATOR, DIASPORA_SUPPORTED, CHURCH_ORG, CHAMA_GROUP]
     group_size: [3, 5]
     window_days: 30
     min_members_per_device: 3
@@ -28,7 +28,7 @@ typologies:
     outbound_share: [0.48, 0.68]
     rails: [MPESA, PESALINK]
   GUARANTOR_FRAUD_RING:
-    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, SME_OWNER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR]
+    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, UNIFORMED_OFFICER, PRIVATE_SECTOR_EMPLOYEE, SME_OWNER, MICRO_TRADER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR]
     group_size: [3, 5]
     min_members_per_ring: 3
     max_members_per_ring: 6
@@ -36,7 +36,7 @@ typologies:
     guaranteed_products: [DEVELOPMENT_LOAN, BIASHARA_LOAN, ASSET_FINANCE]
     near_miss_families: [legitimate_two_member_reciprocal_guarantee, trusted_guarantor_star]
   WALLET_FUNNELING:
-    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, SME_OWNER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR, CHURCH_ORG]
+    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, PRIVATE_SECTOR_EMPLOYEE, SME_OWNER, MICRO_TRADER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR, CHURCH_ORG, CHAMA_GROUP]
     fan_in_count: [6, 10]
     fan_in_counterparties: [5, 10]
     fan_in_amount_kes: [55000, 115000]
@@ -46,3 +46,24 @@ typologies:
     outbound_count: [2, 5]
     rails: [MPESA, AIRTEL_MONEY, PESALINK]
     near_miss_families: [legitimate_chama_wallet_collection, near_wallet_funnel_low_fanout]
+  DORMANT_REACTIVATION_ABUSE:
+    candidate_personas: [SME_OWNER, MICRO_TRADER, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR, CHAMA_GROUP]
+    first_credit_kes: [120000, 550000]
+    velocity_days: 7
+    outflow_count: [2, 5]
+    outbound_share: [0.72, 0.94]
+    near_miss_families: [legitimate_dormant_reactivation]
+  REMITTANCE_LAYERING:
+    candidate_personas: [SALARIED_TEACHER, COUNTY_WORKER, UNIFORMED_OFFICER, PRIVATE_SECTOR_EMPLOYEE, SME_OWNER, MICRO_TRADER, FARMER_SEASONAL, DIASPORA_SUPPORTED, BODA_BODA_OPERATOR, CHAMA_GROUP, CHURCH_ORG, SACCO_STAFF]
+    remittance_amount_kes: [140000, 800000]
+    fanout_count: [3, 7]
+    fanout_hours: [6, 72]
+    outbound_share: [0.68, 0.92]
+    near_miss_families: [legitimate_family_remittance]
+  CHURCH_CHARITY_MISUSE:
+    candidate_personas: [CHURCH_ORG, CHAMA_GROUP]
+    donor_amount_kes: [180000, 900000]
+    dispersion_count: [3, 8]
+    dispersion_hours: [12, 96]
+    outbound_share: [0.55, 0.88]
+    near_miss_families: [legitimate_charity_disbursement]

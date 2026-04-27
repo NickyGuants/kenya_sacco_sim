@@ -22,20 +22,21 @@ def generate_accounts(config: WorldConfig, members: list[dict[str, object]], wor
         join_date = str(member["join_date"])
         persona = str(member["persona_type"])
         is_org = member["member_type"] == "ORGANIZATION"
+        account_status = "DORMANT" if bool(member.get("dormant_flag")) else "ACTIVE"
 
         if not is_org:
-            accounts.append(_account(ids, member_id, institution_id, "BOSA_DEPOSIT", "BOSA_STANDARD", join_date, branch["branch_id"], rng.randint(5_000, 75_000), config.currency))
+            accounts.append(_account(ids, member_id, institution_id, "BOSA_DEPOSIT", "BOSA_STANDARD", join_date, branch["branch_id"], rng.randint(5_000, 75_000), config.currency, account_status))
             fosa_type = rng.choice(["FOSA_SAVINGS", "FOSA_CURRENT"])
             fosa_product = "FOSA_SAVINGS_STANDARD" if fosa_type == "FOSA_SAVINGS" else "FOSA_CURRENT_STANDARD"
-            accounts.append(_account(ids, member_id, institution_id, fosa_type, fosa_product, join_date, branch["branch_id"], rng.randint(1_000, 35_000), config.currency))
-            accounts.append(_account(ids, member_id, institution_id, "SHARE_CAPITAL", "SHARE_CAPITAL_STANDARD", join_date, branch["branch_id"], rng.randint(1_000, 20_000), config.currency))
+            accounts.append(_account(ids, member_id, institution_id, fosa_type, fosa_product, join_date, branch["branch_id"], rng.randint(1_000, 35_000), config.currency, account_status))
+            accounts.append(_account(ids, member_id, institution_id, "SHARE_CAPITAL", "SHARE_CAPITAL_STANDARD", join_date, branch["branch_id"], rng.randint(1_000, 20_000), config.currency, account_status))
         else:
-            accounts.append(_account(ids, member_id, institution_id, "FOSA_CURRENT", "FOSA_CURRENT_STANDARD", join_date, branch["branch_id"], rng.randint(10_000, 120_000), config.currency))
+            accounts.append(_account(ids, member_id, institution_id, "FOSA_CURRENT", "FOSA_CURRENT_STANDARD", join_date, branch["branch_id"], rng.randint(10_000, 120_000), config.currency, account_status))
             if rng.random() < 0.65:
-                accounts.append(_account(ids, member_id, institution_id, "BOSA_DEPOSIT", "BOSA_STANDARD", join_date, branch["branch_id"], rng.randint(5_000, 60_000), config.currency))
+                accounts.append(_account(ids, member_id, institution_id, "BOSA_DEPOSIT", "BOSA_STANDARD", join_date, branch["branch_id"], rng.randint(5_000, 60_000), config.currency, account_status))
 
         if rng.random() < float(persona_config(config)[persona]["wallet"]):
-            accounts.append(_account(ids, member_id, institution_id, "MPESA_WALLET", "MPESA_WALLET", join_date, None, rng.randint(0, 15_000), config.currency))
+            accounts.append(_account(ids, member_id, institution_id, "MPESA_WALLET", "MPESA_WALLET", join_date, None, rng.randint(0, 15_000), config.currency, account_status))
 
     accounts.extend(_external_accounts(ids, config))
     return accounts
@@ -51,6 +52,7 @@ def _account(
     branch_id: object | None,
     balance: int,
     currency: str,
+    status: str = "ACTIVE",
 ) -> dict[str, object]:
     account_id = ids.next("ACCT")
     return {
@@ -61,7 +63,7 @@ def _account(
         "account_type": account_type,
         "product_code": product_code,
         "open_date": open_date,
-        "status": "ACTIVE",
+        "status": status,
         "linked_wallet_id": account_id if account_type.endswith("_WALLET") else None,
         "branch_id": branch_id,
         "currency": currency,

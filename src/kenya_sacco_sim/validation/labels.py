@@ -100,6 +100,9 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "device_sharing_mule_network_pattern_count": typology_counts["DEVICE_SHARING_MULE_NETWORK"],
         "guarantor_fraud_ring_pattern_count": typology_counts["GUARANTOR_FRAUD_RING"],
         "wallet_funneling_pattern_count": typology_counts["WALLET_FUNNELING"],
+        "dormant_reactivation_abuse_pattern_count": typology_counts["DORMANT_REACTIVATION_ABUSE"],
+        "remittance_layering_pattern_count": typology_counts["REMITTANCE_LAYERING"],
+        "church_charity_misuse_pattern_count": typology_counts["CHURCH_CHARITY_MISUSE"],
         "rule_configs": RULE_CONFIGS,
     }
     label_section = {

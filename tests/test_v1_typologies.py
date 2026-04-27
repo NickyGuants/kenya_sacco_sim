@@ -26,6 +26,9 @@ class V1TypologyTargetTests(unittest.TestCase):
                 "DEVICE_SHARING_MULE_NETWORK": 0,
                 "GUARANTOR_FRAUD_RING": 0,
                 "WALLET_FUNNELING": 0,
+                "DORMANT_REACTIVATION_ABUSE": 0,
+                "REMITTANCE_LAYERING": 0,
+                "CHURCH_CHARITY_MISUSE": 0,
             },
         )
 
@@ -41,12 +44,15 @@ class V1TypologyTargetTests(unittest.TestCase):
         self.assertEqual(sum(counts.values()), 10)
         self.assertGreaterEqual(counts["DEVICE_SHARING_MULE_NETWORK"], 3)
 
-    def test_full_benchmark_allocates_minimum_labels_for_six_typologies(self) -> None:
+    def test_full_benchmark_allocates_minimum_labels_for_active_typologies(self) -> None:
         counts = _target_counts(WorldConfig(member_count=10_000, suspicious_ratio=0.01))
 
-        self.assertEqual(sum(counts.values()), 180)
+        self.assertEqual(sum(counts.values()), 270)
         self.assertEqual(counts["GUARANTOR_FRAUD_RING"], 30)
         self.assertEqual(counts["WALLET_FUNNELING"], 30)
+        self.assertEqual(counts["DORMANT_REACTIVATION_ABUSE"], 30)
+        self.assertEqual(counts["REMITTANCE_LAYERING"], 30)
+        self.assertEqual(counts["CHURCH_CHARITY_MISUSE"], 30)
 
     def test_member_alert_rows_are_backfilled_per_pattern_member_pair(self) -> None:
         alerts = [

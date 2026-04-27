@@ -71,6 +71,39 @@ WALLET_FUNNELING_RULE_CONFIG = {
     "digital_channels": ["MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"],
 }
 
+DORMANT_REACTIVATION_ABUSE_RULE_CONFIG = {
+    "reactivation_txn_types": ["KYC_REFRESH", "ACCOUNT_REACTIVATION"],
+    "inbound_txn_types": ["MPESA_PAYBILL_IN", "PESALINK_IN", "FOSA_CASH_DEPOSIT", "BUSINESS_SETTLEMENT_IN"],
+    "outbound_txn_types": ["PESALINK_OUT", "SUPPLIER_PAYMENT_OUT", "MPESA_WALLET_TOPUP", "FOSA_CASH_WITHDRAWAL"],
+    "window_days_after_reactivation": 7,
+    "min_first_credit_kes": 120_000,
+    "min_exit_ratio": 0.70,
+    "min_outflow_count": 2,
+    "min_outbound_counterparties": 2,
+}
+
+REMITTANCE_LAYERING_RULE_CONFIG = {
+    "inbound_txn_types": ["PESALINK_IN"],
+    "inbound_rails": ["REMITTANCE"],
+    "outbound_txn_types": ["PESALINK_OUT", "SUPPLIER_PAYMENT_OUT", "MPESA_WALLET_TOPUP", "FOSA_CASH_WITHDRAWAL"],
+    "window_hours": 72,
+    "min_inbound_kes": 140_000,
+    "min_exit_ratio": 0.68,
+    "min_outflow_count": 3,
+    "min_outbound_counterparties": 3,
+}
+
+CHURCH_CHARITY_MISUSE_RULE_CONFIG = {
+    "candidate_personas": ["CHURCH_ORG", "CHAMA_GROUP"],
+    "inbound_txn_types": ["PESALINK_IN", "MPESA_PAYBILL_IN", "CHURCH_COLLECTION_IN"],
+    "outbound_txn_types": ["PESALINK_OUT", "SUPPLIER_PAYMENT_OUT"],
+    "window_hours": 96,
+    "min_inbound_kes": 180_000,
+    "min_exit_ratio": 0.55,
+    "min_outflow_count": 3,
+    "min_outbound_counterparties": 3,
+}
+
 RULE_CONFIGS = {
     "STRUCTURING": STRUCTURING_RULE_CONFIG,
     "RAPID_PASS_THROUGH": RAPID_PASS_THROUGH_RULE_CONFIG,
@@ -78,4 +111,7 @@ RULE_CONFIGS = {
     "DEVICE_SHARING_MULE_NETWORK": DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG,
     "GUARANTOR_FRAUD_RING": GUARANTOR_FRAUD_RING_RULE_CONFIG,
     "WALLET_FUNNELING": WALLET_FUNNELING_RULE_CONFIG,
+    "DORMANT_REACTIVATION_ABUSE": DORMANT_REACTIVATION_ABUSE_RULE_CONFIG,
+    "REMITTANCE_LAYERING": REMITTANCE_LAYERING_RULE_CONFIG,
+    "CHURCH_CHARITY_MISUSE": CHURCH_CHARITY_MISUSE_RULE_CONFIG,
 }

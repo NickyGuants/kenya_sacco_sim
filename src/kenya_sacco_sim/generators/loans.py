@@ -46,6 +46,8 @@ def generate_loans_and_guarantors(
         persona = str(member["persona_type"])
         if member["member_type"] != "INDIVIDUAL":
             continue
+        if bool(member.get("dormant_flag")):
+            continue
         if rng.random() > float(persona_config(config)[persona]["loan"]):
             continue
         fosa = _first(member_accounts[str(member["member_id"])], {"FOSA_SAVINGS", "FOSA_CURRENT"})
@@ -161,7 +163,11 @@ def _product_for_persona(rng: random.Random, persona: str) -> str:
     choices = {
         "SALARIED_TEACHER": ["DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "SALARY_ADVANCE"],
         "COUNTY_WORKER": ["DEVELOPMENT_LOAN", "EMERGENCY_LOAN", "SALARY_ADVANCE"],
+        "UNIFORMED_OFFICER": ["DEVELOPMENT_LOAN", "EMERGENCY_LOAN", "SALARY_ADVANCE"],
+        "PRIVATE_SECTOR_EMPLOYEE": ["DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "EMERGENCY_LOAN"],
+        "SACCO_STAFF": ["DEVELOPMENT_LOAN", "EMERGENCY_LOAN", "SALARY_ADVANCE"],
         "SME_OWNER": ["BIASHARA_LOAN", "ASSET_FINANCE", "EMERGENCY_LOAN"],
+        "MICRO_TRADER": ["BIASHARA_LOAN", "EMERGENCY_LOAN", "ASSET_FINANCE"],
         "FARMER_SEASONAL": ["DEVELOPMENT_LOAN", "EMERGENCY_LOAN", "BIASHARA_LOAN"],
         "BODA_BODA_OPERATOR": ["ASSET_FINANCE", "BIASHARA_LOAN", "EMERGENCY_LOAN"],
         "DIASPORA_SUPPORTED": ["SCHOOL_FEES_LOAN", "EMERGENCY_LOAN"],
@@ -204,9 +210,9 @@ def _interest_rate(product_code: str) -> float:
 
 
 def _repayment_mode(persona: str) -> str:
-    if persona in {"SALARIED_TEACHER", "COUNTY_WORKER"}:
+    if persona in {"SALARIED_TEACHER", "COUNTY_WORKER", "UNIFORMED_OFFICER", "PRIVATE_SECTOR_EMPLOYEE", "SACCO_STAFF"}:
         return "PAYROLL_CHECKOFF"
-    if persona in {"SME_OWNER", "DIASPORA_SUPPORTED"}:
+    if persona in {"SME_OWNER", "MICRO_TRADER", "DIASPORA_SUPPORTED"}:
         return "MPESA_PAYBILL"
     return "CASH_BRANCH"
 
@@ -229,7 +235,11 @@ def _arrears_probability(persona: str) -> float:
     return {
         "SALARIED_TEACHER": 0.04,
         "COUNTY_WORKER": 0.05,
+        "UNIFORMED_OFFICER": 0.045,
+        "PRIVATE_SECTOR_EMPLOYEE": 0.055,
+        "SACCO_STAFF": 0.035,
         "SME_OWNER": 0.08,
+        "MICRO_TRADER": 0.10,
         "FARMER_SEASONAL": 0.12,
         "BODA_BODA_OPERATOR": 0.10,
         "DIASPORA_SUPPORTED": 0.05,
@@ -240,7 +250,11 @@ def _default_probability(persona: str) -> float:
     return {
         "SALARIED_TEACHER": 0.01,
         "COUNTY_WORKER": 0.015,
+        "UNIFORMED_OFFICER": 0.012,
+        "PRIVATE_SECTOR_EMPLOYEE": 0.018,
+        "SACCO_STAFF": 0.01,
         "SME_OWNER": 0.025,
+        "MICRO_TRADER": 0.03,
         "FARMER_SEASONAL": 0.04,
         "BODA_BODA_OPERATOR": 0.035,
         "DIASPORA_SUPPORTED": 0.015,

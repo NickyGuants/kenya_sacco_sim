@@ -42,22 +42,26 @@ Together they tell you how the money actually moved.
 
 ## Personas
 
-Every member is one of seven personas. The persona drives income,
+Every member is one of twelve personas. The persona drives income,
 savings cadence, loan appetite, wallet adoption, and where they live:
 
 ```text
 SALARIED_TEACHER
 COUNTY_WORKER
+UNIFORMED_OFFICER
+PRIVATE_SECTOR_EMPLOYEE
 SME_OWNER
+MICRO_TRADER
 FARMER_SEASONAL
 DIASPORA_SUPPORTED
 BODA_BODA_OPERATOR
+CHAMA_GROUP
 CHURCH_ORG
+SACCO_STAFF
 ```
 
-`CHURCH_ORG` is the only `ORGANIZATION` member type — Sunday
-collections, donor receipts, vendor and charity payments. Everyone else
-is an `INDIVIDUAL`.
+`CHURCH_ORG` and `CHAMA_GROUP` are `ORGANIZATION` member types. Everyone else is
+an `INDIVIDUAL`.
 
 ## Institution archetypes
 
@@ -101,6 +105,12 @@ patterns:
   circular or reciprocal guarantor links.
 - `WALLET_FUNNELING` — many wallet or paybill credits fan into one member
   account and then disperse quickly.
+- `DORMANT_REACTIVATION_ABUSE` — a dormant member is reactivated and shows
+  large first-credit velocity.
+- `REMITTANCE_LAYERING` — remittance value is redistributed quickly across
+  several counterparties.
+- `CHURCH_CHARITY_MISUSE` — abnormal donor inflows leave a church/org or chama
+  account outside normal project rhythm.
 
 See [Typologies](typologies.md) for what each looks like in the data
 and what rule the simulator's baseline detector applies.

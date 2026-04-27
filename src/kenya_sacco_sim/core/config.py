@@ -32,13 +32,18 @@ class WorldConfig:
 
 
 PERSONA_CONFIG = {
-    "SALARIED_TEACHER": {"share": 0.22, "income": (45_000, 78_000, 120_000), "wallet": 0.95, "rural": 0.35, "loan": 0.35},
-    "COUNTY_WORKER": {"share": 0.13, "income": (35_000, 65_000, 95_000), "wallet": 0.95, "rural": 0.30, "loan": 0.30},
-    "SME_OWNER": {"share": 0.18, "income": (30_000, 120_000, 300_000), "wallet": 0.98, "rural": 0.25, "loan": 0.25},
-    "FARMER_SEASONAL": {"share": 0.17, "income": (10_000, 35_000, 150_000), "wallet": 0.80, "rural": 0.85, "loan": 0.20},
-    "DIASPORA_SUPPORTED": {"share": 0.10, "income": (15_000, 50_000, 180_000), "wallet": 0.95, "rural": 0.45, "loan": 0.15},
-    "BODA_BODA_OPERATOR": {"share": 0.15, "income": (20_000, 45_000, 80_000), "wallet": 0.98, "rural": 0.40, "loan": 0.22},
-    "CHURCH_ORG": {"share": 0.05, "income": (30_000, 150_000, 600_000), "wallet": 0.90, "rural": 0.50, "loan": 0.10},
+    "SALARIED_TEACHER": {"share": 0.13, "income": (45_000, 78_000, 120_000), "wallet": 0.95, "rural": 0.35, "loan": 0.35},
+    "COUNTY_WORKER": {"share": 0.08, "income": (35_000, 65_000, 95_000), "wallet": 0.95, "rural": 0.30, "loan": 0.30},
+    "UNIFORMED_OFFICER": {"share": 0.05, "income": (40_000, 72_000, 115_000), "wallet": 0.94, "rural": 0.32, "loan": 0.32},
+    "PRIVATE_SECTOR_EMPLOYEE": {"share": 0.10, "income": (30_000, 68_000, 160_000), "wallet": 0.96, "rural": 0.22, "loan": 0.24},
+    "SME_OWNER": {"share": 0.14, "income": (30_000, 120_000, 300_000), "wallet": 0.98, "rural": 0.25, "loan": 0.25},
+    "MICRO_TRADER": {"share": 0.11, "income": (18_000, 55_000, 140_000), "wallet": 0.98, "rural": 0.38, "loan": 0.18},
+    "FARMER_SEASONAL": {"share": 0.14, "income": (10_000, 35_000, 150_000), "wallet": 0.80, "rural": 0.85, "loan": 0.20},
+    "DIASPORA_SUPPORTED": {"share": 0.08, "income": (15_000, 50_000, 180_000), "wallet": 0.95, "rural": 0.45, "loan": 0.15},
+    "BODA_BODA_OPERATOR": {"share": 0.09, "income": (20_000, 45_000, 80_000), "wallet": 0.98, "rural": 0.40, "loan": 0.22},
+    "CHAMA_GROUP": {"share": 0.04, "income": (25_000, 100_000, 300_000), "wallet": 0.92, "rural": 0.55, "loan": 0.08},
+    "CHURCH_ORG": {"share": 0.03, "income": (30_000, 150_000, 600_000), "wallet": 0.90, "rural": 0.50, "loan": 0.10},
+    "SACCO_STAFF": {"share": 0.01, "income": (45_000, 85_000, 150_000), "wallet": 0.96, "rural": 0.25, "loan": 0.20},
 }
 
 COUNTIES = ["Nairobi", "Kiambu", "Nakuru", "Mombasa", "Kisumu", "Meru", "Nyeri", "Uasin Gishu", "Kakamega", "Machakos"]
@@ -77,6 +82,11 @@ DEFAULT_PATTERNS = {
         "RAPID_PASS_THROUGH": {"enabled": True},
         "FAKE_AFFORDABILITY_BEFORE_LOAN": {"enabled": True},
         "DEVICE_SHARING_MULE_NETWORK": {"enabled": True},
+        "GUARANTOR_FRAUD_RING": {"enabled": True},
+        "WALLET_FUNNELING": {"enabled": True},
+        "DORMANT_REACTIVATION_ABUSE": {"enabled": True},
+        "REMITTANCE_LAYERING": {"enabled": True},
+        "CHURCH_CHARITY_MISUSE": {"enabled": True},
     },
 }
 
@@ -84,6 +94,9 @@ DEFAULT_TYPOLOGIES = {
     "STRUCTURING": {"candidate_personas": ["SME_OWNER", "BODA_BODA_OPERATOR", "DIASPORA_SUPPORTED"], "deposit_count_7d": [5, 12], "amount_each_kes": [70_000, 99_000], "window_days": [2, 7], "rails": ["CASH_BRANCH", "CASH_AGENT", "MPESA"]},
     "RAPID_PASS_THROUGH": {"candidate_personas": ["DIASPORA_SUPPORTED", "SME_OWNER", "CHURCH_ORG"], "inflow_amount_kes": [100_000, 750_000], "exit_ratio": [0.75, 0.98], "exit_delay_hours": [1, 48], "outflow_count": [2, 8]},
     "FAKE_AFFORDABILITY_BEFORE_LOAN": {"candidate_personas": ["SME_OWNER", "DIASPORA_SUPPORTED", "COUNTY_WORKER", "SALARIED_TEACHER"], "lookback_days": 30, "min_external_credit_share": 0.55, "min_balance_growth_kes": 50_000, "credit_count": [2, 5], "credit_amount_kes": [25_000, 150_000], "eligible_loan_products": ["DEVELOPMENT_LOAN", "SCHOOL_FEES_LOAN", "BIASHARA_LOAN"]},
+    "DORMANT_REACTIVATION_ABUSE": {"candidate_personas": ["SME_OWNER", "MICRO_TRADER", "DIASPORA_SUPPORTED", "BODA_BODA_OPERATOR", "CHAMA_GROUP"], "first_credit_kes": [120_000, 550_000], "velocity_days": 7, "outbound_share": [0.72, 0.94], "outflow_count": [2, 5]},
+    "REMITTANCE_LAYERING": {"candidate_personas": ["SALARIED_TEACHER", "COUNTY_WORKER", "UNIFORMED_OFFICER", "PRIVATE_SECTOR_EMPLOYEE", "SME_OWNER", "MICRO_TRADER", "FARMER_SEASONAL", "DIASPORA_SUPPORTED", "BODA_BODA_OPERATOR", "CHAMA_GROUP", "CHURCH_ORG", "SACCO_STAFF"], "remittance_amount_kes": [140_000, 800_000], "fanout_count": [3, 7], "fanout_hours": [6, 72], "outbound_share": [0.68, 0.92]},
+    "CHURCH_CHARITY_MISUSE": {"candidate_personas": ["CHURCH_ORG", "CHAMA_GROUP"], "donor_amount_kes": [180_000, 900_000], "dispersion_count": [3, 8], "dispersion_hours": [12, 96], "outbound_share": [0.55, 0.88]},
 }
 
 DEFAULT_CALENDAR = {

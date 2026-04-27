@@ -64,6 +64,13 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `wallet_funneling_validation` | Wallet fan-in/fan-out candidate IDs, precision/recall, and misses are reported. |
 | `benchmark_validation` | Whether benchmark artifacts form a valid evaluation or only a smoke run. |
 
+`distribution_validation.dormant_lifecycle` reports dormant-member share,
+active dormant share, dormant transactions without prior `KYC_REFRESH` and
+`ACCOUNT_REACTIVATION`, and high-throughput unlabeled dormant members.
+Benchmark runs fail if dormant share leaves the 5%-15% band, if active dormant
+share exceeds 25%, if any dormant transaction appears before reactivation, or
+if an unlabeled dormant member shows high-velocity reactivation behavior.
+
 `benchmark_validation` also embeds confounder diagnostics from
 `benchmark_confounder_diagnostics.json`. These do not look for explicit label
 columns. They look for benchmark shortcuts such as suspicious labels clustering
@@ -129,6 +136,9 @@ legitimate_two_member_reciprocal_guarantee
 trusted_guarantor_star
 legitimate_chama_wallet_collection
 near_wallet_funnel_low_fanout
+legitimate_dormant_reactivation_low_velocity
+legitimate_remittance_family_distribution
+legitimate_church_project_disbursement
 ```
 
 Families marked `false_positive_pressure` are allowed to be rule candidates.

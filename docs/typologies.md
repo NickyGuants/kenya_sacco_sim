@@ -226,6 +226,79 @@ outbound types:
   SUPPLIER_PAYMENT_OUT
 ```
 
+## DORMANT_REACTIVATION_ABUSE
+
+A member account that was dormant at simulation start is reactivated and then
+used for large first-credit velocity and rapid fanout.
+
+Injector behavior:
+
+- Selects members with `dormant_flag=True`.
+- Emits `KYC_REFRESH` and `ACCOUNT_REACTIVATION` before suspicious movement.
+- Posts a large first credit, then disperses most of it within seven days.
+- Adds later low-volume normal activity so the member is not only a typology
+  carrier.
+- Leaves legitimate low-velocity dormant reactivations unlabeled.
+
+Rule contract:
+
+```text
+KYC_REFRESH and ACCOUNT_REACTIVATION observed
+first credit >= KES 120,000
+window = 7 days
+outbound value / first credit >= 0.70
+outflow count >= 2
+outbound counterparties >= 2
+```
+
+## REMITTANCE_LAYERING
+
+Remittance funds arrive and are rapidly redistributed through wallet, bank,
+cash, or supplier channels.
+
+Injector behavior:
+
+- Uses remittance-like inbound rail and PesaLink-style bank transfer.
+- Fans value out within a 72-hour window.
+- Keeps legitimate family/remittance distribution near-misses unlabeled.
+
+Rule contract:
+
+```text
+inbound rail = REMITTANCE
+inbound txn type = PESALINK_IN
+inbound amount >= KES 140,000
+window = 72 hours
+outbound value / inbound value >= 0.68
+outflow count >= 3
+outbound counterparties >= 3
+```
+
+## CHURCH_CHARITY_MISUSE
+
+A church/org or chama account receives an abnormal donor inflow and disperses
+funds outside its normal collection and project-payment rhythm.
+
+Injector behavior:
+
+- Uses `CHURCH_ORG` and `CHAMA_GROUP` members.
+- Posts abnormal donor inflows and vendor/individual dispersals.
+- Keeps legitimate church project and charity disbursement near-misses
+  unlabeled.
+
+Rule contract:
+
+```text
+candidate personas:
+  CHURCH_ORG
+  CHAMA_GROUP
+inbound amount >= KES 180,000
+window = 96 hours
+outbound value / inbound value >= 0.55
+outflow count >= 3
+outbound counterparties >= 3
+```
+
 ## How Labels Appear
 
 Every injected typology produces rows in `alerts_truth.csv`:
@@ -310,6 +383,18 @@ legitimate_chama_wallet_collection
 near_wallet_funnel_low_fanout
   Target: WALLET_FUNNELING
   Effect: negative_control
+
+legitimate_dormant_reactivation_low_velocity
+  Target: DORMANT_REACTIVATION_ABUSE
+  Effect: negative_control
+
+legitimate_remittance_family_distribution
+  Target: REMITTANCE_LAYERING
+  Effect: false_positive_pressure
+
+legitimate_church_project_disbursement
+  Target: CHURCH_CHARITY_MISUSE
+  Effect: false_positive_pressure
 ```
 
 The generator reports these through:

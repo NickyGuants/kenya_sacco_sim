@@ -72,15 +72,17 @@ A 1,000-member run with normal transactions and loans:
 python3 -m kenya_sacco_sim generate --members 1000 --with-loans
 ```
 
-A 10,000-member benchmark package:
+A 100,000-member release-scale benchmark package:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
-  --members 10000 \
+  --members 100000 \
   --with-loans \
   --with-typologies \
   --with-benchmark \
-  --output ./datasets/KENYA_SACCO_SIM_v1_10k
+  --skip-ml-baseline \
+  --suspicious-ratio 0.015 \
+  --output ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 A larger package with benchmark diagnostics but no in-generation ML training:
@@ -99,12 +101,14 @@ A run pinned to a different seed:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
-  --members 10000 \
+  --members 100000 \
   --seed 1337 \
   --with-loans \
   --with-typologies \
   --with-benchmark \
-  --output ./datasets/KENYA_SACCO_SIM_v1_10k_seed1337
+  --skip-ml-baseline \
+  --suspicious-ratio 0.015 \
+  --output ./datasets/KENYA_SACCO_SIM_v1_100k_seed1337
 ```
 
 ## `benchmark`
@@ -140,7 +144,7 @@ Each seed is independent, so the benchmark runner executes seeds in parallel
 worker processes by default. The final JSON summary is still printed on stdout;
 progress logs go to stderr.
 
-For the current 10,000-member benchmark on the local 11-CPU, ~18 GB development
+For the current multi-seed benchmark on the local 11-CPU, ~18 GB development
 machine, auto/`--jobs 4` runs four seed workers and completes the five-seed gate
 in about 89 seconds. For large generated packages, use `--skip-ml-baseline` to
 keep ML training out of the generation loop.
@@ -175,7 +179,7 @@ every typology stayed within the precision/recall stability threshold of
 Runs the ML benchmark layer from an existing generated dataset directory.
 
 ```bash
-python3 -m kenya_sacco_sim ml-baseline --input ./datasets/KENYA_SACCO_SIM_v1_10k
+python3 -m kenya_sacco_sim ml-baseline --input ./datasets/KENYA_SACCO_SIM_v1_100k
 ```
 
 This command reads the exported CSVs plus `rule_results.json`, rebuilds split,

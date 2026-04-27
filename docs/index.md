@@ -44,6 +44,7 @@ docs/
   architecture.md
   research/
     deep-research-report.md
+    current-calibration-notes.md
 ```
 
 The current implementation contract is the root-level
@@ -55,6 +56,7 @@ The current implementation contract is the root-level
 - CLI entrypoint: `python3 -m kenya_sacco_sim ...`
 - Commands: `generate`, `benchmark`
 - Default config directory: `./config`
-- Current benchmark output path: `./datasets/KENYA_SACCO_SIM_v1_10k`
+- Current benchmark output path: `./datasets/KENYA_SACCO_SIM_v1_100k`
 - Current multi-seed output path: `./benchmarks/KENYA_SACCO_SIM_v1_multi_seed`
-- Release-scale benchmark target: 10,000 members over 12 months.
+- Release-scale benchmark target: 100,000 members over 12 months, generated
+  with `--skip-ml-baseline`.

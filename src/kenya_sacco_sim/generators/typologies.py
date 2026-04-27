@@ -15,12 +15,29 @@ DIGITAL_DEVICE_REQUIRED_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BA
 TYPOLOGY_CANDIDATE_PERSONAS = {
     "SALARIED_TEACHER",
     "COUNTY_WORKER",
+    "UNIFORMED_OFFICER",
+    "PRIVATE_SECTOR_EMPLOYEE",
     "SME_OWNER",
+    "MICRO_TRADER",
     "FARMER_SEASONAL",
     "DIASPORA_SUPPORTED",
     "BODA_BODA_OPERATOR",
+    "CHAMA_GROUP",
     "CHURCH_ORG",
+    "SACCO_STAFF",
 }
+
+ACTIVE_TYPOLOGIES_WITH_CREDIT = [
+    "STRUCTURING",
+    "RAPID_PASS_THROUGH",
+    "WALLET_FUNNELING",
+    "FAKE_AFFORDABILITY_BEFORE_LOAN",
+    "GUARANTOR_FRAUD_RING",
+    "DEVICE_SHARING_MULE_NETWORK",
+    "DORMANT_REACTIVATION_ABUSE",
+    "REMITTANCE_LAYERING",
+    "CHURCH_CHARITY_MISUSE",
+]
 
 
 def inject_typologies(
@@ -135,6 +152,50 @@ def inject_typologies(
         next_pattern,
         targets["GUARANTOR_FRAUD_RING"],
     )
+    next_txn, next_pattern = _inject_dormant_reactivation_abuse(
+        rng,
+        config,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        transactions,
+        alerts,
+        used_members,
+        next_txn,
+        next_pattern,
+        targets["DORMANT_REACTIVATION_ABUSE"],
+    )
+    next_txn, next_pattern = _inject_remittance_layering(
+        rng,
+        config,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        next_txn,
+        next_pattern,
+        targets["REMITTANCE_LAYERING"],
+    )
+    next_txn, next_pattern = _inject_church_charity_misuse(
+        rng,
+        config,
+        members,
+        account_by_member,
+        source_accounts,
+        sink_accounts,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        next_txn,
+        next_pattern,
+        targets["CHURCH_CHARITY_MISUSE"],
+    )
     guarantor_near_miss_stats = _inject_guarantor_ring_decoys(
         rng,
         members,
@@ -179,7 +240,7 @@ def inject_typologies(
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
     _recompute_balances(transactions, accounts)
-    rule_results = build_rule_results(transactions, accounts, alerts, loans or [], guarantors)
+    rule_results = build_rule_results(transactions, accounts, alerts, loans or [], guarantors, members)
     rule_results["near_miss_disclosure"] = near_miss_stats
     return alerts, rule_results
 
@@ -195,11 +256,14 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
             "DEVICE_SHARING_MULE_NETWORK": 0,
             "GUARANTOR_FRAUD_RING": 0,
             "WALLET_FUNNELING": 0,
+            "DORMANT_REACTIVATION_ABUSE": 0,
+            "REMITTANCE_LAYERING": 0,
+            "CHURCH_CHARITY_MISUSE": 0,
         }
     if total > 0 and config.member_count >= 100:
         total = max(total, 5 if include_fake_affordability else 3)
     if total > 0 and config.member_count >= 10_000:
-        total = max(total, 30 * (6 if include_fake_affordability else 4))
+        total = max(total, 30 * (9 if include_fake_affordability else 4))
 
     base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH", "WALLET_FUNNELING"]
     if include_fake_affordability:
@@ -215,14 +279,22 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
         counts = _balanced_target_counts(total, typologies)
         counts["FAKE_AFFORDABILITY_BEFORE_LOAN"] = 0
         counts["GUARANTOR_FRAUD_RING"] = 0
+        counts["DORMANT_REACTIVATION_ABUSE"] = 0
+        counts["REMITTANCE_LAYERING"] = 0
+        counts["CHURCH_CHARITY_MISUSE"] = 0
     else:
-        typologies = list(base_typologies)
+        typologies = list(ACTIVE_TYPOLOGIES_WITH_CREDIT)
         if include_device_sharing:
-            typologies.append("DEVICE_SHARING_MULE_NETWORK")
+            typologies = list(ACTIVE_TYPOLOGIES_WITH_CREDIT)
+        else:
+            typologies = [typology for typology in ACTIVE_TYPOLOGIES_WITH_CREDIT if typology != "DEVICE_SHARING_MULE_NETWORK"]
         counts = _balanced_target_counts(total, typologies)
     counts.setdefault("DEVICE_SHARING_MULE_NETWORK", 0)
     counts.setdefault("GUARANTOR_FRAUD_RING", 0)
     counts.setdefault("WALLET_FUNNELING", 0)
+    counts.setdefault("DORMANT_REACTIVATION_ABUSE", 0)
+    counts.setdefault("REMITTANCE_LAYERING", 0)
+    counts.setdefault("CHURCH_CHARITY_MISUSE", 0)
     if include_device_sharing and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
         _raise_count_floor(counts, "DEVICE_SHARING_MULE_NETWORK", 3, base_typologies)
     return counts
@@ -551,7 +623,7 @@ def _inject_fake_affordability(
         and str(member_by_id[str(loan["member_id"])]["persona_type"]) in TYPOLOGY_CANDIDATE_PERSONAS
         and str(loan["member_id"]) not in used_members
     ]
-    candidates = _stratified_items_by_persona(candidates, rng, lambda loan: str(member_by_id[str(loan["member_id"])]["persona_type"]))
+    candidates = _stratified_items_by_persona(candidates, rng, lambda loan: f"{loan['application_date'][:7]}:{member_by_id[str(loan['member_id'])]['persona_type']}")
     inserted = 0
     for loan in candidates:
         if inserted >= target_count:
@@ -949,6 +1021,216 @@ def _inject_guarantor_ring_decoys(
     return _near_miss_result(families)
 
 
+def _inject_dormant_reactivation_abuse(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    if target_count <= 0:
+        return next_txn, next_pattern
+    candidates = [
+        member
+        for member in _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"}, include_dormant=True)
+        if bool(member.get("dormant_flag"))
+    ]
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
+    inserted = 0
+    for member in candidates:
+        if inserted >= target_count:
+            break
+        member_id = str(member["member_id"])
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        wallet = _first(account_by_member[member_id], {"MPESA_WALLET"})
+        if not fosa:
+            continue
+        used_members.add(member_id)
+        pattern_id = _pattern_id(next_pattern)
+        next_pattern += 1
+        inserted += 1
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=14)
+        for account in account_by_member[member_id]:
+            if account.get("status") == "DORMANT":
+                account["status"] = "ACTIVE"
+
+        normal_events = [
+            ("KYC_REFRESH", "SACCO_INTERNAL", "SYSTEM", 0.0, start, "SACCO_CORE", "SACCO"),
+            ("ACCOUNT_REACTIVATION", "SACCO_INTERNAL", "SYSTEM", 0.0, start + timedelta(minutes=12), "SACCO_CORE", "SACCO"),
+        ]
+        for offset, (txn_type, rail, channel, amount, timestamp, provider, counterparty_type) in enumerate(normal_events):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            transactions.append(_txn_row(txn_id, timestamp, rng.choice(source_accounts), fosa, member, txn_type, rail, channel, amount, provider, counterparty_type, fosa.get("branch_id"), f"DORMANT_REACTIVATE_NORMAL:{member_id}:{offset}"))
+
+        first_credit = float(rng.randrange(120_000, 550_000, 10_000))
+        credit_id = _txn_id(next_txn)
+        next_txn += 1
+        credit_ts = start + timedelta(days=1, hours=2)
+        credit = _txn_row(credit_id, credit_ts, rng.choice(source_accounts), fosa, member, "MPESA_PAYBILL_IN", "MPESA", "PAYBILL", first_credit, "MPESA", "CUSTOMER", fosa.get("branch_id"), f"DORMANT_ABUSE_IN:{member_id}")
+        transactions.append(credit)
+        txn_times = [str(credit["timestamp"])]
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DORMANT_REACTIVATION_ABUSE", "TRANSACTION", credit_id, member, fosa, credit_id, None, credit["timestamp"], credit["timestamp"], "HIGH", "PLACEMENT", "DORMANT_REACTIVATION_VELOCITY"))
+
+        outflow_count = rng.randint(2, 5)
+        allocations = _allocate_amounts(round(first_credit * rng.uniform(0.72, 0.94), 2), outflow_count, rng)
+        remaining_after_layering = max(0.0, first_credit - sum(allocations))
+        for offset, amount in enumerate(allocations):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            rail = "PESALINK" if offset % 2 else "MPESA"
+            tx = _txn_row(
+                txn_id,
+                credit_ts + timedelta(hours=6 + offset * rng.randint(8, 18)),
+                fosa,
+                sink_accounts[(inserted + offset) % len(sink_accounts)],
+                member,
+                "PESALINK_OUT" if rail == "PESALINK" else "SUPPLIER_PAYMENT_OUT",
+                rail,
+                "BANK_TRANSFER" if rail == "PESALINK" else "PAYBILL",
+                amount,
+                "BANK_PARTNER" if rail == "PESALINK" else "MPESA",
+                "MERCHANT",
+                fosa.get("branch_id"),
+                f"DORMANT_ABUSE_OUT:{member_id}:{offset}",
+            )
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DORMANT_REACTIVATION_ABUSE", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "DORMANT_REACTIVATION_VELOCITY"))
+
+        for offset in range(5):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            normal_amount = round(max(250.0, remaining_after_layering * rng.uniform(0.04, 0.10)), 2)
+            if wallet and offset % 2 == 0:
+                transactions.append(_txn_row(txn_id, credit_ts + timedelta(days=8 + offset), fosa, wallet, member, "MPESA_WALLET_TOPUP", "MPESA", "MOBILE_APP", normal_amount, "MPESA", "WALLET_USER", fosa.get("branch_id"), f"DORMANT_NORMAL_TOPUP:{member_id}:{offset}"))
+            else:
+                transactions.append(_txn_row(txn_id, credit_ts + timedelta(days=8 + offset), fosa, sink_accounts[(inserted + offset) % len(sink_accounts)], member, "HOUSEHOLD_SPEND_OUT", "SACCO_INTERNAL", "MOBILE_APP", normal_amount, "SACCO_CORE", "MERCHANT", fosa.get("branch_id"), f"DORMANT_NORMAL_SPEND:{member_id}:{offset}"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DORMANT_REACTIVATION_ABUSE", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
+def _inject_remittance_layering(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    candidates = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = [member for member in candidates if not bool(member.get("dormant_flag"))]
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
+    inserted = 0
+    for member in candidates:
+        if inserted >= target_count:
+            break
+        member_id = str(member["member_id"])
+        fanout_count = rng.randint(3, 7)
+        if normal_txn_counts[member_id] < fanout_count + 1:
+            continue
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        if not fosa:
+            continue
+        used_members.add(member_id)
+        pattern_id = _pattern_id(next_pattern)
+        next_pattern += 1
+        inserted += 1
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=5)
+        amount = float(rng.randrange(140_000, 800_000, 10_000))
+        inbound_id = _txn_id(next_txn)
+        next_txn += 1
+        inbound = _txn_row(inbound_id, start, rng.choice(source_accounts), fosa, member, "PESALINK_IN", "REMITTANCE", "BANK_TRANSFER", amount, "BANK_PARTNER", "BANK", fosa.get("branch_id"), f"REMIT_LAYER_IN:{member_id}")
+        transactions.append(inbound)
+        txn_times = [str(inbound["timestamp"])]
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "REMITTANCE_LAYERING", "TRANSACTION", inbound_id, member, fosa, inbound_id, None, inbound["timestamp"], inbound["timestamp"], "HIGH", "PLACEMENT", "REMITTANCE_FANOUT_LAYERING"))
+        allocations = _allocate_amounts(round(amount * rng.uniform(0.68, 0.92), 2), fanout_count, rng)
+        out_times = _spread_timestamps(start + timedelta(hours=6), rng.randint(18, 72), fanout_count, rng)
+        for offset, out_amount in enumerate(allocations):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            rail = ["MPESA", "PESALINK", "CASH_BRANCH"][offset % 3]
+            txn_type = "MPESA_WALLET_TOPUP" if rail == "MPESA" else "PESALINK_OUT" if rail == "PESALINK" else "FOSA_CASH_WITHDRAWAL"
+            channel = "MOBILE_APP" if rail == "MPESA" else "BANK_TRANSFER" if rail == "PESALINK" else "BRANCH"
+            provider = "MPESA" if rail == "MPESA" else "BANK_PARTNER" if rail == "PESALINK" else "SACCO_CORE"
+            tx = _txn_row(txn_id, out_times[offset], fosa, sink_accounts[(inserted + offset) % len(sink_accounts)], member, txn_type, rail, channel, out_amount, provider, "WALLET_USER" if rail == "MPESA" else "BANK" if rail == "PESALINK" else "AGENT", fosa.get("branch_id"), f"REMIT_LAYER_OUT:{member_id}:{offset}")
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "REMITTANCE_LAYERING", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "REMITTANCE_FANOUT_LAYERING"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "REMITTANCE_LAYERING", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
+def _inject_church_charity_misuse(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    source_accounts: list[dict[str, object]],
+    sink_accounts: list[dict[str, object]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    next_txn: int,
+    next_pattern: int,
+    target_count: int,
+) -> tuple[int, int]:
+    candidates = _candidate_members(members, account_by_member, used_members, {"CHURCH_ORG", "CHAMA_GROUP"}, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    candidates = [member for member in candidates if not bool(member.get("dormant_flag"))]
+    candidates = _stratified_items_by_persona(candidates, rng, lambda member: str(member["persona_type"]))
+    inserted = 0
+    for member in candidates:
+        if inserted >= target_count:
+            break
+        member_id = str(member["member_id"])
+        dispersion_count = rng.randint(3, 8)
+        if normal_txn_counts[member_id] < dispersion_count + 1:
+            continue
+        fosa = _first(account_by_member[member_id], {"FOSA_CURRENT", "FOSA_SAVINGS"})
+        if not fosa:
+            continue
+        used_members.add(member_id)
+        pattern_id = _pattern_id(next_pattern)
+        next_pattern += 1
+        inserted += 1
+        start = _distributed_pattern_start(config, rng, inserted, target_count, max_duration_days=6)
+        donor_amount = float(rng.randrange(180_000, 900_000, 20_000))
+        inbound_id = _txn_id(next_txn)
+        next_txn += 1
+        inbound = _txn_row(inbound_id, start, rng.choice(source_accounts), fosa, member, "PESALINK_IN", "PESALINK", "BANK_TRANSFER", donor_amount, "BANK_PARTNER", "BANK", fosa.get("branch_id"), f"CHARITY_MISUSE_DONOR:{member_id}")
+        transactions.append(inbound)
+        txn_times = [str(inbound["timestamp"])]
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "CHURCH_CHARITY_MISUSE", "TRANSACTION", inbound_id, member, fosa, inbound_id, None, inbound["timestamp"], inbound["timestamp"], "HIGH", "PLACEMENT", "CHARITY_DONOR_DISPERSION"))
+        allocations = _allocate_amounts(round(donor_amount * rng.uniform(0.55, 0.88), 2), dispersion_count, rng)
+        out_times = _spread_timestamps(start + timedelta(hours=12), rng.randint(24, 96), dispersion_count, rng)
+        for offset, amount in enumerate(allocations):
+            txn_id = _txn_id(next_txn)
+            next_txn += 1
+            txn_type = "SUPPLIER_PAYMENT_OUT" if offset % 2 == 0 else "PESALINK_OUT"
+            rail = "MPESA" if txn_type == "SUPPLIER_PAYMENT_OUT" else "PESALINK"
+            tx = _txn_row(txn_id, out_times[offset], fosa, sink_accounts[(inserted + offset) % len(sink_accounts)], member, txn_type, rail, "PAYBILL" if rail == "MPESA" else "BANK_TRANSFER", amount, "MPESA" if rail == "MPESA" else "BANK_PARTNER", "MERCHANT", fosa.get("branch_id"), f"CHARITY_MISUSE_OUT:{member_id}:{offset}")
+            transactions.append(tx)
+            txn_times.append(str(tx["timestamp"]))
+            alerts.append(_alert_row(len(alerts) + 1, pattern_id, "CHURCH_CHARITY_MISUSE", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "CHARITY_DONOR_DISPERSION"))
+        alerts.append(_alert_row(len(alerts) + 1, pattern_id, "CHURCH_CHARITY_MISUSE", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
+    return next_txn, next_pattern
+
+
 def _inject_device_sharing_decoys(
     rng: random.Random,
     config: WorldConfig,
@@ -1061,7 +1343,7 @@ def _inject_decoys(
     next_txn: int,
     target_count: int,
 ) -> tuple[int, dict[str, object]]:
-    decoy_members = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"})
+    decoy_members = _candidate_members(members, account_by_member, used_members, TYPOLOGY_CANDIDATE_PERSONAS, {"FOSA_CURRENT", "FOSA_SAVINGS"}, include_dormant=True)
     rng.shuffle(decoy_members)
     families = _empty_near_miss_families()
     family_order = [
@@ -1072,6 +1354,9 @@ def _inject_decoys(
         "legitimate_chama_wallet_collection",
         "near_wallet_funnel_low_fanout",
         "church_family_bulk_payments",
+        "legitimate_dormant_reactivation_low_velocity",
+        "legitimate_remittance_family_distribution",
+        "legitimate_church_project_disbursement",
     ]
     family_counts = Counter()
     cursor = 0
@@ -1084,6 +1369,11 @@ def _inject_decoys(
             continue
         before = next_txn
         family = next((name for name in family_order if family_counts[name] < target_count), family_order[0])
+        member_is_dormant = bool(member.get("dormant_flag"))
+        if family == "legitimate_dormant_reactivation_low_velocity" and not member_is_dormant:
+            continue
+        if family != "legitimate_dormant_reactivation_low_velocity" and member_is_dormant:
+            continue
         if family == "legitimate_structuring_like":
             next_txn = _inject_legitimate_structuring_like(rng, member, fosa, source_accounts, agents_by_branch, transactions, next_txn, index)
         elif family == "incomplete_structuring":
@@ -1096,6 +1386,12 @@ def _inject_decoys(
             next_txn = _inject_legitimate_chama_wallet_collection(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         elif family == "near_wallet_funnel_low_fanout":
             next_txn = _inject_near_wallet_funnel_low_fanout(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        elif family == "legitimate_dormant_reactivation_low_velocity":
+            next_txn = _inject_legitimate_dormant_reactivation_low_velocity(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        elif family == "legitimate_remittance_family_distribution":
+            next_txn = _inject_legitimate_remittance_family_distribution(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
+        elif family == "legitimate_church_project_disbursement":
+            next_txn = _inject_legitimate_church_project_disbursement(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         else:
             next_txn = _inject_church_family_bulk(rng, member, fosa, source_accounts, sink_accounts, transactions, next_txn, index)
         if next_txn > before:
@@ -1382,6 +1678,59 @@ def _inject_church_family_bulk(rng: random.Random, member: dict[str, object], fo
     return next_txn
 
 
+def _inject_legitimate_dormant_reactivation_low_velocity(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    if not bool(member.get("dormant_flag")):
+        return next_txn
+    start = datetime(2024, 3, 4, 9, 0, tzinfo=EAT) + timedelta(days=(index * 3) % 210)
+    deposit_amount = float(rng.randrange(18_000, 70_000, 5_000))
+    events = [
+        ("KYC_REFRESH", "SACCO_INTERNAL", "SYSTEM", 0.0, start, "SACCO_CORE", "SACCO", rng.choice(source_accounts), fosa),
+        ("ACCOUNT_REACTIVATION", "SACCO_INTERNAL", "SYSTEM", 0.0, start + timedelta(minutes=20), "SACCO_CORE", "SACCO", rng.choice(source_accounts), fosa),
+        ("FOSA_CASH_DEPOSIT", "CASH_BRANCH", "BRANCH", deposit_amount, start + timedelta(days=2), "SACCO_CORE", "CUSTOMER", rng.choice(source_accounts), fosa),
+        ("HOUSEHOLD_SPEND_OUT", "SACCO_INTERNAL", "MOBILE_APP", round(deposit_amount * rng.uniform(0.18, 0.35), 2), start + timedelta(days=18), "SACCO_CORE", "MERCHANT", fosa, rng.choice(sink_accounts)),
+    ]
+    for offset, (txn_type, rail, channel, amount, timestamp, provider, counterparty_type, debit, credit) in enumerate(events):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        transactions.append(_txn_row(txn_id, timestamp, debit, credit, member, txn_type, rail, channel, amount, provider, counterparty_type, fosa.get("branch_id"), f"LEGIT_DORMANT_REACTIVATION:{member['member_id']}:{index}:{offset}"))
+    return next_txn
+
+
+def _inject_legitimate_remittance_family_distribution(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    start = datetime(2024, 2, 8, 11, 0, tzinfo=EAT) + timedelta(days=(index * 5) % 250)
+    amount = float(rng.randrange(120_000, 420_000, 10_000))
+    txn_id = _txn_id(next_txn)
+    next_txn += 1
+    transactions.append(_txn_row(txn_id, start, rng.choice(source_accounts), fosa, member, "PESALINK_IN", "REMITTANCE", "BANK_TRANSFER", amount, "BANK_PARTNER", "BANK", fosa.get("branch_id"), f"LEGIT_REMITTANCE_IN:{member['member_id']}:{index}"))
+    outflows = [
+        ("SCHOOL_FEES_PAYMENT_OUT", "MPESA", "PAYBILL", 0.32, 12),
+        ("HOUSEHOLD_SPEND_OUT", "MPESA", "PAYBILL", 0.18, 96),
+        ("BOSA_DEP_TOPUP", "SACCO_INTERNAL", "MOBILE_APP", 0.12, 168),
+    ]
+    for offset, (txn_type, rail, channel, share, hours) in enumerate(outflows):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        transactions.append(_txn_row(txn_id, start + timedelta(hours=hours), fosa, sink_accounts[(index + offset) % len(sink_accounts)], member, txn_type, rail, channel, round(amount * share, 2), "MPESA" if rail == "MPESA" else "SACCO_CORE", "MERCHANT", fosa.get("branch_id"), f"LEGIT_REMITTANCE_OUT:{member['member_id']}:{index}:{offset}"))
+    return next_txn
+
+
+def _inject_legitimate_church_project_disbursement(rng: random.Random, member: dict[str, object], fosa: dict[str, object], source_accounts: list[dict[str, object]], sink_accounts: list[dict[str, object]], transactions: list[dict[str, object]], next_txn: int, index: int) -> int:
+    if str(member.get("persona_type") or "") not in {"CHURCH_ORG", "CHAMA_GROUP"}:
+        return next_txn
+    start = datetime(2024, 4, 7, 10, 0, tzinfo=EAT) + timedelta(days=(index * 4) % 210)
+    amount = float(rng.randrange(180_000, 620_000, 20_000))
+    txn_id = _txn_id(next_txn)
+    next_txn += 1
+    transactions.append(_txn_row(txn_id, start, rng.choice(source_accounts), fosa, member, "PESALINK_IN", "PESALINK", "BANK_TRANSFER", amount, "BANK_PARTNER", "BANK", fosa.get("branch_id"), f"LEGIT_CHURCH_PROJECT_IN:{member['member_id']}:{index}"))
+    payout_amounts = _allocate_amounts(round(amount * rng.uniform(0.50, 0.72), 2), 3, rng)
+    for offset, payout in enumerate(payout_amounts):
+        txn_id = _txn_id(next_txn)
+        next_txn += 1
+        rail = "MPESA" if offset % 2 == 0 else "PESALINK"
+        transactions.append(_txn_row(txn_id, start + timedelta(days=8 + offset * 9), fosa, sink_accounts[(index + offset) % len(sink_accounts)], member, "SUPPLIER_PAYMENT_OUT" if rail == "MPESA" else "PESALINK_OUT", rail, "PAYBILL" if rail == "MPESA" else "BANK_TRANSFER", payout, "MPESA" if rail == "MPESA" else "BANK_PARTNER", "MERCHANT", fosa.get("branch_id"), f"LEGIT_CHURCH_PROJECT_OUT:{member['member_id']}:{index}:{offset}"))
+    return next_txn
+
+
 def _inject_fake_affordability_near_misses(
     rng: random.Random,
     loans: list[dict[str, object]],
@@ -1648,6 +1997,21 @@ def _empty_near_miss_families() -> dict[str, dict[str, object]]:
             "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
             "description": "Pre-loan inflows offset by legitimate spending so balance growth stays below rule threshold.",
             "expected_rule_effect": "negative_control",
+        },
+        "legitimate_dormant_reactivation_low_velocity": {
+            "target_typology": "DORMANT_REACTIVATION_ABUSE",
+            "description": "Dormant member completes KYC refresh and account reactivation before resuming low-volume legitimate activity.",
+            "expected_rule_effect": "negative_control",
+        },
+        "legitimate_remittance_family_distribution": {
+            "target_typology": "REMITTANCE_LAYERING",
+            "description": "Diaspora or family remittance used for ordinary household, school-fee, or supplier obligations without rapid multi-counterparty layering.",
+            "expected_rule_effect": "false_positive_pressure",
+        },
+        "legitimate_church_project_disbursement": {
+            "target_typology": "CHURCH_CHARITY_MISUSE",
+            "description": "Church or chama project donor inflow followed by documented project/vendor payments over a slower window.",
+            "expected_rule_effect": "false_positive_pressure",
         },
     }
 
@@ -2090,12 +2454,14 @@ def _candidate_members(
     used_members: set[str],
     personas: set[str],
     account_types: set[str],
+    include_dormant: bool = False,
 ) -> list[dict[str, object]]:
     return [
         member
         for member in members
         if str(member["persona_type"]) in personas
         and str(member["member_id"]) not in used_members
+        and (include_dormant or not bool(member.get("dormant_flag")))
         and _first(account_by_member[str(member["member_id"])], account_types)
     ]
 

@@ -21,9 +21,9 @@ def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[
         institution = _institution_for_persona(rng, persona, world.institutions)
         urban_rural = _urban_rural(rng, settings["rural"])
         member_id = ids.next("MEMBER")
-        member_type = "ORGANIZATION" if persona == "CHURCH_ORG" else "INDIVIDUAL"
+        member_type = "ORGANIZATION" if persona in {"CHURCH_ORG", "CHAMA_GROUP"} else "INDIVIDUAL"
         employer_id = None
-        if persona in {"SALARIED_TEACHER", "COUNTY_WORKER"}:
+        if persona in {"SALARIED_TEACHER", "COUNTY_WORKER", "UNIFORMED_OFFICER", "PRIVATE_SECTOR_EMPLOYEE", "SACCO_STAFF"}:
             employer_id = rng.choice(world.employers)["employer_id"]
         min_income, mode_income, max_income = settings["income"]
         monthly_income = int(rng.triangular(min_income, max_income, mode_income))
@@ -47,7 +47,7 @@ def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[
                 "id_hash": None if member_type == "ORGANIZATION" else IdFactory.hash_id("ID", member_id),
                 "declared_monthly_income_kes": monthly_income,
                 "income_stability_score": round(rng.uniform(0.35, 0.95), 3),
-                "dormant_flag": rng.random() < 0.03,
+                "dormant_flag": rng.random() < 0.08,
                 "created_at": start_timestamp(config),
             }
         )
@@ -58,11 +58,16 @@ def _institution_for_persona(rng: random.Random, persona: str, institutions: lis
     affinity = {
         "SALARIED_TEACHER": {"TEACHER_PUBLIC_SECTOR": 5, "UNIFORMED_SERVICES": 2},
         "COUNTY_WORKER": {"TEACHER_PUBLIC_SECTOR": 2, "UNIFORMED_SERVICES": 3, "UTILITY_PRIVATE_SECTOR": 2},
+        "UNIFORMED_OFFICER": {"UNIFORMED_SERVICES": 7, "TEACHER_PUBLIC_SECTOR": 1},
+        "PRIVATE_SECTOR_EMPLOYEE": {"UTILITY_PRIVATE_SECTOR": 5, "SME_BIASHARA": 2, "DIASPORA_FACING": 1},
         "SME_OWNER": {"SME_BIASHARA": 5, "UTILITY_PRIVATE_SECTOR": 2, "DIASPORA_FACING": 2},
+        "MICRO_TRADER": {"SME_BIASHARA": 5, "COMMUNITY_CHURCH": 2, "FARMER_COOPERATIVE": 2},
         "FARMER_SEASONAL": {"FARMER_COOPERATIVE": 6, "COMMUNITY_CHURCH": 2},
         "DIASPORA_SUPPORTED": {"DIASPORA_FACING": 6, "COMMUNITY_CHURCH": 2},
         "BODA_BODA_OPERATOR": {"SME_BIASHARA": 3, "COMMUNITY_CHURCH": 2, "FARMER_COOPERATIVE": 2},
+        "CHAMA_GROUP": {"COMMUNITY_CHURCH": 4, "FARMER_COOPERATIVE": 3, "SME_BIASHARA": 2},
         "CHURCH_ORG": {"COMMUNITY_CHURCH": 7, "DIASPORA_FACING": 2},
+        "SACCO_STAFF": {"TEACHER_PUBLIC_SECTOR": 2, "UNIFORMED_SERVICES": 2, "UTILITY_PRIVATE_SECTOR": 2, "SME_BIASHARA": 2},
     }
     weights = [affinity.get(persona, {}).get(str(institution.get("archetype")), 1) for institution in institutions]
     return rng.choices(institutions, weights=weights, k=1)[0]
@@ -82,9 +87,14 @@ def _occupation(persona: str) -> str:
     return {
         "SALARIED_TEACHER": "Teacher",
         "COUNTY_WORKER": "County worker",
+        "UNIFORMED_OFFICER": "Uniformed officer",
+        "PRIVATE_SECTOR_EMPLOYEE": "Private sector employee",
         "SME_OWNER": "SME owner",
+        "MICRO_TRADER": "Micro trader",
         "FARMER_SEASONAL": "Farmer",
         "DIASPORA_SUPPORTED": "Household recipient",
         "BODA_BODA_OPERATOR": "Boda boda operator",
+        "CHAMA_GROUP": "Chama group",
         "CHURCH_ORG": "Church organization",
+        "SACCO_STAFF": "SACCO staff",
     }[persona]

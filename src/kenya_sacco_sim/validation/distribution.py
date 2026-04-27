@@ -31,6 +31,7 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]], conf
     sink_concentration = _max_external_concentration(transactions, "account_id_cr", "SINK_ACCOUNT", rows_by_file)
 
     persona_summary = _persona_summary(transactions, member_by_id, max(1, config.months))
+    dormant_summary = _dormant_lifecycle_summary(rows_by_file, member_by_id)
     if cash_share < 0.10:
         findings.append(ValidationFinding("warning", "distribution.cash_share_low", f"Cash rail share {cash_share:.3f} is below 0.10 target", "transactions.csv"))
     elif cash_share > 0.20:
@@ -49,6 +50,19 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]], conf
             findings.append(ValidationFinding("error", "distribution.church_org_active_share_low", f"CHURCH_ORG active share {church_summary['active_member_share']:.3f} is below 0.60", "transactions.csv"))
         if float(church_summary["median_txns_per_member_annualized"]) < 20:
             findings.append(ValidationFinding("error", "distribution.church_org_median_txns_low", f"CHURCH_ORG annualized median txns/member {church_summary['median_txns_per_member_annualized']:.2f} is below 20", "transactions.csv"))
+    if len(members) >= 1_000 and dormant_summary["dormant_member_count"]:
+        dormant_share = float(dormant_summary["dormant_member_share"])
+        active_dormant_share = float(dormant_summary["active_dormant_member_share"])
+        if dormant_share < 0.05:
+            findings.append(ValidationFinding("error", "distribution.dormant_share_low", f"Dormant member share {dormant_share:.3f} is below 0.05 target", "members.csv"))
+        if dormant_share > 0.15:
+            findings.append(ValidationFinding("error", "distribution.dormant_share_high", f"Dormant member share {dormant_share:.3f} is above 0.15 target", "members.csv"))
+        if active_dormant_share > 0.25:
+            findings.append(ValidationFinding("error", "distribution.active_dormant_share_high", f"Active dormant member share {active_dormant_share:.3f} exceeds 0.25", "transactions.csv"))
+        if int(dormant_summary["dormant_transactions_without_reactivation_count"]) > 0:
+            findings.append(ValidationFinding("error", "distribution.dormant_txns_without_reactivation", "Dormant members must have KYC_REFRESH and ACCOUNT_REACTIVATION before post-dormancy activity", "transactions.csv"))
+        if int(dormant_summary["high_throughput_unlabeled_dormant_member_count"]) > 0:
+            findings.append(ValidationFinding("error", "distribution.high_throughput_unlabeled_dormant", "Unlabeled dormant members must not show high-velocity reactivation behavior", "transactions.csv"))
 
     return findings, {
         "transaction_count": total_txns,
@@ -63,6 +77,7 @@ def validate_distribution(rows_by_file: dict[str, list[dict[str, object]]], conf
         "txn_type_counts": dict(sorted(txn_type_counts.items())),
         "monthly_transaction_counts": {str(month): month_counts[month] for month in range(1, 13)},
         "persona_summary": persona_summary,
+        "dormant_lifecycle": dormant_summary,
     }
 
 
@@ -113,3 +128,61 @@ def _persona_summary(transactions: list[dict[str, object]], member_by_id: dict[s
             "wallet_share": round(int(row["wallet_txns"]) / txns, 4) if txns else 0,
         }
     return summary
+
+
+def _dormant_lifecycle_summary(rows_by_file: dict[str, list[dict[str, object]]], member_by_id: dict[str, dict[str, object]]) -> dict[str, object]:
+    dormant_members = {member_id for member_id, member in member_by_id.items() if _truthy(member.get("dormant_flag"))}
+    transactions_by_member: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in rows_by_file.get("transactions.csv", []):
+        member_id = str(txn.get("member_id_primary") or "")
+        if member_id in dormant_members:
+            transactions_by_member[member_id].append(txn)
+    active_dormant_members = {member_id for member_id, rows in transactions_by_member.items() if rows}
+    suspicious_dormant_members = {
+        str(alert.get("member_id") or "")
+        for alert in rows_by_file.get("alerts_truth.csv", [])
+        if alert.get("member_id") and str(alert.get("member_id")) in dormant_members
+    }
+    without_reactivation: set[str] = set()
+    high_throughput_unlabeled: set[str] = set()
+    reactivated_dormant_members: set[str] = set()
+    for member_id, rows in transactions_by_member.items():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+        seen_kyc = False
+        seen_reactivation = False
+        total_value = 0.0
+        for row in rows:
+            txn_type = str(row.get("txn_type") or "")
+            if txn_type == "KYC_REFRESH":
+                seen_kyc = True
+                total_value += float(row.get("amount_kes") or 0)
+                continue
+            if txn_type == "ACCOUNT_REACTIVATION":
+                seen_reactivation = True
+                total_value += float(row.get("amount_kes") or 0)
+                continue
+            total_value += float(row.get("amount_kes") or 0)
+            if not (seen_kyc and seen_reactivation):
+                without_reactivation.add(member_id)
+        if seen_kyc and seen_reactivation:
+            reactivated_dormant_members.add(member_id)
+        if member_id not in suspicious_dormant_members and len(rows) > 15 and total_value > 300_000:
+            high_throughput_unlabeled.add(member_id)
+    dormant_count = len(dormant_members)
+    return {
+        "dormant_member_count": dormant_count,
+        "dormant_member_share": round(dormant_count / len(member_by_id), 4) if member_by_id else 0.0,
+        "active_dormant_member_count": len(active_dormant_members),
+        "active_dormant_member_share": round(len(active_dormant_members) / dormant_count, 4) if dormant_count else 0.0,
+        "reactivated_dormant_member_count": len(reactivated_dormant_members),
+        "dormant_transactions_without_reactivation_count": len(without_reactivation),
+        "dormant_transactions_without_reactivation_member_ids": sorted(without_reactivation)[:50],
+        "high_throughput_unlabeled_dormant_member_count": len(high_throughput_unlabeled),
+        "high_throughput_unlabeled_dormant_member_ids": sorted(high_throughput_unlabeled)[:50],
+    }
+
+
+def _truthy(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "1", "yes", "y"}

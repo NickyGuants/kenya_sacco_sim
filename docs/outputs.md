@@ -57,7 +57,7 @@ recovery transactions.
 | File | What it is |
 | --- | --- |
 | `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
-| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, and wallet-funnel near-misses. |
+| `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, wallet-funnel, dormant-reactivation, remittance, and charity near-misses. |
 
 ## With `--with-benchmark`
 
@@ -94,9 +94,9 @@ explicit skipped artifacts. Run `python3 -m kenya_sacco_sim ml-baseline --input
 | --- | --- |
 | `multi_seed_results.json` | Per-seed validation status, rule metrics, evaluation-validity status, and distribution stability statistics. |
 
-`benchmarks/KENYA_SACCO_SIM_scale_probe_results.json` records local scale-probe
-measurements for larger generation runs. It is a diagnostic artifact, not a
-dataset package.
+Tracked benchmark summaries under `benchmarks/` record stability and scale
+checks. Raw generated dataset folders are kept under `datasets/`, and stale raw
+folders should be removed before publishing a refreshed package.
 
 If `--write-seed-datasets` is passed, each seed's full `generate` output is
 also written in a `seed_<seed>` subfolder.
