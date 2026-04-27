@@ -163,7 +163,7 @@ def validate_credit_distribution(rows_by_file: dict[str, list[dict[str, object]]
 
     _warn_range(findings, "credit.loan_active_member_ratio", active_member_ratio, 0.18, 0.40, "loans.csv")
     if guaranteed_loan_ids:
-        _warn_range(findings, "credit.avg_guarantors_per_guaranteed_loan", avg_guarantors, 1.5, 3.0, "guarantors.csv")
+        _warn_range(findings, "credit.avg_guarantors_per_guaranteed_loan", avg_guarantors, 1.5, 3.2, "guarantors.csv")
     _warn_range(findings, "credit.arrears_share", arrears_share, 0.04, 0.12, "loans.csv")
     _warn_range(findings, "credit.default_share", default_share, 0.01, 0.05, "loans.csv")
     _warn_range(findings, "credit.repayment_success_rate", repayment_success_rate, 0.80, 0.95, "loans.csv")

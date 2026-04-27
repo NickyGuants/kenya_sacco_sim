@@ -30,6 +30,7 @@ def inject_typologies(
     transactions: list[dict[str, object]],
     world: InstitutionWorld | None = None,
     loans: list[dict[str, object]] | None = None,
+    guarantors: list[dict[str, object]] | None = None,
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     rng = random.Random(config.seed + 505)
     account_by_member = _accounts_by_member(accounts)
@@ -40,6 +41,7 @@ def inject_typologies(
     alerts: list[dict[str, object]] = []
     next_txn = _next_txn_index(transactions)
     next_pattern = 1
+    guarantors = guarantors if guarantors is not None else []
     used_members: set[str] = set()
     targets = _target_counts(config, include_fake_affordability=bool(loans))
 
@@ -104,6 +106,29 @@ def inject_typologies(
         next_pattern,
         targets["DEVICE_SHARING_MULE_NETWORK"],
     )
+    next_pattern = _inject_guarantor_fraud_ring(
+        rng,
+        config,
+        members,
+        account_by_member,
+        transactions,
+        alerts,
+        used_members,
+        normal_txn_counts,
+        loans or [],
+        guarantors,
+        next_pattern,
+        targets["GUARANTOR_FRAUD_RING"],
+    )
+    guarantor_near_miss_stats = _inject_guarantor_ring_decoys(
+        rng,
+        members,
+        account_by_member,
+        loans or [],
+        guarantors,
+        used_members,
+        max(1, targets["GUARANTOR_FRAUD_RING"] // 6) if targets["GUARANTOR_FRAUD_RING"] else 0,
+    )
     next_txn, device_near_miss_stats = _inject_device_sharing_decoys(
         rng,
         members,
@@ -131,12 +156,13 @@ def inject_typologies(
         decoy_target,
     )
     near_miss_stats = _merge_near_miss_stats(near_miss_stats, device_near_miss_stats)
+    near_miss_stats = _merge_near_miss_stats(near_miss_stats, guarantor_near_miss_stats)
 
     _backfill_digital_device_ids(transactions, world, rng)
     transactions.sort(key=lambda row: (str(row["timestamp"]), str(row["txn_id"])))
     _reassign_transaction_ids(transactions, alerts)
     _recompute_balances(transactions, accounts)
-    rule_results = build_rule_results(transactions, accounts, alerts, loans or [])
+    rule_results = build_rule_results(transactions, accounts, alerts, loans or [], guarantors)
     rule_results["near_miss_disclosure"] = near_miss_stats
     return alerts, rule_results
 
@@ -150,15 +176,17 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
             "RAPID_PASS_THROUGH": 0,
             "FAKE_AFFORDABILITY_BEFORE_LOAN": 0,
             "DEVICE_SHARING_MULE_NETWORK": 0,
+            "GUARANTOR_FRAUD_RING": 0,
         }
     if total > 0 and config.member_count >= 100:
-        total = max(total, 4 if include_fake_affordability else 3)
+        total = max(total, 5 if include_fake_affordability else 3)
     if total > 0 and config.member_count >= 10_000:
-        total = max(total, 30 * (4 if include_fake_affordability else 3))
+        total = max(total, 30 * (5 if include_fake_affordability else 3))
 
     base_typologies = ["STRUCTURING", "RAPID_PASS_THROUGH"]
     if include_fake_affordability:
         base_typologies.append("FAKE_AFFORDABILITY_BEFORE_LOAN")
+        base_typologies.append("GUARANTOR_FRAUD_RING")
     device_minimum_total = len(base_typologies) + 3
     include_device_sharing = config.member_count >= 1_000 and total >= device_minimum_total
 
@@ -168,12 +196,14 @@ def _target_counts(config: WorldConfig, include_fake_affordability: bool = True)
             typologies.append("DEVICE_SHARING_MULE_NETWORK")
         counts = _balanced_target_counts(total, typologies)
         counts["FAKE_AFFORDABILITY_BEFORE_LOAN"] = 0
+        counts["GUARANTOR_FRAUD_RING"] = 0
     else:
         typologies = list(base_typologies)
         if include_device_sharing:
             typologies.append("DEVICE_SHARING_MULE_NETWORK")
         counts = _balanced_target_counts(total, typologies)
     counts.setdefault("DEVICE_SHARING_MULE_NETWORK", 0)
+    counts.setdefault("GUARANTOR_FRAUD_RING", 0)
     if include_device_sharing and 0 < counts["DEVICE_SHARING_MULE_NETWORK"] < 3:
         _raise_count_floor(counts, "DEVICE_SHARING_MULE_NETWORK", 3, base_typologies)
     return counts
@@ -588,6 +618,224 @@ def _inject_device_sharing_mule_network(
                 alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DEVICE_SHARING_MULE_NETWORK", "TRANSACTION", txn_id, member, fosa, txn_id, None, tx["timestamp"], tx["timestamp"], "HIGH", "LAYERING", "SHARED_DEVICE_MULE_ACTIVITY"))
             alerts.append(_alert_row(len(alerts) + 1, pattern_id, "DEVICE_SHARING_MULE_NETWORK", "PATTERN", pattern_id, member, fosa, None, None, min(txn_times), max(txn_times), "HIGH", "PATTERN_SUMMARY", "SUSPICIOUS_PATTERN_SUMMARY"))
     return next_txn, next_pattern
+
+
+def _inject_guarantor_fraud_ring(
+    rng: random.Random,
+    config: WorldConfig,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    transactions: list[dict[str, object]],
+    alerts: list[dict[str, object]],
+    used_members: set[str],
+    normal_txn_counts: Counter[str],
+    loans: list[dict[str, object]],
+    guarantors: list[dict[str, object]],
+    next_pattern: int,
+    target_count: int,
+) -> int:
+    if not loans or target_count <= 0:
+        return next_pattern
+    member_by_id = {str(member["member_id"]): member for member in members}
+    account_by_id = {str(account["account_id"]): account for accounts in account_by_member.values() for account in accounts}
+    loan_txns = _loan_context_transactions(transactions)
+    active_counts = _active_guarantee_counts(guarantors, loans)
+    guarantee_index = _next_guarantee_index(guarantors)
+    eligible_products = {"DEVELOPMENT_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE"}
+    active_statuses = {"CURRENT", "IN_ARREARS", "DEFAULTED", "RESTRUCTURED"}
+    candidates = [
+        loan
+        for loan in loans
+        if str(loan.get("product_code")) in eligible_products
+        and str(loan.get("performing_status")) in active_statuses
+        and str(loan.get("member_id")) in member_by_id
+        and str(loan.get("member_id")) not in used_members
+        and normal_txn_counts[str(loan["member_id"])] >= 6
+        and len(loan_txns.get(str(loan["loan_account_id"]), [])) >= 2
+        and _first(account_by_member[str(loan["member_id"])], {"BOSA_DEPOSIT"})
+        and active_counts[str(loan["member_id"])] <= 4
+    ]
+    candidates = _stratified_items_by_persona(candidates, rng, lambda loan: str(member_by_id[str(loan["member_id"])]["persona_type"]))
+    inserted = 0
+    cursor = 0
+    group_index = 1
+    while inserted < target_count and cursor < len(candidates):
+        remaining = target_count - inserted
+        group_size = remaining if remaining <= 5 else 3
+        if group_size < 3:
+            break
+        group = candidates[cursor : cursor + group_size]
+        cursor += group_size
+        if len(group) < group_size:
+            break
+        member_ids = [str(loan["member_id"]) for loan in group]
+        if len(set(member_ids)) != len(member_ids) or any(member_id in used_members for member_id in member_ids):
+            continue
+        if any(active_counts[member_id] >= 5 for member_id in member_ids):
+            continue
+        label_context: list[tuple[dict[str, object], dict[str, object], dict[str, object], list[dict[str, object]]]] = []
+        for loan in group:
+            member_id = str(loan["member_id"])
+            member = member_by_id[member_id]
+            account = account_by_id.get(str(loan["loan_account_id"])) or _first(account_by_member[member_id], {"LOAN_ACCOUNT"})
+            context_txns = loan_txns.get(str(loan["loan_account_id"]), [])[:2]
+            if not account or len(context_txns) < 2:
+                label_context = []
+                break
+            label_context.append((loan, member, account, context_txns))
+        if len(label_context) != group_size:
+            continue
+        appended_guarantees = _append_guarantor_cycle(rng, group, member_by_id, account_by_member, guarantors, active_counts, guarantee_index)
+        if appended_guarantees < group_size:
+            continue
+        guarantee_index += appended_guarantees
+        for loan, member, account, context_txns in label_context:
+            if inserted >= target_count:
+                break
+            member_id = str(loan["member_id"])
+            pattern_id = _pattern_id(next_pattern)
+            next_pattern += 1
+            inserted += 1
+            used_members.add(member_id)
+            txn_times = [str(txn["timestamp"]) for txn in context_txns]
+            for txn in context_txns:
+                alerts.append(
+                    _alert_row(
+                        len(alerts) + 1,
+                        pattern_id,
+                        "GUARANTOR_FRAUD_RING",
+                        "TRANSACTION",
+                        str(txn["txn_id"]),
+                        member,
+                        account,
+                        str(txn["txn_id"]),
+                        None,
+                        str(txn["timestamp"]),
+                        str(txn["timestamp"]),
+                        "HIGH",
+                        "INTEGRATION",
+                        "RECIPROCAL_GUARANTEE_RING",
+                    )
+                )
+            alerts.append(
+                _alert_row(
+                    len(alerts) + 1,
+                    pattern_id,
+                    "GUARANTOR_FRAUD_RING",
+                    "MEMBER",
+                    member_id,
+                    member,
+                    account,
+                    None,
+                    None,
+                    min(txn_times),
+                    max(txn_times),
+                    "HIGH",
+                    "INTEGRATION",
+                    "RECIPROCAL_GUARANTEE_RING",
+                )
+            )
+            alerts.append(
+                _alert_row(
+                    len(alerts) + 1,
+                    pattern_id,
+                    "GUARANTOR_FRAUD_RING",
+                    "PATTERN",
+                    pattern_id,
+                    member,
+                    account,
+                    None,
+                    None,
+                    min(txn_times),
+                    max(txn_times),
+                    "HIGH",
+                    "PATTERN_SUMMARY",
+                    "SUSPICIOUS_PATTERN_SUMMARY",
+                )
+            )
+        group_index += 1
+    return next_pattern
+
+
+def _inject_guarantor_ring_decoys(
+    rng: random.Random,
+    members: list[dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    loans: list[dict[str, object]],
+    guarantors: list[dict[str, object]],
+    used_members: set[str],
+    target_group_count: int,
+) -> dict[str, object]:
+    if not loans or target_group_count <= 0:
+        return _near_miss_result({})
+    member_by_id = {str(member["member_id"]): member for member in members}
+    active_counts = _active_guarantee_counts(guarantors, loans)
+    guarantee_index = _next_guarantee_index(guarantors)
+    eligible = [
+        loan
+        for loan in loans
+        if str(loan.get("product_code")) in {"DEVELOPMENT_LOAN", "BIASHARA_LOAN", "ASSET_FINANCE"}
+        and str(loan.get("performing_status")) != "CLOSED"
+        and str(loan.get("member_id")) in member_by_id
+        and str(loan.get("member_id")) not in used_members
+        and _first(account_by_member[str(loan["member_id"])], {"BOSA_DEPOSIT"})
+        and active_counts[str(loan["member_id"])] <= 3
+    ]
+    rng.shuffle(eligible)
+    families = {
+        "legitimate_two_member_reciprocal_guarantee": {
+            "target_typology": "GUARANTOR_FRAUD_RING",
+            "description": "Two trusted members reciprocally guarantee one loan each, below the minimum ring-size threshold.",
+            "expected_rule_effect": "negative_control",
+        },
+        "trusted_guarantor_star": {
+            "target_typology": "GUARANTOR_FRAUD_RING",
+            "description": "A high-capacity community guarantor backs several members without forming a directed cycle.",
+            "expected_rule_effect": "negative_control",
+        },
+    }
+    group_count = 0
+    cursor = 0
+    while group_count < target_group_count and cursor + 5 <= len(eligible):
+        pair = eligible[cursor : cursor + 2]
+        cursor += 2
+        pair_members = [str(loan["member_id"]) for loan in pair]
+        if len(set(pair_members)) == 2 and all(active_counts[member_id] < 5 for member_id in pair_members):
+            appended = _append_guarantor_cycle(rng, pair, member_by_id, account_by_member, guarantors, active_counts, guarantee_index)
+            if appended == 2:
+                guarantee_index += appended
+                for member_id in pair_members:
+                    _record_guarantee_near_miss(families, "legitimate_two_member_reciprocal_guarantee", member_id, 1)
+                    used_members.add(member_id)
+
+        star = eligible[cursor : cursor + 3]
+        cursor += 3
+        if len(star) < 3:
+            break
+        star_guarantor_member_id = str(star[0]["member_id"])
+        if active_counts[star_guarantor_member_id] > 2:
+            continue
+        for borrower_loan in star[1:]:
+            borrower_id = str(borrower_loan["member_id"])
+            if borrower_id == star_guarantor_member_id or active_counts[star_guarantor_member_id] >= 5:
+                continue
+            guarantee = _guarantee_row(
+                rng,
+                f"GUA{guarantee_index:06d}",
+                borrower_loan,
+                member_by_id[star_guarantor_member_id],
+                member_by_id[borrower_id],
+                account_by_member,
+            )
+            guarantee_index += 1
+            if guarantee:
+                guarantors.append(guarantee)
+                active_counts[star_guarantor_member_id] += 1
+                _record_guarantee_near_miss(families, "trusted_guarantor_star", star_guarantor_member_id, 1)
+                _record_guarantee_near_miss(families, "trusted_guarantor_star", borrower_id, 0)
+                used_members.update({star_guarantor_member_id, borrower_id})
+        group_count += 1
+    return _near_miss_result(families)
 
 
 def _inject_device_sharing_decoys(
@@ -1035,6 +1283,101 @@ def _inject_preloan_inflow_sequence(
     return next_txn
 
 
+def _append_guarantor_cycle(
+    rng: random.Random,
+    loans: list[dict[str, object]],
+    member_by_id: dict[str, dict[str, object]],
+    account_by_member: dict[str, list[dict[str, object]]],
+    guarantors: list[dict[str, object]],
+    active_counts: Counter[str],
+    guarantee_index_start: int,
+) -> int:
+    group_size = len(loans)
+    pending: list[tuple[dict[str, object], str]] = []
+    for index, borrower_loan in enumerate(loans):
+        guarantor_loan = loans[(index - 1) % group_size]
+        borrower_id = str(borrower_loan["member_id"])
+        guarantor_id = str(guarantor_loan["member_id"])
+        if borrower_id == guarantor_id or active_counts[guarantor_id] >= 5:
+            return 0
+        guarantee = _guarantee_row(
+            rng,
+            f"GUA{guarantee_index_start + index:06d}",
+            borrower_loan,
+            member_by_id[guarantor_id],
+            member_by_id[borrower_id],
+            account_by_member,
+        )
+        if not guarantee:
+            return 0
+        pending.append((guarantee, guarantor_id))
+    for guarantee, guarantor_id in pending:
+        guarantors.append(guarantee)
+        active_counts[guarantor_id] += 1
+    return len(pending)
+
+
+def _guarantee_row(
+    rng: random.Random,
+    guarantee_id: str,
+    borrower_loan: dict[str, object],
+    guarantor: dict[str, object],
+    borrower: dict[str, object],
+    account_by_member: dict[str, list[dict[str, object]]],
+) -> dict[str, object] | None:
+    bosa = _first(account_by_member[str(guarantor["member_id"])], {"BOSA_DEPOSIT"})
+    if not bosa:
+        return None
+    principal = float(borrower_loan["principal_kes"])
+    capacity = float(bosa["current_balance_kes"]) * 1.5
+    amount = min(capacity * rng.uniform(0.18, 0.32), principal * rng.uniform(0.18, 0.30))
+    if amount <= 5_000:
+        return None
+    return {
+        "guarantee_id": guarantee_id,
+        "loan_id": borrower_loan["loan_id"],
+        "borrower_member_id": borrower["member_id"],
+        "guarantor_member_id": guarantor["member_id"],
+        "guarantee_amount_kes": round(amount, 2),
+        "guarantee_pct": round(amount / principal, 4),
+        "pledge_date": borrower_loan["approval_date"],
+        "release_date": None,
+        "guarantor_deposit_balance_at_pledge_kes": round(float(bosa["current_balance_kes"]), 2),
+        "relationship_type": rng.choice(["SACCO_MEMBER", "FRIEND", "BUSINESS_ASSOCIATE"]),
+        "guarantor_capacity_remaining_kes": round(capacity - amount, 2),
+    }
+
+
+def _loan_context_transactions(transactions: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+    by_loan_account: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for txn in transactions:
+        txn_type = str(txn.get("txn_type") or "")
+        debit = str(txn.get("account_id_dr") or "")
+        credit = str(txn.get("account_id_cr") or "")
+        if txn_type == "LOAN_DISBURSEMENT":
+            by_loan_account[debit].append(txn)
+        elif txn_type in {"LOAN_REPAYMENT", "CHECKOFF_LOAN_RECOVERY", "PENALTY_POST"}:
+            by_loan_account[credit if txn_type != "PENALTY_POST" else debit].append(txn)
+    for rows in by_loan_account.values():
+        rows.sort(key=lambda row: str(row["timestamp"]))
+    return by_loan_account
+
+
+def _active_guarantee_counts(guarantors: list[dict[str, object]], loans: list[dict[str, object]]) -> Counter[str]:
+    loan_by_id = {str(loan["loan_id"]): loan for loan in loans}
+    counts: Counter[str] = Counter()
+    for guarantee in guarantors:
+        loan = loan_by_id.get(str(guarantee.get("loan_id") or ""))
+        if loan and loan.get("performing_status") != "CLOSED":
+            counts[str(guarantee["guarantor_member_id"])] += 1
+    return counts
+
+
+def _next_guarantee_index(guarantors: list[dict[str, object]]) -> int:
+    indices = [int(str(row["guarantee_id"])[3:]) for row in guarantors if str(row.get("guarantee_id") or "").startswith("GUA")]
+    return max(indices, default=0) + 1
+
+
 def _empty_near_miss_families() -> dict[str, dict[str, object]]:
     return {
         "legitimate_structuring_like": {
@@ -1083,17 +1426,28 @@ def _record_near_miss(families: dict[str, dict[str, object]], family: str, membe
     families[family]["transaction_count"] = int(families[family]["transaction_count"]) + txn_count
 
 
+def _record_guarantee_near_miss(families: dict[str, dict[str, object]], family: str, member_id: str, guarantee_count: int) -> None:
+    families.setdefault(family, {"target_typology": "UNKNOWN", "description": "", "expected_rule_effect": "negative_control"})
+    families[family].setdefault("member_ids", set())
+    families[family].setdefault("guarantee_count", 0)
+    families[family]["member_ids"].add(member_id)
+    families[family]["guarantee_count"] = int(families[family]["guarantee_count"]) + guarantee_count
+
+
 def _near_miss_result(families: dict[str, dict[str, object]]) -> dict[str, object]:
     serialized: dict[str, dict[str, object]] = {}
     all_members: set[str] = set()
     transaction_count = 0
+    guarantee_count = 0
     for family, section in sorted(families.items()):
         member_ids = set(section.get("member_ids", set()))
         count = int(section.get("transaction_count", 0) or 0)
-        if not member_ids and count == 0:
+        guarantees = int(section.get("guarantee_count", 0) or 0)
+        if not member_ids and count == 0 and guarantees == 0:
             continue
         all_members.update(str(member_id) for member_id in member_ids)
         transaction_count += count
+        guarantee_count += guarantees
         serialized[family] = {
             "target_typology": section.get("target_typology", "UNKNOWN"),
             "description": section.get("description", ""),
@@ -1101,6 +1455,8 @@ def _near_miss_result(families: dict[str, dict[str, object]]) -> dict[str, objec
             "member_count": len(member_ids),
             "transaction_count": count,
         }
+        if guarantees:
+            serialized[family]["guarantee_count"] = guarantees
         if "group_count" in section:
             serialized[family]["group_count"] = int(section.get("group_count") or 0)
     return {
@@ -1109,6 +1465,7 @@ def _near_miss_result(families: dict[str, dict[str, object]]) -> dict[str, objec
         "families": serialized,
         "near_miss_member_count": len(all_members),
         "near_miss_transaction_count": transaction_count,
+        "near_miss_guarantee_count": guarantee_count,
     }
 
 
@@ -1123,6 +1480,7 @@ def _merge_near_miss_stats(primary: dict[str, object], secondary: dict[str, obje
         "families": families,
         "near_miss_member_count": sum(int(section.get("member_count") or 0) for section in families.values()),
         "near_miss_transaction_count": sum(int(section.get("transaction_count") or 0) for section in families.values()),
+        "near_miss_guarantee_count": sum(int(section.get("guarantee_count") or 0) for section in families.values()),
         "device_sharing_near_miss_group_count": secondary.get("device_sharing_near_miss_group_count", 0),
         "device_sharing_near_miss_member_count": secondary.get("device_sharing_near_miss_member_count", 0),
         "device_sharing_near_miss_transaction_count": secondary.get("device_sharing_near_miss_transaction_count", 0),

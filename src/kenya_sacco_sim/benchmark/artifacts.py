@@ -114,7 +114,7 @@ def _build_baseline_results(
 
     return {
         "baseline_name": "deterministic_v1_rules",
-        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, and device-sharing mule definitions.",
+        "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, device-sharing mule, and guarantor fraud ring definitions.",
         "per_typology": per_typology,
         "near_miss_disclosure": rule_results.get("near_miss_disclosure", {"status": "not_available"}),
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
@@ -442,7 +442,7 @@ Do not use this dataset for real customer risk decisions, regulatory filings, pr
 
 ## Scope
 
-The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and `DEVICE_SHARING_MULE_NETWORK` when v1 typologies are enabled.
+The benchmark contains normal SACCO activity, support entity metadata, device baselines, loan lifecycle behavior, guarantor relationships, and labeled suspicious typologies: `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` when v1 typologies are enabled.
 
 ## Benchmark Task
 
@@ -536,6 +536,7 @@ def _near_miss_summary(disclosure: object) -> str:
         "```text",
         f"near_miss_member_count: {disclosure.get('near_miss_member_count', 0)}",
         f"near_miss_transaction_count: {disclosure.get('near_miss_transaction_count', 0)}",
+        f"near_miss_guarantee_count: {disclosure.get('near_miss_guarantee_count', 0)}",
     ]
     for family, section in sorted(families.items()):
         if not isinstance(section, dict):
@@ -544,7 +545,8 @@ def _near_miss_summary(disclosure: object) -> str:
             f"{family}: target {section.get('target_typology')} / "
             f"effect {section.get('expected_rule_effect')} / "
             f"members {section.get('member_count', 0)} / "
-            f"txns {section.get('transaction_count', 0)}"
+            f"txns {section.get('transaction_count', 0)} / "
+            f"guarantees {section.get('guarantee_count', 0)}"
         )
     lines.append("```")
     return "\n".join(lines)
@@ -665,9 +667,9 @@ def _metric(value: object) -> str:
 def _known_limitations() -> str:
     return """# Known Limitations
 
-- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, and `DEVICE_SHARING_MULE_NETWORK` suspicious typologies.
+- v1 includes `STRUCTURING`, `RAPID_PASS_THROUGH`, `FAKE_AFFORDABILITY_BEFORE_LOAN`, `DEVICE_SHARING_MULE_NETWORK`, and `GUARANTOR_FRAUD_RING` suspicious typologies.
 - `FAKE_AFFORDABILITY_BEFORE_LOAN` is intentionally ambiguous: normal borrowers can have large pre-loan external inflows, so the deterministic baseline is expected to have low precision and non-zero false positives.
-- Guarantor fraud rings, wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
+- Wallet funneling, dormant reactivation abuse, remittance layering, and church/charity misuse remain deferred.
 - Device-sharing mule networks are implemented as the first v1 typology, but full device session tables and device-sharing mule subtypes remain deferred.
 - `baseline_model_results.json` contains deterministic rule results; `ml_baseline_results.json` contains trained member-level ML baseline scores.
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.

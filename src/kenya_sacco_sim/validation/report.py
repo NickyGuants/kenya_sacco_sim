@@ -56,6 +56,7 @@ def build_validation_report(
         "near_miss_validation": _near_miss_section(typology_runtime_metrics),
         "fake_affordability_validation": _fake_affordability_section(typology_runtime_metrics),
         "device_sharing_mule_network_validation": _device_sharing_section(typology_runtime_metrics),
+        "guarantor_fraud_ring_validation": _guarantor_ring_section(typology_runtime_metrics),
         "benchmark_validation": benchmark_validation or {"status": "not_applicable"},
         "errors": [_finding_to_dict(f) for f in findings if f.severity == "error"],
         "warnings": [_finding_to_dict(f) for f in findings if f.severity == "warning"],
@@ -158,6 +159,7 @@ def _near_miss_section(rule_results: dict[str, object] | None) -> dict[str, obje
         "family_count": disclosure.get("family_count", 0),
         "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
         "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
+        "near_miss_guarantee_count": disclosure.get("near_miss_guarantee_count", 0),
         "families": families if isinstance(families, dict) else {},
     }
 
@@ -166,6 +168,23 @@ def _device_sharing_section(rule_results: dict[str, object] | None) -> dict[str,
     if not rule_results or not isinstance(rule_results.get("DEVICE_SHARING_MULE_NETWORK"), dict):
         return {"status": "not_applicable"}
     section = rule_results["DEVICE_SHARING_MULE_NETWORK"]
+    return {
+        "candidate_count": section.get("candidate_count", 0),
+        "candidate_member_ids": section.get("candidate_member_ids", []),
+        "true_positive_count": section.get("true_positive_count", 0),
+        "false_positive_count": section.get("false_positive_count", 0),
+        "false_negative_count": section.get("false_negative_count", 0),
+        "false_positive_member_ids": section.get("false_positive_member_ids", []),
+        "false_negative_member_ids": section.get("truth_members_missed", []),
+        "precision": section.get("precision", 0),
+        "recall": section.get("recall", 0),
+    }
+
+
+def _guarantor_ring_section(rule_results: dict[str, object] | None) -> dict[str, object]:
+    if not rule_results or not isinstance(rule_results.get("GUARANTOR_FRAUD_RING"), dict):
+        return {"status": "not_applicable"}
+    section = rule_results["GUARANTOR_FRAUD_RING"]
     return {
         "candidate_count": section.get("candidate_count", 0),
         "candidate_member_ids": section.get("candidate_member_ids", []),

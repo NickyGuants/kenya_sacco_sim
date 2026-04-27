@@ -97,6 +97,8 @@ patterns:
   before a loan application to fake creditworthiness.
 - `DEVICE_SHARING_MULE_NETWORK` — several members coordinate from one
   shared device.
+- `GUARANTOR_FRAUD_RING` — members manufacture credit support through
+  circular or reciprocal guarantor links.
 
 See [Typologies](typologies.md) for what each looks like in the data
 and what rule the simulator's baseline detector applies.

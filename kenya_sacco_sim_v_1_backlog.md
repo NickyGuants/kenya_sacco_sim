@@ -1,7 +1,7 @@
 # KENYA_SACCO_SIM v1 Backlog
 
 This backlog captures future v1 work that is not part of the current
-`DEVICE_SHARING_MULE_NETWORK` slice.
+`GUARANTOR_FRAUD_RING` slice.
 
 The current v1 contract lives in:
 
@@ -12,20 +12,25 @@ kenya_sacco_sim_v_1_specification.md
 ## Active Slice
 
 ```text
-NEGATIVE_CONTROLS_AND_NEAR_MISSES
+GUARANTOR_FRAUD_RING
 ```
 
-This slice deepens the current v1 typologies before adding new suspicious
-families. It adds richer legitimate near-misses, reports near-miss coverage in
-the benchmark artifacts, keeps all near-misses out of `alerts_truth.csv`, and
-must pass the multi-seed stability gate.
+This slice adds a graph-credit typology using reciprocal or circular guarantor
+relationships. It must update guarantors, graph projections, executable rules,
+near-misses, validation, benchmark artifacts, and docs together.
+
+Completed v1 slices:
+
+```text
+DEVICE_SHARING_MULE_NETWORK
+NEGATIVE_CONTROLS_AND_NEAR_MISSES
+```
 
 ## Next Typology Candidates
 
 Priority order:
 
 ```text
-GUARANTOR_FRAUD_RING
 WALLET_FUNNELING
 CHURCH_CHARITY_MISUSE
 DORMANT_REACTIVATION_ABUSE
@@ -38,16 +43,16 @@ TILL_PAYBILL_SHELL_ACTIVITY
 ## Next Recommended Slice
 
 ```text
-GUARANTOR_FRAUD_RING
+WALLET_FUNNELING
 ```
 
 Rationale:
 
 ```text
-credit and guarantor graph already exists
-the behavior is SACCO-specific
-it exercises graph motifs and default contagion
-it is harder than another pure transaction-flow typology
+MPESA, paybill, and counterparty structure already exist
+it extends rapid-pass-through into multi-member funnel behavior
+it can use current near-miss and confounder diagnostics
+it should be deferred until the guarantor-ring slice passes the 10k and multi-seed gates
 ```
 
 ## Benchmark Backlog

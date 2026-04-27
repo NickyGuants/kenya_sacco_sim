@@ -35,7 +35,7 @@ python3 -m kenya_sacco_sim generate [options]
 | `--output` | path | `./datasets/KENYA_SACCO_SIM_v1` | Where to write CSVs and JSON artifacts. |
 | `--with-transactions` | flag | off | Emit `transactions.csv` and run balance validation. |
 | `--with-loans` | flag | off | Emit `loans.csv`, `guarantors.csv`, and loan-lifecycle transactions. Implies `--with-transactions`. |
-| `--with-typologies` | flag | off | Inject suspicious typologies and unlabeled near-miss families; emit `alerts_truth.csv` plus `rule_results.json`. Combine with `--with-loans` to enable fake-affordability. |
+| `--with-typologies` | flag | off | Inject suspicious typologies and unlabeled near-miss families; emit `alerts_truth.csv` plus `rule_results.json`. Combine with `--with-loans` to enable credit-linked typologies such as fake-affordability and guarantor rings. |
 | `--with-benchmark` | flag | off | Emit the benchmark package: splits, rule baseline, ML baseline, feature docs, dataset card, known limitations, descriptive comparison, leakage ablation, and confounder diagnostics. Requires `--with-typologies`. |
 
 CLI flags always win over `world.yaml`. Anything not passed on the command line

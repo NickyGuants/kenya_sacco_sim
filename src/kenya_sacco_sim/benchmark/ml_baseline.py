@@ -10,7 +10,7 @@ from kenya_sacco_sim.core.config import WorldConfig
 
 DIGITAL_CHANNELS = {"MOBILE_APP", "USSD", "PAYBILL", "TILL", "BANK_TRANSFER"}
 EXTERNAL_CREDIT_TYPES = {"PESALINK_IN", "MPESA_PAYBILL_IN", "BUSINESS_SETTLEMENT_IN", "FOSA_CASH_DEPOSIT", "CHURCH_COLLECTION_IN"}
-TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK")
+TYPOLOGY_NAMES = ("STRUCTURING", "RAPID_PASS_THROUGH", "FAKE_AFFORDABILITY_BEFORE_LOAN", "DEVICE_SHARING_MULE_NETWORK", "GUARANTOR_FRAUD_RING")
 BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
@@ -41,6 +41,11 @@ RULE_PROXY_FEATURES_BY_TYPOLOGY = {
         "max_members_per_used_device",
         "device_peer_member_count",
         "device_network_value_kes",
+    },
+    "GUARANTOR_FRAUD_RING": {
+        "guarantor_out_degree",
+        "guarantor_in_degree",
+        "graph_degree",
     },
 }
 

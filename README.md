@@ -24,6 +24,7 @@ Implemented:
   - `RAPID_PASS_THROUGH`
   - `FAKE_AFFORDABILITY_BEFORE_LOAN`
   - `DEVICE_SHARING_MULE_NETWORK`
+  - `GUARANTOR_FRAUD_RING`
 - Rich near-miss and negative-control families for active typologies, reported
   in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
 - Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
@@ -110,6 +111,7 @@ STRUCTURING
 RAPID_PASS_THROUGH
 FAKE_AFFORDABILITY_BEFORE_LOAN
 DEVICE_SHARING_MULE_NETWORK
+GUARANTOR_FRAUD_RING
 ```
 
 Sub-1,000-member smoke runs do not request partial device-sharing mule groups.
@@ -211,6 +213,7 @@ typology_runtime_metrics
 near_miss_validation
 fake_affordability_validation
 device_sharing_mule_network_validation
+guarantor_fraud_ring_validation
 benchmark_validation
 ```
 
@@ -262,27 +265,29 @@ validation errors:   0
 validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
 members:             10,000
 accounts:            41,003
-transactions:        511,193
+transactions:        511,243
 loans:               2,352
-guarantors:          3,372
-alerts_truth:        803
+guarantors:          3,418
+alerts_truth:        923
 devices:             10,000
 device coverage:     100.00% of digital transactions
 shared devices:      343
 max members/device:  5
 evaluation validity: valid
-near-miss families:  8
-near-miss members:   85
-near-miss txns:      280
+near-miss families:  10
+near-miss members:   120
+near-miss txns:      330
+near-miss guarantees: 16
 ```
 
 Rule-baseline metrics from that run:
 
 ```text
 DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
-FAKE_AFFORDABILITY precision:          0.2098 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.5714 / recall: 0.8000
-STRUCTURING precision:                 0.6522 / recall: 1.0000
+GUARANTOR_FRAUD_RING precision:        1.0000 / recall: 1.0000
+FAKE_AFFORDABILITY precision:          0.2083 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.5455 / recall: 0.8000
+STRUCTURING precision:                 0.6818 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
@@ -297,8 +302,9 @@ shared-device member share mean: 0.0434
 cash rail share mean: 0.1938
 loan active member mean: 0.2385
 arrears share mean: 0.0927
-near-miss member count mean: 85.0
-near-miss transaction count mean: 280.0
+near-miss member count mean: 121.8
+near-miss transaction count mean: 330.4
+near-miss guarantee count mean: 18.0
 ```
 
 Known benchmark behavior:
