@@ -11,7 +11,7 @@
   "seed_results": [
     {
       "baseline_metrics": {
-        "macro_precision": 0.6514,
+        "macro_precision": 0.6083,
         "macro_recall": 0.95,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -24,29 +24,29 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 134,
-            "f1": 0.3659,
+            "candidate_count": 143,
+            "f1": 0.3468,
             "false_negative_count": 0,
-            "false_positive_count": 104,
-            "precision": 0.2239,
+            "false_positive_count": 113,
+            "precision": 0.2098,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 38,
-            "f1": 0.7059,
+            "candidate_count": 42,
+            "f1": 0.6667,
             "false_negative_count": 6,
-            "false_positive_count": 14,
-            "precision": 0.6316,
+            "false_positive_count": 18,
+            "precision": 0.5714,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 40,
-            "f1": 0.8571,
+            "candidate_count": 46,
+            "f1": 0.7895,
             "false_negative_count": 0,
-            "false_positive_count": 10,
-            "precision": 0.75,
+            "false_positive_count": 16,
+            "precision": 0.6522,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -174,24 +174,24 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.4286,
-            "train": 0.6897,
-            "validation": 0.6667
+            "test": 0.4,
+            "train": 0.678,
+            "validation": 0.625
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.4211,
-            "train": 0.5882,
-            "validation": 0.4706
+            "test": 0.3636,
+            "train": 0.5634,
+            "validation": 0.4444
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8333,
-            "train": 0.8889,
-            "validation": 0.8333
+            "test": 0.7143,
+            "train": 0.8511,
+            "validation": 0.5333
           },
           "STRUCTURING": {
-            "test": 1.0,
-            "train": 0.8889,
-            "validation": 0.6667
+            "test": 0.8333,
+            "train": 0.9091,
+            "validation": 0.5714
           }
         },
         "RandomForestClassifier": {
@@ -208,7 +208,7 @@
           "RAPID_PASS_THROUGH": {
             "test": 0.3333,
             "train": 1.0,
-            "validation": 0.75
+            "validation": 0.2857
           },
           "STRUCTURING": {
             "test": 0.8889,
@@ -222,22 +222,22 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.6667,
             "train": 0.9091,
-            "validation": 0.8
+            "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5714,
-            "train": 0.9524,
-            "validation": 0.7692
+            "test": 0.6667,
+            "train": 0.8511,
+            "validation": 0.6667
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8,
-            "train": 0.9302,
-            "validation": 0.8333
+            "test": 0.8333,
+            "train": 0.9091,
+            "validation": 0.5714
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.9091,
             "train": 0.9302,
-            "validation": 0.6667
+            "validation": 0.7143
           }
         },
         "RandomForestClassifier": {
@@ -247,21 +247,76 @@
             "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.8889,
+            "test": 0.75,
             "train": 1.0,
             "validation": 0.8889
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.5714,
+            "test": 0.3333,
             "train": 1.0,
             "validation": 0.75
           },
           "STRUCTURING": {
             "test": 1.0,
             "train": 1.0,
-            "validation": 1.0
+            "validation": 0.8889
           }
         }
+      },
+      "near_miss_metrics": {
+        "family_counts": {
+          "church_family_bulk_payments": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "incomplete_structuring": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 40
+          },
+          "legitimate_preloan_affordability_candidate": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "legitimate_sme_liquidity_sweep": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "legitimate_structuring_like": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 50
+          },
+          "near_affordability_low_growth": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "near_rapid_low_exit": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 20
+          },
+          "normal_shared_device_low_value": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 15,
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "transaction_count": 30
+          }
+        },
+        "near_miss_member_count": 85,
+        "near_miss_transaction_count": 280,
+        "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41003,
@@ -276,7 +331,7 @@
         "loans.csv": 2352,
         "members.csv": 10000,
         "nodes.csv": 61128,
-        "transactions.csv": 511033
+        "transactions.csv": 511193
       },
       "seed": 42,
       "validation_error_count": 0,
@@ -284,7 +339,7 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6356,
+        "macro_precision": 0.6121,
         "macro_recall": 0.95,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -297,29 +352,29 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 145,
-            "f1": 0.3429,
+            "candidate_count": 154,
+            "f1": 0.3261,
             "false_negative_count": 0,
-            "false_positive_count": 115,
-            "precision": 0.2069,
+            "false_positive_count": 124,
+            "precision": 0.1948,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 41,
-            "f1": 0.6761,
+            "candidate_count": 46,
+            "f1": 0.6316,
             "false_negative_count": 6,
-            "false_positive_count": 17,
-            "precision": 0.5854,
+            "false_positive_count": 22,
+            "precision": 0.5217,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 40,
-            "f1": 0.8571,
+            "candidate_count": 41,
+            "f1": 0.8451,
             "false_negative_count": 0,
-            "false_positive_count": 10,
-            "precision": 0.75,
+            "false_positive_count": 11,
+            "precision": 0.7317,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -345,7 +400,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1928,
+        "cash_rail_share": 0.1927,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -447,23 +502,23 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.6154,
+            "test": 0.6667,
             "train": 0.8889,
             "validation": 0.8333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5714,
-            "train": 0.5797,
-            "validation": 0.5263
+            "test": 0.5,
+            "train": 0.4819,
+            "validation": 0.3704
           },
           "RAPID_PASS_THROUGH": {
-            "test": 1.0,
-            "train": 0.9091,
-            "validation": 0.9091
+            "test": 0.8889,
+            "train": 0.8889,
+            "validation": 0.7692
           },
           "STRUCTURING": {
             "test": 1.0,
-            "train": 0.9302,
+            "train": 0.9524,
             "validation": 0.7692
           }
         },
@@ -471,7 +526,7 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
@@ -498,19 +553,19 @@
             "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.7273,
-            "train": 0.9756,
-            "validation": 0.8333
+            "test": 0.6667,
+            "train": 0.8511,
+            "validation": 0.7143
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.8889,
-            "train": 0.9524,
-            "validation": 0.9091
+            "train": 0.9302,
+            "validation": 0.8333
           },
           "STRUCTURING": {
             "test": 1.0,
-            "train": 0.9756,
-            "validation": 0.8333
+            "train": 1.0,
+            "validation": 0.9091
           }
         },
         "RandomForestClassifier": {
@@ -522,19 +577,74 @@
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.75,
             "train": 1.0,
-            "validation": 0.8889
+            "validation": 0.3333
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.75,
+            "test": 0.5714,
             "train": 1.0,
             "validation": 0.0
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.75,
             "train": 1.0,
             "validation": 0.75
           }
         }
+      },
+      "near_miss_metrics": {
+        "family_counts": {
+          "church_family_bulk_payments": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "incomplete_structuring": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 40
+          },
+          "legitimate_preloan_affordability_candidate": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "legitimate_sme_liquidity_sweep": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "legitimate_structuring_like": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 50
+          },
+          "near_affordability_low_growth": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "near_rapid_low_exit": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 20
+          },
+          "normal_shared_device_low_value": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 15,
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "transaction_count": 30
+          }
+        },
+        "near_miss_member_count": 85,
+        "near_miss_transaction_count": 280,
+        "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41051,
@@ -549,7 +659,7 @@
         "loans.csv": 2446,
         "members.csv": 10000,
         "nodes.csv": 61176,
-        "transactions.csv": 513863
+        "transactions.csv": 514023
       },
       "seed": 1337,
       "validation_error_count": 0,
@@ -557,7 +667,7 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6579,
+        "macro_precision": 0.6136,
         "macro_recall": 0.95,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -570,29 +680,29 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 155,
-            "f1": 0.3243,
+            "candidate_count": 162,
+            "f1": 0.3125,
             "false_negative_count": 0,
-            "false_positive_count": 125,
-            "precision": 0.1935,
+            "false_positive_count": 132,
+            "precision": 0.1852,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 37,
-            "f1": 0.7164,
+            "candidate_count": 42,
+            "f1": 0.6667,
             "false_negative_count": 6,
-            "false_positive_count": 13,
-            "precision": 0.6486,
+            "false_positive_count": 18,
+            "precision": 0.5714,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 38,
-            "f1": 0.8824,
+            "candidate_count": 43,
+            "f1": 0.8219,
             "false_negative_count": 0,
-            "false_positive_count": 8,
-            "precision": 0.7895,
+            "false_positive_count": 13,
+            "precision": 0.6977,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -618,7 +728,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1932,
+        "cash_rail_share": 0.1931,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -722,20 +832,20 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.7273,
             "train": 0.8333,
-            "validation": 0.7143
+            "validation": 0.6667
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.3529,
-            "train": 0.5634,
-            "validation": 0.2308
+            "test": 0.2857,
+            "train": 0.4494,
+            "validation": 0.25
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.7273,
-            "train": 0.9756,
-            "validation": 0.9091
+            "test": 0.75,
+            "train": 0.8696,
+            "validation": 0.8333
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.7692,
             "train": 0.9756,
             "validation": 0.9091
           }
@@ -749,7 +859,7 @@
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.0
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.5714,
@@ -771,17 +881,17 @@
             "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 1.0,
-            "train": 1.0,
-            "validation": 0.5556
+            "test": 0.7273,
+            "train": 0.8163,
+            "validation": 0.5882
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.9091,
-            "train": 0.9756,
+            "test": 0.8889,
+            "train": 0.8889,
             "validation": 0.9091
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.8333,
             "train": 0.9756,
             "validation": 0.9091
           }
@@ -793,14 +903,14 @@
             "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.3333,
+            "test": 0.0,
             "train": 1.0,
-            "validation": 0.6667
+            "validation": 0.3333
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8889,
+            "test": 0.75,
             "train": 1.0,
-            "validation": 0.8889
+            "validation": 0.75
           },
           "STRUCTURING": {
             "test": 0.8889,
@@ -808,6 +918,61 @@
             "validation": 1.0
           }
         }
+      },
+      "near_miss_metrics": {
+        "family_counts": {
+          "church_family_bulk_payments": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "incomplete_structuring": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 40
+          },
+          "legitimate_preloan_affordability_candidate": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "legitimate_sme_liquidity_sweep": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "legitimate_structuring_like": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 50
+          },
+          "near_affordability_low_growth": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "near_rapid_low_exit": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 20
+          },
+          "normal_shared_device_low_value": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 15,
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "transaction_count": 30
+          }
+        },
+        "near_miss_member_count": 85,
+        "near_miss_transaction_count": 280,
+        "status": "available"
       },
       "row_counts": {
         "accounts.csv": 40981,
@@ -822,7 +987,7 @@
         "loans.csv": 2350,
         "members.csv": 10000,
         "nodes.csv": 61106,
-        "transactions.csv": 515196
+        "transactions.csv": 515356
       },
       "seed": 2026,
       "validation_error_count": 0,
@@ -830,7 +995,7 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6637,
+        "macro_precision": 0.627,
         "macro_recall": 0.9667,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -843,29 +1008,29 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 137,
-            "f1": 0.3593,
+            "candidate_count": 146,
+            "f1": 0.3409,
             "false_negative_count": 0,
-            "false_positive_count": 107,
-            "precision": 0.219,
+            "false_positive_count": 116,
+            "precision": 0.2055,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 39,
-            "f1": 0.7536,
+            "candidate_count": 43,
+            "f1": 0.7123,
             "false_negative_count": 4,
-            "false_positive_count": 13,
-            "precision": 0.6667,
+            "false_positive_count": 17,
+            "precision": 0.6047,
             "recall": 0.8667,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 39,
-            "f1": 0.8696,
+            "candidate_count": 43,
+            "f1": 0.8219,
             "false_negative_count": 0,
-            "false_positive_count": 9,
-            "precision": 0.7692,
+            "false_positive_count": 13,
+            "precision": 0.6977,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -891,7 +1056,7 @@
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1948,
+        "cash_rail_share": 0.1947,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -998,26 +1163,26 @@
             "validation": 0.9091
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5882,
-            "train": 0.5263,
-            "validation": 0.4
+            "test": 0.4545,
+            "train": 0.4762,
+            "validation": 0.3478
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.8889,
-            "train": 0.9756,
-            "validation": 1.0
+            "train": 0.9302,
+            "validation": 0.9091
           },
           "STRUCTURING": {
-            "test": 0.9091,
-            "train": 1.0,
-            "validation": 1.0
+            "test": 0.8,
+            "train": 0.9091,
+            "validation": 0.8889
           }
         },
         "RandomForestClassifier": {
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.2857
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": 0.75,
@@ -1041,12 +1206,12 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": 0.9091,
             "train": 1.0,
-            "validation": 0.7692
+            "validation": 1.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.7692,
-            "train": 0.9302,
-            "validation": 0.8333
+            "test": 0.6667,
+            "train": 0.8333,
+            "validation": 0.7143
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.75,
@@ -1055,8 +1220,8 @@
           },
           "STRUCTURING": {
             "test": 1.0,
-            "train": 1.0,
-            "validation": 0.8
+            "train": 0.9524,
+            "validation": 1.0
           }
         },
         "RandomForestClassifier": {
@@ -1066,9 +1231,9 @@
             "validation": 0.75
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 1.0,
+            "test": 0.9091,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.2857
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.3333,
@@ -1081,6 +1246,61 @@
             "validation": 0.8889
           }
         }
+      },
+      "near_miss_metrics": {
+        "family_counts": {
+          "church_family_bulk_payments": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "incomplete_structuring": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 40
+          },
+          "legitimate_preloan_affordability_candidate": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "legitimate_sme_liquidity_sweep": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "legitimate_structuring_like": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 50
+          },
+          "near_affordability_low_growth": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "near_rapid_low_exit": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 20
+          },
+          "normal_shared_device_low_value": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 15,
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "transaction_count": 30
+          }
+        },
+        "near_miss_member_count": 85,
+        "near_miss_transaction_count": 280,
+        "status": "available"
       },
       "row_counts": {
         "accounts.csv": 41034,
@@ -1095,7 +1315,7 @@
         "loans.csv": 2374,
         "members.csv": 10000,
         "nodes.csv": 61159,
-        "transactions.csv": 509049
+        "transactions.csv": 509209
       },
       "seed": 9001,
       "validation_error_count": 0,
@@ -1103,7 +1323,7 @@
     },
     {
       "baseline_metrics": {
-        "macro_precision": 0.6551,
+        "macro_precision": 0.6224,
         "macro_recall": 0.95,
         "per_typology": {
           "DEVICE_SHARING_MULE_NETWORK": {
@@ -1116,29 +1336,29 @@
             "truth_member_count": 30
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "candidate_count": 148,
-            "f1": 0.3371,
+            "candidate_count": 158,
+            "f1": 0.3191,
             "false_negative_count": 0,
-            "false_positive_count": 118,
-            "precision": 0.2027,
+            "false_positive_count": 128,
+            "precision": 0.1899,
             "recall": 1.0,
             "truth_member_count": 30
           },
           "RAPID_PASS_THROUGH": {
-            "candidate_count": 37,
-            "f1": 0.7164,
+            "candidate_count": 41,
+            "f1": 0.6761,
             "false_negative_count": 6,
-            "false_positive_count": 13,
-            "precision": 0.6486,
+            "false_positive_count": 17,
+            "precision": 0.5854,
             "recall": 0.8,
             "truth_member_count": 30
           },
           "STRUCTURING": {
-            "candidate_count": 39,
-            "f1": 0.8696,
+            "candidate_count": 42,
+            "f1": 0.8333,
             "false_negative_count": 0,
-            "false_positive_count": 9,
-            "precision": 0.7692,
+            "false_positive_count": 12,
+            "precision": 0.7143,
             "recall": 1.0,
             "truth_member_count": 30
           }
@@ -1160,11 +1380,11 @@
         "device_required_missing_device_id_count": 0,
         "digital_device_coverage": 1.0,
         "max_members_per_device": 4,
-        "shared_device_member_share": 0.044
+        "shared_device_member_share": 0.0439
       },
       "distribution_metrics": {
         "active_member_share": 1.0,
-        "cash_rail_share": 0.1935,
+        "cash_rail_share": 0.1934,
         "counterparty_id_hash_coverage": 1.0
       },
       "evaluation_validity": {
@@ -1266,24 +1486,24 @@
       "ml_ablation_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 0.6667,
-            "train": 0.7143,
-            "validation": 0.7692
+            "test": 0.7143,
+            "train": 0.7407,
+            "validation": 0.7143
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.5,
-            "train": 0.6897,
-            "validation": 0.625
+            "test": 0.4286,
+            "train": 0.625,
+            "validation": 0.5556
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8,
-            "train": 0.8333,
-            "validation": 0.6667
+            "test": 0.6667,
+            "train": 0.7843,
+            "validation": 0.7143
           },
           "STRUCTURING": {
             "test": 1.0,
-            "train": 1.0,
-            "validation": 1.0
+            "train": 0.9524,
+            "validation": 0.8889
           }
         },
         "RandomForestClassifier": {
@@ -1293,14 +1513,14 @@
             "validation": 0.0
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.3333,
+            "test": 0.0,
             "train": 1.0,
-            "validation": 0.75
+            "validation": 0.2857
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.3333,
+            "test": 0.0,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.2857
           },
           "STRUCTURING": {
             "test": 0.8889,
@@ -1312,18 +1532,18 @@
       "ml_metrics": {
         "LogisticRegression": {
           "DEVICE_SHARING_MULE_NETWORK": {
-            "test": 1.0,
+            "test": 0.9091,
             "train": 0.8511,
             "validation": 0.8333
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 1.0,
-            "train": 0.9302,
-            "validation": 0.7692
+            "test": 0.8,
+            "train": 0.9091,
+            "validation": 0.625
           },
           "RAPID_PASS_THROUGH": {
-            "test": 0.8889,
-            "train": 0.8696,
+            "test": 0.7273,
+            "train": 0.8333,
             "validation": 0.7143
           },
           "STRUCTURING": {
@@ -1339,21 +1559,76 @@
             "validation": 0.8889
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
-            "test": 0.8889,
+            "test": 0.75,
             "train": 1.0,
-            "validation": 1.0
+            "validation": 0.7273
           },
           "RAPID_PASS_THROUGH": {
             "test": 0.3333,
             "train": 1.0,
-            "validation": 0.3333
+            "validation": 0.2857
           },
           "STRUCTURING": {
-            "test": 1.0,
+            "test": 0.8889,
             "train": 1.0,
             "validation": 0.8889
           }
         }
+      },
+      "near_miss_metrics": {
+        "family_counts": {
+          "church_family_bulk_payments": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING,RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "incomplete_structuring": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 40
+          },
+          "legitimate_preloan_affordability_candidate": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "legitimate_sme_liquidity_sweep": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 40
+          },
+          "legitimate_structuring_like": {
+            "expected_rule_effect": "false_positive_pressure",
+            "member_count": 10,
+            "target_typology": "STRUCTURING",
+            "transaction_count": 50
+          },
+          "near_affordability_low_growth": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "FAKE_AFFORDABILITY_BEFORE_LOAN",
+            "transaction_count": 30
+          },
+          "near_rapid_low_exit": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 10,
+            "target_typology": "RAPID_PASS_THROUGH",
+            "transaction_count": 20
+          },
+          "normal_shared_device_low_value": {
+            "expected_rule_effect": "negative_control",
+            "member_count": 15,
+            "target_typology": "DEVICE_SHARING_MULE_NETWORK",
+            "transaction_count": 30
+          }
+        },
+        "near_miss_member_count": 85,
+        "near_miss_transaction_count": 280,
+        "status": "available"
       },
       "row_counts": {
         "accounts.csv": 40981,
@@ -1368,7 +1643,7 @@
         "loans.csv": 2403,
         "members.csv": 10000,
         "nodes.csv": 61106,
-        "transactions.csv": 515961
+        "transactions.csv": 516121
       },
       "seed": 314159,
       "validation_error_count": 0,
@@ -1407,9 +1682,9 @@
       "cash_rail_share": {
         "count": 5,
         "max": 0.1951,
-        "mean": 0.1939,
-        "min": 0.1928,
-        "range": 0.0023,
+        "mean": 0.1938,
+        "min": 0.1927,
+        "range": 0.0024,
         "std": 0.0009
       },
       "default_share": {
@@ -1438,11 +1713,11 @@
       },
       "shared_device_member_share": {
         "count": 5,
-        "max": 0.044,
+        "max": 0.0439,
         "mean": 0.0434,
         "min": 0.0429,
-        "range": 0.0011,
-        "std": 0.0004
+        "range": 0.001,
+        "std": 0.0003
       }
     },
     "ml_stability": {
@@ -1452,104 +1727,104 @@
             "test": {
               "count": 5,
               "max": 0.8333,
-              "mean": 0.6543,
-              "min": 0.4286,
-              "range": 0.4047,
-              "std": 0.1341
+              "mean": 0.6683,
+              "min": 0.4,
+              "range": 0.4333,
+              "std": 0.1448
             },
             "train": {
               "count": 5,
               "max": 0.8889,
-              "mean": 0.7885,
-              "min": 0.6897,
-              "range": 0.1992,
-              "std": 0.075
+              "mean": 0.7914,
+              "min": 0.678,
+              "range": 0.2109,
+              "std": 0.0739
             },
             "validation": {
               "count": 5,
               "max": 0.9091,
-              "mean": 0.7785,
-              "min": 0.6667,
-              "range": 0.2424,
-              "std": 0.0858
+              "mean": 0.7497,
+              "min": 0.625,
+              "range": 0.2841,
+              "std": 0.1059
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.5882,
-              "mean": 0.4867,
-              "min": 0.3529,
-              "range": 0.2353,
-              "std": 0.0893
+              "max": 0.5,
+              "mean": 0.4065,
+              "min": 0.2857,
+              "range": 0.2143,
+              "std": 0.0748
             },
             "train": {
               "count": 5,
-              "max": 0.6897,
-              "mean": 0.5895,
-              "min": 0.5263,
-              "range": 0.1634,
-              "std": 0.0544
+              "max": 0.625,
+              "mean": 0.5192,
+              "min": 0.4494,
+              "range": 0.1756,
+              "std": 0.0652
             },
             "validation": {
               "count": 5,
-              "max": 0.625,
-              "mean": 0.4505,
-              "min": 0.2308,
-              "range": 0.3942,
-              "std": 0.1322
+              "max": 0.5556,
+              "mean": 0.3936,
+              "min": 0.25,
+              "range": 0.3056,
+              "std": 0.1021
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.8499,
-              "min": 0.7273,
-              "range": 0.2727,
-              "std": 0.0915
+              "max": 0.8889,
+              "mean": 0.7818,
+              "min": 0.6667,
+              "range": 0.2222,
+              "std": 0.0914
             },
             "train": {
               "count": 5,
-              "max": 0.9756,
-              "mean": 0.9165,
-              "min": 0.8333,
-              "range": 0.1423,
-              "std": 0.0543
+              "max": 0.9302,
+              "mean": 0.8648,
+              "min": 0.7843,
+              "range": 0.1459,
+              "std": 0.0481
             },
             "validation": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.8636,
-              "min": 0.6667,
-              "range": 0.3333,
-              "std": 0.1117
+              "max": 0.9091,
+              "mean": 0.7518,
+              "min": 0.5333,
+              "range": 0.3758,
+              "std": 0.1272
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9818,
-              "min": 0.9091,
-              "range": 0.0909,
-              "std": 0.0364
+              "mean": 0.8805,
+              "min": 0.7692,
+              "range": 0.2308,
+              "std": 0.0997
             },
             "train": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.9589,
-              "min": 0.8889,
-              "range": 0.1111,
-              "std": 0.0433
+              "max": 0.9756,
+              "mean": 0.9397,
+              "min": 0.9091,
+              "range": 0.0665,
+              "std": 0.0264
             },
             "validation": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.869,
-              "min": 0.6667,
-              "range": 0.3333,
-              "std": 0.1318
+              "max": 0.9091,
+              "mean": 0.8055,
+              "min": 0.5714,
+              "range": 0.3377,
+              "std": 0.1271
             }
           }
         },
@@ -1574,20 +1849,20 @@
             "validation": {
               "count": 5,
               "max": 0.3333,
-              "mean": 0.2666,
+              "mean": 0.1905,
               "min": 0.0,
               "range": 0.3333,
-              "std": 0.1333
+              "std": 0.1565
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.2833,
+              "mean": 0.2167,
               "min": 0.0,
               "range": 0.75,
-              "std": 0.2769
+              "std": 0.2963
             },
             "train": {
               "count": 5,
@@ -1599,21 +1874,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.75,
-              "mean": 0.4166,
-              "min": 0.3333,
-              "range": 0.4167,
-              "std": 0.1667
+              "max": 0.3333,
+              "mean": 0.2571,
+              "min": 0.0,
+              "range": 0.3333,
+              "std": 0.1299
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
               "max": 0.5714,
-              "mean": 0.4285,
-              "min": 0.3333,
-              "range": 0.2381,
-              "std": 0.1166
+              "mean": 0.3619,
+              "min": 0.0,
+              "range": 0.5714,
+              "std": 0.2099
             },
             "train": {
               "count": 5,
@@ -1626,10 +1901,10 @@
             "validation": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.4809,
+              "mean": 0.3786,
               "min": 0.0,
               "range": 0.75,
-              "std": 0.285
+              "std": 0.2591
             }
           },
           "STRUCTURING": {
@@ -1665,105 +1940,105 @@
           "DEVICE_SHARING_MULE_NETWORK": {
             "test": {
               "count": 5,
-              "max": 0.3846,
-              "mean": 0.2427,
+              "max": 0.3333,
+              "mean": 0.2105,
               "min": 0.0758,
-              "range": 0.3088,
-              "std": 0.1095
+              "range": 0.2575,
+              "std": 0.0865
             },
             "train": {
               "count": 5,
-              "max": 0.2194,
-              "mean": 0.154,
+              "max": 0.2311,
+              "mean": 0.1511,
               "min": 0.0635,
-              "range": 0.1559,
-              "std": 0.0525
+              "range": 0.1676,
+              "std": 0.0584
             },
             "validation": {
               "count": 5,
-              "max": 0.1948,
-              "mean": 0.0936,
-              "min": 0.0,
-              "range": 0.1948,
-              "std": 0.066
+              "max": 0.2841,
+              "mean": 0.1624,
+              "min": 0.0758,
+              "range": 0.2083,
+              "std": 0.0845
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 0.6471,
-              "mean": 0.3269,
-              "min": 0.1503,
-              "range": 0.4968,
-              "std": 0.207
+              "max": 0.4416,
+              "mean": 0.299,
+              "min": 0.1667,
+              "range": 0.2749,
+              "std": 0.1006
             },
             "train": {
               "count": 5,
-              "max": 0.4366,
-              "mean": 0.3682,
-              "min": 0.2405,
-              "range": 0.1961,
-              "std": 0.0679
+              "max": 0.3692,
+              "mean": 0.333,
+              "min": 0.2841,
+              "range": 0.0851,
+              "std": 0.0387
             },
             "validation": {
               "count": 5,
-              "max": 0.4333,
-              "mean": 0.3016,
-              "min": 0.1442,
-              "range": 0.2891,
-              "std": 0.0924
+              "max": 0.3665,
+              "mean": 0.2681,
+              "min": 0.0694,
+              "range": 0.2971,
+              "std": 0.1113
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.1818,
-              "mean": 0.0541,
+              "max": 0.1389,
+              "mean": 0.0637,
               "min": 0.0,
-              "range": 0.1818,
-              "std": 0.0725
+              "range": 0.1389,
+              "std": 0.058
             },
             "train": {
               "count": 5,
-              "max": 0.0433,
-              "mean": 0.0242,
-              "min": 0.0,
-              "range": 0.0433,
-              "std": 0.0199
+              "max": 0.058,
+              "mean": 0.0426,
+              "min": 0.0193,
+              "range": 0.0387,
+              "std": 0.0129
             },
             "validation": {
               "count": 5,
-              "max": 0.0476,
-              "mean": 0.0095,
+              "max": 0.0909,
+              "mean": 0.0538,
               "min": 0.0,
-              "range": 0.0476,
-              "std": 0.019
+              "range": 0.0909,
+              "std": 0.032
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
-              "max": 0.0909,
-              "mean": 0.0182,
+              "max": 0.2,
+              "mean": 0.068,
               "min": 0.0,
-              "range": 0.0909,
-              "std": 0.0364
+              "range": 0.2,
+              "std": 0.0731
             },
             "train": {
               "count": 5,
-              "max": 0.0454,
-              "mean": 0.0173,
+              "max": 0.0476,
+              "mean": 0.0319,
               "min": 0.0,
-              "range": 0.0454,
-              "std": 0.0213
+              "range": 0.0476,
+              "std": 0.0187
             },
             "validation": {
               "count": 5,
-              "max": 0.0641,
-              "mean": 0.0128,
+              "max": 0.1429,
+              "mean": 0.101,
               "min": 0.0,
-              "range": 0.0641,
-              "std": 0.0256
+              "range": 0.1429,
+              "std": 0.0523
             }
           }
         },
@@ -1787,21 +2062,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.6611,
-              "min": 0.4167,
-              "range": 0.4722,
-              "std": 0.1495
+              "max": 1.0,
+              "mean": 0.7373,
+              "min": 0.4643,
+              "range": 0.5357,
+              "std": 0.1879
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
               "max": 0.75,
-              "mean": 0.4889,
-              "min": 0.25,
-              "range": 0.5,
-              "std": 0.178
+              "mean": 0.4152,
+              "min": 0.0,
+              "range": 0.75,
+              "std": 0.304
             },
             "train": {
               "count": 5,
@@ -1814,20 +2089,20 @@
             "validation": {
               "count": 5,
               "max": 0.5556,
-              "mean": 0.3389,
+              "mean": 0.2661,
               "min": 0.0,
               "range": 0.5556,
-              "std": 0.2082
+              "std": 0.2284
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.3175,
-              "mean": 0.1468,
+              "max": 0.3333,
+              "mean": 0.1024,
               "min": 0.0,
-              "range": 0.3175,
-              "std": 0.1277
+              "range": 0.3333,
+              "std": 0.1346
             },
             "train": {
               "count": 5,
@@ -1839,21 +2114,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.3175,
-              "mean": 0.0913,
+              "max": 0.4643,
+              "mean": 0.1564,
               "min": 0.0,
-              "range": 0.3175,
-              "std": 0.1253
+              "range": 0.4643,
+              "std": 0.17
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
-              "max": 0.25,
-              "mean": 0.0944,
+              "max": 0.1111,
+              "mean": 0.0222,
               "min": 0.0,
-              "range": 0.25,
-              "std": 0.0923
+              "range": 0.1111,
+              "std": 0.0444
             },
             "train": {
               "count": 5,
@@ -1865,11 +2140,11 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.25,
-              "mean": 0.1278,
+              "max": 0.1389,
+              "mean": 0.1056,
               "min": 0.0,
-              "range": 0.25,
-              "std": 0.0797
+              "range": 0.1389,
+              "std": 0.0539
             }
           }
         }
@@ -1919,10 +2194,10 @@
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.897,
+              "mean": 0.8788,
               "min": 0.6667,
               "range": 0.3333,
-              "std": 0.1221
+              "std": 0.1117
             },
             "train": {
               "count": 5,
@@ -1934,89 +2209,89 @@
             },
             "validation": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.8441,
-              "min": 0.7692,
-              "range": 0.1399,
-              "std": 0.0568
+              "max": 1.0,
+              "mean": 0.9121,
+              "min": 0.8333,
+              "range": 0.1667,
+              "std": 0.0528
             }
           },
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.8136,
-              "min": 0.5714,
-              "range": 0.4286,
-              "std": 0.1659
+              "max": 0.8,
+              "mean": 0.7055,
+              "min": 0.6667,
+              "range": 0.1333,
+              "std": 0.0528
             },
             "train": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.9577,
-              "min": 0.9302,
-              "range": 0.0698,
-              "std": 0.027
+              "max": 0.9091,
+              "mean": 0.8522,
+              "min": 0.8163,
+              "range": 0.0928,
+              "std": 0.0313
             },
             "validation": {
               "count": 5,
-              "max": 0.8333,
-              "mean": 0.7521,
-              "min": 0.5556,
-              "range": 0.2777,
-              "std": 0.1024
+              "max": 0.7143,
+              "mean": 0.6617,
+              "min": 0.5882,
+              "range": 0.1261,
+              "std": 0.0496
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.9091,
-              "mean": 0.8474,
-              "min": 0.75,
-              "range": 0.1591,
-              "std": 0.0616
+              "max": 0.8889,
+              "mean": 0.8177,
+              "min": 0.7273,
+              "range": 0.1616,
+              "std": 0.068
             },
             "train": {
               "count": 5,
               "max": 0.9756,
-              "mean": 0.9407,
-              "min": 0.8696,
-              "range": 0.106,
-              "std": 0.0393
+              "mean": 0.9074,
+              "min": 0.8333,
+              "range": 0.1423,
+              "std": 0.0469
             },
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8732,
-              "min": 0.7143,
-              "range": 0.2857,
-              "std": 0.0954
+              "mean": 0.8056,
+              "min": 0.5714,
+              "range": 0.4286,
+              "std": 0.15
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 1.0,
-              "min": 1.0,
-              "range": 0.0,
-              "std": 0.0
+              "mean": 0.9485,
+              "min": 0.8333,
+              "range": 0.1667,
+              "std": 0.0675
             },
             "train": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9763,
+              "mean": 0.9716,
               "min": 0.9302,
               "range": 0.0698,
-              "std": 0.0255
+              "std": 0.0272
             },
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.8418,
-              "min": 0.6667,
-              "range": 0.3333,
-              "std": 0.1114
+              "mean": 0.9065,
+              "min": 0.7143,
+              "range": 0.2857,
+              "std": 0.1043
             }
           }
         },
@@ -2050,11 +2325,11 @@
           "FAKE_AFFORDABILITY_BEFORE_LOAN": {
             "test": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.7722,
-              "min": 0.3333,
-              "range": 0.6667,
-              "std": 0.2333
+              "max": 0.9091,
+              "mean": 0.6318,
+              "min": 0.0,
+              "range": 0.9091,
+              "std": 0.3219
             },
             "train": {
               "count": 5,
@@ -2066,21 +2341,21 @@
             },
             "validation": {
               "count": 5,
-              "max": 1.0,
-              "mean": 0.7556,
-              "min": 0.3333,
-              "range": 0.6667,
-              "std": 0.2373
+              "max": 0.8889,
+              "mean": 0.5137,
+              "min": 0.2857,
+              "range": 0.6032,
+              "std": 0.2464
             }
           },
           "RAPID_PASS_THROUGH": {
             "test": {
               "count": 5,
-              "max": 0.8889,
-              "mean": 0.5754,
+              "max": 0.75,
+              "mean": 0.4643,
               "min": 0.3333,
-              "range": 0.5556,
-              "std": 0.2218
+              "range": 0.4167,
+              "std": 0.17
             },
             "train": {
               "count": 5,
@@ -2093,20 +2368,20 @@
             "validation": {
               "count": 5,
               "max": 0.8889,
-              "mean": 0.5722,
+              "mean": 0.5349,
               "min": 0.0,
               "range": 0.8889,
-              "std": 0.3512
+              "std": 0.3365
             }
           },
           "STRUCTURING": {
             "test": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9556,
-              "min": 0.8889,
-              "range": 0.1111,
-              "std": 0.0544
+              "mean": 0.8833,
+              "min": 0.75,
+              "range": 0.25,
+              "std": 0.0793
             },
             "train": {
               "count": 5,
@@ -2119,15 +2394,179 @@
             "validation": {
               "count": 5,
               "max": 1.0,
-              "mean": 0.9056,
+              "mean": 0.8833,
               "min": 0.75,
               "range": 0.25,
-              "std": 0.0923
+              "std": 0.0793
             }
           }
         }
       },
       "interpretation": "Single-seed ML scores are anecdotal; use full, ablated, and confounder ranges to assess seed sensitivity."
+    },
+    "near_miss_stability": {
+      "families": {
+        "church_family_bulk_payments": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 40.0,
+            "mean": 40.0,
+            "min": 40.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "incomplete_structuring": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 40.0,
+            "mean": 40.0,
+            "min": 40.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_preloan_affordability_candidate": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 30.0,
+            "mean": 30.0,
+            "min": 30.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_sme_liquidity_sweep": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 40.0,
+            "mean": 40.0,
+            "min": 40.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "legitimate_structuring_like": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 50.0,
+            "mean": 50.0,
+            "min": 50.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "near_affordability_low_growth": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 30.0,
+            "mean": 30.0,
+            "min": 30.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "near_rapid_low_exit": {
+          "member_count": {
+            "count": 5,
+            "max": 10.0,
+            "mean": 10.0,
+            "min": 10.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 20.0,
+            "mean": 20.0,
+            "min": 20.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        },
+        "normal_shared_device_low_value": {
+          "member_count": {
+            "count": 5,
+            "max": 15.0,
+            "mean": 15.0,
+            "min": 15.0,
+            "range": 0.0,
+            "std": 0.0
+          },
+          "transaction_count": {
+            "count": 5,
+            "max": 30.0,
+            "mean": 30.0,
+            "min": 30.0,
+            "range": 0.0,
+            "std": 0.0
+          }
+        }
+      },
+      "near_miss_member_count": {
+        "count": 5,
+        "max": 85.0,
+        "mean": 85.0,
+        "min": 85.0,
+        "range": 0.0,
+        "std": 0.0
+      },
+      "near_miss_transaction_count": {
+        "count": 5,
+        "max": 280.0,
+        "mean": 280.0,
+        "min": 280.0,
+        "range": 0.0,
+        "std": 0.0
+      }
     },
     "typology_precision_recall": {
       "DEVICE_SHARING_MULE_NETWORK": {
@@ -2152,11 +2591,11 @@
       "FAKE_AFFORDABILITY_BEFORE_LOAN": {
         "precision": {
           "count": 5,
-          "max": 0.2239,
-          "mean": 0.2092,
-          "min": 0.1935,
-          "range": 0.0304,
-          "std": 0.011
+          "max": 0.2098,
+          "mean": 0.197,
+          "min": 0.1852,
+          "range": 0.0246,
+          "std": 0.0093
         },
         "recall": {
           "count": 5,
@@ -2171,11 +2610,11 @@
       "RAPID_PASS_THROUGH": {
         "precision": {
           "count": 5,
-          "max": 0.6667,
-          "mean": 0.6362,
-          "min": 0.5854,
-          "range": 0.0813,
-          "std": 0.0277
+          "max": 0.6047,
+          "mean": 0.5709,
+          "min": 0.5217,
+          "range": 0.083,
+          "std": 0.0275
         },
         "recall": {
           "count": 5,
@@ -2190,11 +2629,11 @@
       "STRUCTURING": {
         "precision": {
           "count": 5,
-          "max": 0.7895,
-          "mean": 0.7656,
-          "min": 0.75,
-          "range": 0.0395,
-          "std": 0.0147
+          "max": 0.7317,
+          "mean": 0.6987,
+          "min": 0.6522,
+          "range": 0.0795,
+          "std": 0.0264
         },
         "recall": {
           "count": 5,

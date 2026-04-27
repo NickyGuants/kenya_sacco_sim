@@ -63,7 +63,8 @@ When it finishes, inspect these first:
 - `validation_report.json` - must report zero errors.
 - `dataset_card.md` - human-readable summary of counts, metrics, and limits.
 - `manifest.json` - seed, config, files, and MD5 hashes.
-- `rule_results.json` - executable rule results and candidate IDs.
+- `rule_results.json` - executable rule results, candidate IDs, and near-miss
+  disclosure.
 - `ml_leakage_ablation.json` - ML rule-proxy ablation diagnostics.
 - `benchmark_confounder_diagnostics.json` - temporal/persona shortcut diagnostics.
 

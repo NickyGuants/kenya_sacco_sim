@@ -24,6 +24,8 @@ Implemented:
   - `RAPID_PASS_THROUGH`
   - `FAKE_AFFORDABILITY_BEFORE_LOAN`
   - `DEVICE_SHARING_MULE_NETWORK`
+- Rich near-miss and negative-control families for active typologies, reported
+  in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
 - Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
   feature files.
 - Deterministic rule reconstruction in `rule_results.json`.
@@ -206,6 +208,7 @@ clean_baseline_aml_metrics
 distribution_validation
 typology_validation
 typology_runtime_metrics
+near_miss_validation
 fake_affordability_validation
 device_sharing_mule_network_validation
 benchmark_validation
@@ -256,27 +259,30 @@ Latest verified 10,000-member benchmark run:
 command: python3 -m kenya_sacco_sim generate --members 10000 --with-loans --with-typologies --with-benchmark --output ./datasets/KENYA_SACCO_SIM_v1_10k
 manifest version:    1.0.0-dev
 validation errors:   0
-validation warnings: 0
+validation warnings: 1 (FAKE_AFFORDABILITY temporal concentration review)
 members:             10,000
 accounts:            41,003
-transactions:        511,026
+transactions:        511,193
 loans:               2,352
 guarantors:          3,372
-alerts_truth:        796
+alerts_truth:        803
 devices:             10,000
 device coverage:     100.00% of digital transactions
 shared devices:      343
 max members/device:  5
 evaluation validity: valid
+near-miss families:  8
+near-miss members:   85
+near-miss txns:      280
 ```
 
 Rule-baseline metrics from that run:
 
 ```text
-DEVICE_SHARING_MULE_NETWORK precision: 0.9091 / recall: 1.0000
-FAKE_AFFORDABILITY precision:          0.2222 / recall: 1.0000
-RAPID_PASS_THROUGH precision:          0.6000 / recall: 0.8000
-STRUCTURING precision:                 0.7500 / recall: 1.0000
+DEVICE_SHARING_MULE_NETWORK precision: 1.0000 / recall: 1.0000
+FAKE_AFFORDABILITY precision:          0.2098 / recall: 1.0000
+RAPID_PASS_THROUGH precision:          0.5714 / recall: 0.8000
+STRUCTURING precision:                 0.6522 / recall: 1.0000
 ```
 
 Latest multi-seed stability gate:
@@ -288,9 +294,11 @@ precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
 shared-device member share mean: 0.0434
-cash rail share mean: 0.1939
+cash rail share mean: 0.1938
 loan active member mean: 0.2385
 arrears share mean: 0.0927
+near-miss member count mean: 85.0
+near-miss transaction count mean: 280.0
 ```
 
 Known benchmark behavior:
@@ -299,6 +307,8 @@ Known benchmark behavior:
 FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
 Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
+Near-miss families intentionally create legitimate behavior that can pressure
+typology rules without appearing in alerts_truth.csv.
 Rule-vs-ML comparison is descriptive. Use ablation and confounder diagnostics
 before making ML superiority claims.
 ML outperformance on direct rule-proxy features is not treated as benchmark

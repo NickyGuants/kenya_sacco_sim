@@ -143,6 +143,7 @@ def _seed_summary(
             "macro_recall": baseline_results.get("macro_recall"),
             "per_typology": typologies,
         },
+        "near_miss_metrics": _near_miss_summary(rule_results.get("near_miss_disclosure", {})),
         "evaluation_validity": baseline_results.get("benchmark_checks", {}).get("evaluation_validity", {}),
         "confounder_diagnostics": baseline_results.get("benchmark_checks", {}).get("confounder_diagnostics", {}).get("risk_summary", {}),
         "ml_metrics": _ml_metric_summary(benchmark_artifacts.get("ml_baseline_results.json", {}), metric_key="f1"),
@@ -204,6 +205,7 @@ def _stability_report(seed_results: list[dict[str, object]]) -> dict[str, object
         "typology_precision_recall": per_typology,
         "distribution_stability": metric_stability,
         "ml_stability": _ml_stability_report(seed_results),
+        "near_miss_stability": _near_miss_stability_report(seed_results),
         "acceptance": {
             "precision_recall_variance_within_threshold": all_precision_recall_stable,
             "threshold": STABILITY_THRESHOLD,
@@ -234,6 +236,70 @@ def _ml_metric_summary(artifact: object, metric_key: str) -> dict[str, object]:
                 if isinstance(split_metrics, dict) and split_metrics.get("status") == "evaluated"
             }
     return summary
+
+
+def _near_miss_summary(disclosure: object) -> dict[str, object]:
+    if not isinstance(disclosure, dict):
+        return {"status": "not_available"}
+    families = disclosure.get("families", {})
+    family_counts = {}
+    if isinstance(families, dict):
+        family_counts = {
+            str(family): {
+                "member_count": section.get("member_count", 0),
+                "transaction_count": section.get("transaction_count", 0),
+                "expected_rule_effect": section.get("expected_rule_effect"),
+                "target_typology": section.get("target_typology"),
+            }
+            for family, section in families.items()
+            if isinstance(section, dict)
+        }
+    return {
+        "status": disclosure.get("status", "not_available"),
+        "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
+        "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
+        "family_counts": family_counts,
+    }
+
+
+def _near_miss_stability_report(seed_results: list[dict[str, object]]) -> dict[str, object]:
+    families = sorted(
+        {
+            family
+            for seed in seed_results
+            for family in (
+                seed.get("near_miss_metrics", {}).get("family_counts", {})
+                if isinstance(seed.get("near_miss_metrics"), dict)
+                else {}
+            )
+        }
+    )
+    return {
+        "near_miss_member_count": _seed_metric_stats(seed_results, ("near_miss_metrics", "near_miss_member_count")),
+        "near_miss_transaction_count": _seed_metric_stats(seed_results, ("near_miss_metrics", "near_miss_transaction_count")),
+        "families": {
+            family: {
+                "member_count": _near_miss_family_stats(seed_results, family, "member_count"),
+                "transaction_count": _near_miss_family_stats(seed_results, family, "transaction_count"),
+            }
+            for family in families
+        },
+    }
+
+
+def _near_miss_family_stats(seed_results: list[dict[str, object]], family: str, metric: str) -> dict[str, object]:
+    values: list[float] = []
+    for seed in seed_results:
+        near_miss = seed.get("near_miss_metrics", {})
+        if not isinstance(near_miss, dict):
+            continue
+        families = near_miss.get("family_counts", {})
+        if not isinstance(families, dict):
+            continue
+        section = families.get(family, {})
+        if isinstance(section, dict) and isinstance(section.get(metric), (int, float)):
+            values.append(float(section[metric]))
+    return _series_stats(values)
 
 
 def _ml_stability_report(seed_results: list[dict[str, object]]) -> dict[str, object]:

@@ -53,6 +53,7 @@ def build_validation_report(
         "distribution_validation": distribution_section,
         "typology_validation": typology_section,
         "typology_runtime_metrics": typology_runtime_metrics or {"status": "not_applicable"},
+        "near_miss_validation": _near_miss_section(typology_runtime_metrics),
         "fake_affordability_validation": _fake_affordability_section(typology_runtime_metrics),
         "device_sharing_mule_network_validation": _device_sharing_section(typology_runtime_metrics),
         "benchmark_validation": benchmark_validation or {"status": "not_applicable"},
@@ -144,6 +145,20 @@ def _fake_affordability_section(rule_results: dict[str, object] | None) -> dict[
         "false_negative_count": section.get("false_negative_count", 0),
         "precision": section.get("precision", 0),
         "recall": section.get("recall", 0),
+    }
+
+
+def _near_miss_section(rule_results: dict[str, object] | None) -> dict[str, object]:
+    if not rule_results or not isinstance(rule_results.get("near_miss_disclosure"), dict):
+        return {"status": "not_applicable"}
+    disclosure = rule_results["near_miss_disclosure"]
+    families = disclosure.get("families", {})
+    return {
+        "status": disclosure.get("status", "available"),
+        "family_count": disclosure.get("family_count", 0),
+        "near_miss_member_count": disclosure.get("near_miss_member_count", 0),
+        "near_miss_transaction_count": disclosure.get("near_miss_transaction_count", 0),
+        "families": families if isinstance(families, dict) else {},
     }
 
 

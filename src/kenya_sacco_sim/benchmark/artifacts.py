@@ -116,6 +116,7 @@ def _build_baseline_results(
         "baseline_name": "deterministic_v1_rules",
         "description": "Rule baseline using exported structuring, rapid-pass-through, fake-affordability, and device-sharing mule definitions.",
         "per_typology": per_typology,
+        "near_miss_disclosure": rule_results.get("near_miss_disclosure", {"status": "not_available"}),
         "macro_precision": round(sum(precision_values) / len(precision_values), 4) if precision_values else 0,
         "macro_recall": round(sum(recall_values) / len(recall_values), 4) if recall_values else 0,
         "benchmark_checks": {
@@ -423,6 +424,7 @@ def _dataset_card(
     confounder_diagnostics: dict[str, object],
 ) -> str:
     rule_summary = _rule_performance_summary(baseline_results)
+    near_miss_summary = _near_miss_summary(baseline_results.get("near_miss_disclosure", {}))
     ml_summary = _ml_performance_summary(ml_results)
     ablation_summary = _ablation_summary(ml_ablation)
     comparison_summary = _comparison_summary(comparison)
@@ -464,6 +466,10 @@ The deterministic rule baseline macro precision is `{baseline_results["macro_pre
 ### Deterministic Rule Performance
 
 {rule_summary}
+
+### Near-Miss And Negative-Control Coverage
+
+{near_miss_summary}
 
 ### ML Baseline Performance
 
@@ -515,6 +521,30 @@ def _rule_performance_summary(baseline_results: dict[str, object]) -> str:
             f"recall {_metric(metrics.get('recall'))} / "
             f"truth {metrics.get('truth_member_count', 0)} / "
             f"candidates {metrics.get('candidate_member_count', 0)}"
+        )
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def _near_miss_summary(disclosure: object) -> str:
+    if not isinstance(disclosure, dict) or disclosure.get("status") != "available":
+        return "Near-miss disclosure was not emitted for this package."
+    families = disclosure.get("families", {})
+    if not isinstance(families, dict) or not families:
+        return "No near-miss families were emitted for this package."
+    lines = [
+        "```text",
+        f"near_miss_member_count: {disclosure.get('near_miss_member_count', 0)}",
+        f"near_miss_transaction_count: {disclosure.get('near_miss_transaction_count', 0)}",
+    ]
+    for family, section in sorted(families.items()):
+        if not isinstance(section, dict):
+            continue
+        lines.append(
+            f"{family}: target {section.get('target_typology')} / "
+            f"effect {section.get('expected_rule_effect')} / "
+            f"members {section.get('member_count', 0)} / "
+            f"txns {section.get('transaction_count', 0)}"
         )
     lines.append("```")
     return "\n".join(lines)
@@ -578,7 +608,9 @@ def _ablation_summary(ml_ablation: dict[str, object]) -> str:
     if not isinstance(ml_ablation, dict) or ml_ablation.get("baseline_name") is None:
         return "Rule-proxy ablation was not emitted for this package."
     risk = ml_ablation.get("risk_summary", {})
-    notable = risk.get("notable_f1_drops", []) if isinstance(risk, dict) else []
+    notable = []
+    if isinstance(risk, dict):
+        notable = risk.get("high_dependency_cases", risk.get("notable_f1_drops", []))
     rows = [
         row
         for row in notable

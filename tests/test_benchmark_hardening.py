@@ -99,14 +99,31 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertGreaterEqual(validity["min_txns_per_typology_per_split"], 10)
 
     def test_rule_vs_ml_comparison_artifact_is_emitted(self) -> None:
+        rule_results = {
+            "near_miss_disclosure": {
+                "status": "available",
+                "near_miss_member_count": 2,
+                "near_miss_transaction_count": 9,
+                "families": {
+                    "legitimate_structuring_like": {
+                        "target_typology": "STRUCTURING",
+                        "expected_rule_effect": "false_positive_pressure",
+                        "member_count": 2,
+                        "transaction_count": 9,
+                    }
+                },
+            }
+        }
         artifacts = build_benchmark_artifacts(
             {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
-            {},
+            rule_results,
             WorldConfig(member_count=0, suspicious_ratio=0),
         )
 
+        baseline = artifacts["baseline_model_results.json"]
         comparison = artifacts["rule_vs_ml_comparison.json"]
 
+        self.assertEqual(baseline["near_miss_disclosure"]["near_miss_member_count"], 2)
         self.assertEqual(comparison["status"], "available")
         self.assertEqual(comparison["claim_status"], "descriptive_not_ml_superiority_evidence")
         self.assertIn("ablation_risk_summary", comparison)
@@ -116,6 +133,7 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertIn("benchmark_confounder_diagnostics.json", artifacts)
         self.assertIn("ml_leakage_ablation.json", artifacts)
         self.assertIn("Rule-Proxy Dependence", artifacts["dataset_card.md"])
+        self.assertIn("Near-Miss And Negative-Control Coverage", artifacts["dataset_card.md"])
 
     def test_temporal_confounder_flags_month_share_above_40pct(self) -> None:
         transactions = [
@@ -240,6 +258,39 @@ class BenchmarkHardeningTests(unittest.TestCase):
         )
 
         self.assertIn("benchmark.evaluation_label_density_low", {error["code"] for error in report["errors"]})
+
+    def test_validation_report_surfaces_near_miss_disclosure(self) -> None:
+        report = build_validation_report(
+            {
+                "members.csv": [],
+                "accounts.csv": [],
+                "nodes.csv": [],
+                "graph_edges.csv": [],
+            },
+            WorldConfig(member_count=0),
+            typology_runtime_metrics={
+                "near_miss_disclosure": {
+                    "status": "available",
+                    "family_count": 1,
+                    "near_miss_member_count": 3,
+                    "near_miss_transaction_count": 12,
+                    "families": {
+                        "near_rapid_low_exit": {
+                            "target_typology": "RAPID_PASS_THROUGH",
+                            "expected_rule_effect": "negative_control",
+                            "member_count": 3,
+                            "transaction_count": 12,
+                        }
+                    },
+                }
+            },
+        )
+
+        near_miss = report["near_miss_validation"]
+
+        self.assertEqual(near_miss["status"], "available")
+        self.assertEqual(near_miss["near_miss_member_count"], 3)
+        self.assertIn("near_rapid_low_exit", near_miss["families"])
 
 
 def _transaction(txn_id: str, timestamp: str) -> dict[str, object]:

@@ -54,6 +54,7 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `distribution_validation` | Persona, rural/urban, wallet, rail, transaction mix, and seasonality metrics are checked. |
 | `typology_validation` | Injected typology counts match target policy and active typology requirements. |
 | `typology_runtime_metrics` | Rule-baseline precision and recall against truth labels. |
+| `near_miss_validation` | Normal-but-suspicious-looking negative-control family counts and transaction coverage. |
 | `fake_affordability_validation` | Pre-loan window and external-credit invariants are reported. |
 | `device_sharing_mule_network_validation` | Shared-device mule candidate IDs, precision/recall, and misses are reported. |
 | `benchmark_validation` | Whether benchmark artifacts form a valid evaluation or only a smoke run. |
@@ -100,6 +101,29 @@ shared_device_member_share
 ```
 
 Required digital device coverage is `100%`.
+
+## Near-Miss Validation
+
+Near-miss rows are normal feature-file transactions, not labels. They are
+reported through `rule_results.json.near_miss_disclosure` and copied into
+`validation_report.json.near_miss_validation`.
+
+Current near-miss families include:
+
+```text
+legitimate_structuring_like
+incomplete_structuring
+legitimate_sme_liquidity_sweep
+near_rapid_low_exit
+church_family_bulk_payments
+legitimate_preloan_affordability_candidate
+near_affordability_low_growth
+normal_shared_device_low_value
+```
+
+Families marked `false_positive_pressure` are allowed to be rule candidates.
+Families marked `negative_control` should look superficially similar while
+staying below at least one rule threshold.
 
 ## Benchmark Validity
 
