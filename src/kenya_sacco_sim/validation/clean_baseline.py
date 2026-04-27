@@ -57,11 +57,16 @@ def _structuring_candidates(transactions: list[dict[str, object]], rows_by_file:
     min_total = float(STRUCTURING_RULE_CONFIG["min_total_deposit_kes"])
     for member_id, deposits in deposits_by_member.items():
         deposits.sort(key=lambda item: item[0])
-        for start_index, (start_ts, _) in enumerate(deposits):
-            window = [(ts, amount) for ts, amount in deposits[start_index:] if ts <= start_ts + timedelta(days=window_days)]
-            if len(window) >= min_count and sum(amount for _, amount in window) >= min_total:
+        total = 0.0
+        right = 0
+        for left, (start_ts, _) in enumerate(deposits):
+            while right < len(deposits) and deposits[right][0] <= start_ts + timedelta(days=window_days):
+                total += deposits[right][1]
+                right += 1
+            if right - left >= min_count and total >= min_total:
                 candidates.add(member_id)
                 break
+            total -= deposits[left][1]
     return candidates
 
 

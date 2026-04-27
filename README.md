@@ -129,6 +129,15 @@ zero for the run.
 results, member-level ML baseline results, feature importances, rule-vs-ML
 comparison, and leakage-ablation diagnostics. It requires `--with-typologies`.
 
+For larger generated packages, use `--skip-ml-baseline` with `--with-benchmark`
+to emit rule, split, leakage, and dataset-card artifacts without training
+sklearn models during generation. Run ML later from the generated CSV package:
+
+```bash
+python3 -m kenya_sacco_sim ml-baseline \
+  --input ./datasets/KENYA_SACCO_SIM_v1_10k
+```
+
 `--config-dir` defaults to `./config`. Missing config files fall back to built-in
 defaults, and CLI arguments override loaded config values.
 
@@ -317,16 +326,29 @@ arrears share mean: 0.0927
 near-miss member count mean: 213.8
 near-miss transaction count mean: 860.2
 near-miss guarantee count mean: 18.8
-wall clock: 106.6s on this 11-CPU local machine with --jobs 4
-first four seeds completed in ~58-59s; final queued seed completed at 106.3s
-single 10k package wall clock: 52.3s
+wall clock: 89.0s on this 11-CPU local machine with --jobs 4
+first four seeds completed in ~49-50s; final queued seed completed at 88.6s
+single 10k package wall clock: 44.4s
 ```
 
 The benchmark runner now caps parallel workers by both CPU count and an
 estimated memory budget. On this local 11-CPU, ~18 GB host, 10k runs use four
-workers. A 100k two-seed full benchmark probe was correctly capped to two
-workers, but was stopped after ten minutes with no completed seed. Treat 100k
-as an unresolved performance-scaling item, not as a supported benchmark gate.
+workers.
+
+Latest local scale probe:
+
+```text
+20k core:              1,025,544 transactions / 1,990,754 selected rows / 59.9s
+20k benchmark no ML:   1,025,544 transactions / 1,990,754 selected rows / 66.0s
+30k core:              1,539,183 transactions / 2,986,102 selected rows / 102.9s
+50k core:              2,566,066 transactions / 5,027,944 total CSV rows / 230.6s
+scale artifact:        ./benchmarks/KENYA_SACCO_SIM_scale_probe_results.json
+```
+
+The 50k run verifies multi-million-record generation. A 100k full benchmark run
+is still a separate scaling target and should use `--skip-ml-baseline` or the
+standalone `ml-baseline` command until the remaining validation/export path is
+made streaming-friendly.
 
 Known benchmark behavior:
 
@@ -341,9 +363,8 @@ before making ML superiority claims.
 ML outperformance on direct rule-proxy features is not treated as benchmark
 evidence unless the ablated feature set and multi-seed diagnostics support it.
 100-member runs are smoke tests only, not valid benchmark evaluations.
-100,000-member full benchmark runs are not yet a release gate; the current full
-ML/validation path is still too slow at that scale on the local development
-machine.
+100,000-member full benchmark runs are not yet a release gate; use the
+generation/ML decoupling path for large-scale probes.
 ```
 
 ## Development Discipline

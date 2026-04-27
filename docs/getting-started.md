@@ -89,6 +89,31 @@ has validation errors or if typology precision/recall ranges drift by more than
 `0.10` across seeds. Seeds must be unique. Seed runs execute in parallel by
 default; use `--jobs 1` when debugging a single serial path.
 
+## Larger Generated Packages
+
+For larger generated packages, keep ML training out of the generation loop:
+
+```bash
+python3 -m kenya_sacco_sim generate \
+  --members 50000 \
+  --with-loans \
+  --with-typologies \
+  --with-benchmark \
+  --skip-ml-baseline \
+  --output ./datasets/KENYA_SACCO_SIM_v1_50k
+```
+
+Then run ML artifacts later:
+
+```bash
+python3 -m kenya_sacco_sim ml-baseline \
+  --input ./datasets/KENYA_SACCO_SIM_v1_50k
+```
+
+The current local scale probe reached 50,000 members, 2,566,066 transactions,
+and 5,027,944 total CSV rows with zero validation errors. The probe summary is
+tracked in `benchmarks/KENYA_SACCO_SIM_scale_probe_results.json`.
+
 ## Sanity Tests
 
 Unit tests:

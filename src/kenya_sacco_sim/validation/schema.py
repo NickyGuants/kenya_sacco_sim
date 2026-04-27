@@ -297,14 +297,17 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
 
 
 def _validate_enums(filename: str, rows: list[dict[str, object]], findings: list[ValidationFinding]) -> None:
+    strict_rules = [(column, allowed) for (enum_file, column), allowed in STRICT_ENUMS.items() if enum_file == filename]
+    recommended_rules = [(column, recommended) for (enum_file, column), recommended in RECOMMENDED_ENUMS.items() if enum_file == filename]
+    if not strict_rules and not recommended_rules:
+        return
     for row in rows:
-        row_id = _row_id(row)
-        for (enum_file, column), allowed in STRICT_ENUMS.items():
-            if enum_file == filename and row.get(column) not in allowed:
-                findings.append(_error("schema.enum_invalid", f"{column}={row.get(column)!r} is not allowed", filename, row_id))
-        for (enum_file, column), recommended in RECOMMENDED_ENUMS.items():
-            if enum_file == filename and row.get(column) not in recommended:
-                findings.append(ValidationFinding("warning", "schema.recommended_value", f"{column}={row.get(column)!r} is outside recommended values", filename, row_id))
+        for column, allowed in strict_rules:
+            if row.get(column) not in allowed:
+                findings.append(_error("schema.enum_invalid", f"{column}={row.get(column)!r} is not allowed", filename, _row_id(row)))
+        for column, recommended in recommended_rules:
+            if row.get(column) not in recommended:
+                findings.append(ValidationFinding("warning", "schema.recommended_value", f"{column}={row.get(column)!r} is outside recommended values", filename, _row_id(row)))
 
 
 def _validate_dates(filename: str, rows: list[dict[str, object]], config: WorldConfig, findings: list[ValidationFinding]) -> None:
@@ -398,16 +401,15 @@ def _validate_account_product_codes(rows: list[dict[str, object]], findings: lis
 
 def _validate_transaction_amounts(rows: list[dict[str, object]], findings: list[ValidationFinding]) -> None:
     for row in rows:
-        row_id = _row_id(row)
         amount = float(row.get("amount_kes") or 0)
         fee = float(row.get("fee_kes") or 0)
         if str(row.get("txn_type")) in {"KYC_REFRESH", "ACCOUNT_REACTIVATION"}:
             if amount != 0 or fee != 0:
-                findings.append(_error("schema.operational_event_amount", "Operational events must have zero amount and fee", "transactions.csv", row_id))
+                findings.append(_error("schema.operational_event_amount", "Operational events must have zero amount and fee", "transactions.csv", _row_id(row)))
         elif amount <= 0:
-            findings.append(_error("schema.amount_non_positive", "Financial transactions must have positive amount", "transactions.csv", row_id))
+            findings.append(_error("schema.amount_non_positive", "Financial transactions must have positive amount", "transactions.csv", _row_id(row)))
         if fee < 0:
-            findings.append(_error("schema.fee_negative", "Transaction fee cannot be negative", "transactions.csv", row_id))
+            findings.append(_error("schema.fee_negative", "Transaction fee cannot be negative", "transactions.csv", _row_id(row)))
 
 
 def _row_id(row: dict[str, object]) -> str | None:

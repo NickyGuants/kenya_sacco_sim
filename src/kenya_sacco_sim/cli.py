@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 from dataclasses import replace
@@ -39,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--with-loans", action="store_true", help="Emit loans.csv, guarantors.csv, and loan lifecycle transactions")
     generate.add_argument("--with-typologies", action="store_true", help="Inject suspicious typologies and emit alerts_truth.csv/rule_results.json; combine with --with-loans for the full credit package")
     generate.add_argument("--with-benchmark", action="store_true", help="Emit split manifest, baseline results, feature docs, dataset card, and known limitations")
+    generate.add_argument("--skip-ml-baseline", action="store_true", help="With --with-benchmark, emit rule/split diagnostics but skip sklearn ML artifacts for large runs")
     benchmark = subparsers.add_parser("benchmark", help="Run benchmark stability checks across multiple seeds")
     benchmark.add_argument("--members", type=int, default=None)
     benchmark.add_argument("--institutions", type=int, default=None)
@@ -49,8 +51,14 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--difficulty", default=None)
     benchmark.add_argument("--config-dir", type=Path, default=Path("./config"))
     benchmark.add_argument("--write-seed-datasets", action="store_true", help="Also write each seed's full generated package under the benchmark output directory")
-    benchmark.add_argument("--jobs", type=int, default=None, help="Parallel seed workers. Defaults to min(seed count, CPU count - 1, 4). Use 1 for serial execution.")
+    benchmark.add_argument("--jobs", type=int, default=None, help="Parallel seed workers. Defaults to a seed, CPU, and memory-capped value. Use 1 for serial execution.")
+    benchmark.add_argument("--skip-ml-baseline", action="store_true", help="Skip per-seed sklearn ML artifacts while still checking rule and validation stability")
     benchmark.add_argument("--quiet", action="store_true", help="Suppress benchmark progress logs on stderr")
+    ml = subparsers.add_parser("ml-baseline", help="Run ML benchmark artifacts from an existing generated dataset")
+    ml.add_argument("--input", type=Path, required=True, help="Existing generated dataset directory containing CSVs and rule_results.json")
+    ml.add_argument("--output", type=Path, default=None, help="Where to write ML benchmark artifacts. Defaults to --input")
+    ml.add_argument("--config-dir", type=Path, default=Path("./config"))
+    ml.add_argument("--seed", type=int, default=None)
     return parser
 
 
@@ -105,7 +113,7 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["guarantors.csv"] = guarantors
     if alerts_truth is not None:
         rows_by_file["alerts_truth.csv"] = alerts_truth
-    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config) if args.with_benchmark and rule_results is not None else {}
+    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=not args.skip_ml_baseline) if args.with_benchmark and rule_results is not None else {}
     benchmark_validation = benchmark_artifacts.get("baseline_model_results.json", {}).get("benchmark_checks") if benchmark_artifacts else None
     report = build_validation_report(rows_by_file, config, rule_results if rule_results else None, benchmark_validation)
 
@@ -167,6 +175,8 @@ def main(argv: list[str] | None = None) -> int:
         return generate(args)
     if args.command == "benchmark":
         return benchmark(args)
+    if args.command == "ml-baseline":
+        return ml_baseline(args)
     parser.error(f"Unsupported command: {args.command}")
     return 2
 
@@ -187,6 +197,7 @@ def benchmark(args: argparse.Namespace) -> int:
             args.output,
             write_seed_datasets=args.write_seed_datasets,
             max_workers=args.jobs,
+            include_ml_baseline=not args.skip_ml_baseline,
             progress=None if args.quiet else stderr_progress,
         )
     except ValueError as exc:
@@ -204,3 +215,46 @@ def benchmark(args: argparse.Namespace) -> int:
         )
     )
     return 1 if failed else 0
+
+
+def ml_baseline(args: argparse.Namespace) -> int:
+    input_dir = args.input
+    output_dir = args.output or input_dir
+    rows_by_file = _read_dataset_rows(input_dir)
+    rule_results_path = input_dir / "rule_results.json"
+    if not rule_results_path.exists():
+        raise SystemExit(f"Missing required rule_results.json in {input_dir}")
+    rule_results = json.loads(rule_results_path.read_text(encoding="utf-8"))
+    manifest = _read_manifest(input_dir)
+    config = with_cli_overrides(
+        load_world_config(args.config_dir),
+        member_count=len(rows_by_file.get("members.csv", [])) or None,
+        seed=args.seed if args.seed is not None else int(manifest.get("seed", 42)),
+        suspicious_ratio=float(manifest.get("suspicious_ratio")) if manifest.get("suspicious_ratio") is not None else None,
+        difficulty=str(manifest.get("difficulty")) if manifest.get("difficulty") else None,
+    )
+    artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for filename, artifact in artifacts.items():
+        if isinstance(artifact, dict):
+            write_json(output_dir / filename, artifact)
+        else:
+            (output_dir / filename).write_text(str(artifact), encoding="utf-8")
+    print(json.dumps({"input": str(input_dir), "output": str(output_dir), "artifacts": sorted(artifacts)}, indent=2))
+    return 0
+
+
+def _read_dataset_rows(input_dir: Path) -> dict[str, list[dict[str, object]]]:
+    rows_by_file: dict[str, list[dict[str, object]]] = {}
+    for path in sorted(input_dir.glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            rows_by_file[path.name] = list(reader) if reader.fieldnames else []
+    return rows_by_file
+
+
+def _read_manifest(input_dir: Path) -> dict[str, object]:
+    path = input_dir / "manifest.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))

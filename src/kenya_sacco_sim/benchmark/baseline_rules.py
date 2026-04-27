@@ -200,10 +200,17 @@ def wallet_funneling_candidates(transactions: list[dict[str, object]], member_ac
 def has_structuring_window(deposits: list[tuple[datetime, float]]) -> bool:
     deposits.sort(key=lambda item: item[0])
     window_days = int(STRUCTURING_RULE_CONFIG["window_days"])
-    for start_index, (start_ts, _) in enumerate(deposits):
-        window = [(ts, amount) for ts, amount in deposits[start_index:] if ts <= start_ts + timedelta(days=window_days)]
-        if len(window) >= int(STRUCTURING_RULE_CONFIG["min_deposit_count"]) and sum(amount for _, amount in window) >= float(STRUCTURING_RULE_CONFIG["min_total_deposit_kes"]):
+    min_count = int(STRUCTURING_RULE_CONFIG["min_deposit_count"])
+    min_total = float(STRUCTURING_RULE_CONFIG["min_total_deposit_kes"])
+    total = 0.0
+    right = 0
+    for left, (start_ts, _) in enumerate(deposits):
+        while right < len(deposits) and deposits[right][0] <= start_ts + timedelta(days=window_days):
+            total += deposits[right][1]
+            right += 1
+        if right - left >= min_count and total >= min_total:
             return True
+        total -= deposits[left][1]
     return False
 
 
@@ -392,28 +399,51 @@ def _device_mule_windows(rows: list[dict[str, object]], member_accounts: dict[st
     min_txns = int(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_device_txn_count"])
     min_total = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_total_value_kes"])
     min_outbound_share = float(DEVICE_SHARING_MULE_NETWORK_RULE_CONFIG["min_outbound_share"])
-    for start_index, start_row in enumerate(rows):
-        start_ts = datetime.fromisoformat(str(start_row["timestamp"]))
-        cutoff = start_ts + timedelta(days=window_days)
-        window = [row for row in rows[start_index:] if datetime.fromisoformat(str(row["timestamp"])) <= cutoff]
-        members = {str(row.get("member_id_primary") or "") for row in window if row.get("member_id_primary")}
-        if len(members) < min_members or len(window) < min_txns:
-            continue
-        inbound = 0.0
-        outbound = 0.0
-        for row in window:
-            member_id = str(row.get("member_id_primary") or "")
-            accounts = member_accounts.get(member_id, set())
-            amount = float(row.get("amount_kes") or 0)
-            txn_type = str(row.get("txn_type") or "")
-            if txn_type in inbound_types and str(row.get("account_id_cr") or "") in accounts:
-                inbound += amount
-            if txn_type in outbound_types and str(row.get("account_id_dr") or "") in accounts:
-                outbound += amount
-        total_value = inbound + outbound
-        if total_value >= min_total and inbound > 0 and outbound / inbound >= min_outbound_share:
-            windows.append(members)
+    parsed_rows = [(_device_event(row, member_accounts, inbound_types, outbound_types), row) for row in rows]
+    parsed_rows.sort(key=lambda item: item[0][0])
+    member_counts: Counter[str] = Counter()
+    inbound = 0.0
+    outbound = 0.0
+    right = 0
+    for left, (start_event, _) in enumerate(parsed_rows):
+        start_ts = start_event[0]
+        while right < len(parsed_rows) and parsed_rows[right][0][0] <= start_ts + timedelta(days=window_days):
+            _, member_id, inbound_amount, outbound_amount = parsed_rows[right][0]
+            if member_id:
+                member_counts[member_id] += 1
+            inbound += inbound_amount
+            outbound += outbound_amount
+            right += 1
+        members = set(member_counts)
+        if len(members) < min_members or right - left < min_txns:
+            pass
+        else:
+            total_value = inbound + outbound
+            if total_value >= min_total and inbound > 0 and outbound / inbound >= min_outbound_share:
+                windows.append(members)
+        _, member_id, inbound_amount, outbound_amount = start_event
+        if member_id:
+            member_counts[member_id] -= 1
+            if member_counts[member_id] <= 0:
+                del member_counts[member_id]
+        inbound -= inbound_amount
+        outbound -= outbound_amount
     return windows
+
+
+def _device_event(
+    row: dict[str, object],
+    member_accounts: dict[str, set[str]],
+    inbound_types: set[str],
+    outbound_types: set[str],
+) -> tuple[datetime, str, float, float]:
+    member_id = str(row.get("member_id_primary") or "")
+    accounts = member_accounts.get(member_id, set())
+    amount = float(row.get("amount_kes") or 0)
+    txn_type = str(row.get("txn_type") or "")
+    inbound = amount if txn_type in inbound_types and str(row.get("account_id_cr") or "") in accounts else 0.0
+    outbound = amount if txn_type in outbound_types and str(row.get("account_id_dr") or "") in accounts else 0.0
+    return datetime.fromisoformat(str(row["timestamp"])), member_id, inbound, outbound
 
 
 def _strongly_connected_components(graph: dict[str, set[str]]) -> list[set[str]]:

@@ -200,6 +200,19 @@ class BenchmarkHardeningTests(unittest.TestCase):
         self.assertEqual(docs["feature_files"]["transactions.csv"]["file_role"], "feature")
         self.assertEqual(docs["feature_files"]["transactions.csv"]["split_key"], "member_id_primary")
 
+    def test_benchmark_artifacts_can_skip_ml_baseline_for_large_generation(self) -> None:
+        artifacts = build_benchmark_artifacts(
+            {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
+            {},
+            WorldConfig(member_count=0, suspicious_ratio=0),
+            include_ml_baseline=False,
+        )
+
+        self.assertEqual(artifacts["ml_baseline_results.json"]["status"], "skipped")
+        self.assertEqual(artifacts["feature_importance.json"]["status"], "skipped")
+        self.assertEqual(artifacts["ml_leakage_ablation.json"]["status"], "skipped")
+        self.assertEqual(artifacts["rule_vs_ml_comparison.json"]["status"], "skipped")
+
     def test_split_manifest_reports_unassigned_member_references(self) -> None:
         artifacts = build_benchmark_artifacts(
             {

@@ -36,13 +36,14 @@ def run_multi_seed_benchmark(
     output_dir: Path,
     write_seed_datasets: bool = False,
     max_workers: int | None = None,
+    include_ml_baseline: bool = True,
     progress: ProgressCallback | None = None,
 ) -> dict[str, object]:
     seeds = _validate_seeds(seeds)
     output_dir.mkdir(parents=True, exist_ok=True)
     worker_count = _worker_count(max_workers, len(seeds), member_count=config.member_count)
     _emit_progress(progress, f"running {len(seeds)} seeds with {worker_count} worker(s)")
-    seed_results = _run_seeds_parallel(config, seeds, output_dir, write_seed_datasets, worker_count, progress)
+    seed_results = _run_seeds_parallel(config, seeds, output_dir, write_seed_datasets, worker_count, include_ml_baseline, progress)
 
     result = _multi_seed_result(config, seeds, seed_results)
     write_json(output_dir / "multi_seed_results.json", result)
@@ -95,6 +96,7 @@ def _run_seeds_parallel(
     output_dir: Path,
     write_seed_datasets: bool,
     worker_count: int,
+    include_ml_baseline: bool,
     progress: ProgressCallback | None,
 ) -> list[dict[str, object]]:
     if worker_count == 1:
@@ -102,7 +104,7 @@ def _run_seeds_parallel(
         for seed in seeds:
             _emit_progress(progress, f"seed {seed} started")
             started_at = perf_counter()
-            results_by_seed[seed] = _run_seed_job(config, seed, output_dir, write_seed_datasets)
+            results_by_seed[seed] = _run_seed_job(config, seed, output_dir, write_seed_datasets, include_ml_baseline)
             _emit_progress(progress, f"seed {seed} finished in {perf_counter() - started_at:.1f}s")
         return [results_by_seed[seed] for seed in seeds]
 
@@ -112,7 +114,7 @@ def _run_seeds_parallel(
         futures = {}
         for seed in seeds:
             _emit_progress(progress, f"seed {seed} queued")
-            future = executor.submit(_run_seed_job, config, seed, output_dir, write_seed_datasets)
+            future = executor.submit(_run_seed_job, config, seed, output_dir, write_seed_datasets, include_ml_baseline)
             futures[future] = seed
             started_at_by_seed[seed] = perf_counter()
         for future in as_completed(futures):
@@ -127,10 +129,10 @@ def _run_seeds_parallel(
     return [results_by_seed[seed] for seed in seeds]
 
 
-def _run_seed_job(config: WorldConfig, seed: int, output_dir: Path, write_seed_datasets: bool) -> dict[str, object]:
+def _run_seed_job(config: WorldConfig, seed: int, output_dir: Path, write_seed_datasets: bool, include_ml_baseline: bool) -> dict[str, object]:
     seed_config = with_cli_overrides(config, seed=seed)
     seed_output = output_dir / f"seed_{seed}" if write_seed_datasets else None
-    return _run_seed(seed_config, seed_output)
+    return _run_seed(seed_config, seed_output, include_ml_baseline)
 
 
 def _emit_progress(progress: ProgressCallback | None, message: str) -> None:
@@ -142,7 +144,7 @@ def stderr_progress(message: str) -> None:
     print(f"[benchmark] {message}", file=sys.stderr, flush=True)
 
 
-def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, object]:
+def _run_seed(config: WorldConfig, output_dir: Path | None = None, include_ml_baseline: bool = True) -> dict[str, object]:
     institution_world = generate_institution_world(config)
     members = generate_members(config, institution_world)
     devices = generate_devices(config, members)
@@ -168,7 +170,7 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None) -> dict[str, 
         "guarantors.csv": guarantors,
         "alerts_truth.csv": alerts_truth,
     }
-    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config)
+    benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=include_ml_baseline)
     benchmark_validation = benchmark_artifacts["baseline_model_results.json"]["benchmark_checks"]
     report = build_validation_report(rows_by_file, config, rule_results, benchmark_validation)
 

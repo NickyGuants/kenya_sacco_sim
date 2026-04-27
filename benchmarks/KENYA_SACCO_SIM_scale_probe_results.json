@@ -1,0 +1,73 @@
+{
+  "status": "available",
+  "purpose": "Local scaling probe for generation without mandatory ML training.",
+  "machine_context": {
+    "cpu_count": 11,
+    "memory_gb_approx": 18,
+    "date": "2026-04-27"
+  },
+  "notes": [
+    "Core runs use --with-loans --with-typologies without --with-benchmark.",
+    "Benchmark no-ML run uses --with-benchmark --skip-ml-baseline.",
+    "All listed runs completed with zero validation errors and zero validation warnings.",
+    "50k core generation produced more than five million CSV rows across all exported CSV files."
+  ],
+  "runs": [
+    {
+      "name": "20k_core",
+      "command": "python3 -m kenya_sacco_sim generate --members 20000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_20k_core",
+      "members": 20000,
+      "wall_seconds": 59.94,
+      "validation_errors": 0,
+      "validation_warnings": 0,
+      "transactions": 1025544,
+      "graph_edges": 727469,
+      "selected_csv_rows": 1990754
+    },
+    {
+      "name": "20k_benchmark_no_ml",
+      "command": "python3 -m kenya_sacco_sim generate --members 20000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --output ./datasets/KENYA_SACCO_SIM_scale_20k_benchmark_no_ml",
+      "members": 20000,
+      "wall_seconds": 66.03,
+      "validation_errors": 0,
+      "validation_warnings": 0,
+      "transactions": 1025544,
+      "graph_edges": 727469,
+      "selected_csv_rows": 1990754,
+      "ml_status": "skipped"
+    },
+    {
+      "name": "30k_core",
+      "command": "python3 -m kenya_sacco_sim generate --members 30000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_30k_core",
+      "members": 30000,
+      "wall_seconds": 102.93,
+      "validation_errors": 0,
+      "validation_warnings": 0,
+      "transactions": 1539183,
+      "graph_edges": 1090707,
+      "selected_csv_rows": 2986102
+    },
+    {
+      "name": "50k_core",
+      "command": "python3 -m kenya_sacco_sim generate --members 50000 --with-loans --with-typologies --output ./datasets/KENYA_SACCO_SIM_scale_50k_core",
+      "members": 50000,
+      "wall_seconds": 230.57,
+      "validation_errors": 0,
+      "validation_warnings": 0,
+      "transactions": 2566066,
+      "graph_edges": 1818163,
+      "selected_csv_rows": 4977819,
+      "all_csv_rows": 5027944,
+      "output_size_mb": 939.5
+    }
+  ],
+  "interpretation": {
+    "generation_status": "multi_million_record_generation_verified",
+    "ml_decoupling_status": "implemented",
+    "remaining_scaling_work": [
+      "100k full benchmark still needs streaming or chunked validation/artifact generation.",
+      "CSV writing and full in-memory validation remain major costs at larger scales.",
+      "ML should be run as a separate downstream step for large generated packages."
+    ]
+  }
+}

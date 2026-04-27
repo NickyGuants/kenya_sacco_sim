@@ -613,16 +613,19 @@ RAPID_PASS_THROUGH precision: 0.4615
 STRUCTURING precision: 0.3571
 evaluation validity: valid
 multi-seed precision/recall variance: within threshold
-single 10k package wall clock: 52.3s
-five-seed 10k benchmark wall clock: 106.6s with --jobs 4
+single 10k package wall clock: 44.4s
+five-seed 10k benchmark wall clock: 89.0s with --jobs 4
+50k core generation wall clock: 230.6s
+50k core generated CSV rows: 5,027,944
 ```
 
 The benchmark runner caps parallel seed workers by CPU count and estimated
-memory budget. The current local gate uses four workers for 10k runs. 100k
-full benchmark probes are capped to two workers on the local development
-machine; the latest two-seed 100k probe was stopped after ten minutes with no
-completed seed. 100k remains an experimental scaling target, not supported
-release scale.
+memory budget. The current local gate uses four workers for 10k runs.
+Generation and ML are decoupled for larger packages: use
+`--with-benchmark --skip-ml-baseline` during generation, then run
+`ml-baseline --input <dataset_dir>` from the exported CSV package. 100k remains
+an experimental scaling target until the validation/export path is
+streaming-friendly.
 
 ---
 

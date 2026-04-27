@@ -22,13 +22,23 @@ TEMPORAL_MIN_WINDOW_SPAN_DAYS = 120.0
 TEMPORAL_MIN_ACTIVE_MONTHS = 10
 
 
-def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], rule_results: dict[str, object], config: WorldConfig) -> dict[str, object]:
+def build_benchmark_artifacts(
+    rows_by_file: dict[str, list[dict[str, object]]],
+    rule_results: dict[str, object],
+    config: WorldConfig,
+    include_ml_baseline: bool = True,
+) -> dict[str, object]:
     split_manifest = _build_split_manifest(rows_by_file, config)
     confounder_diagnostics = _build_confounder_diagnostics(rows_by_file)
     baseline_results = _build_baseline_results(rows_by_file, rule_results, split_manifest, confounder_diagnostics)
-    feature_table = build_member_feature_table(rows_by_file)
-    ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config, feature_table=feature_table)
-    ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results, feature_table=feature_table)
+    if include_ml_baseline:
+        feature_table = build_member_feature_table(rows_by_file)
+        ml_results, feature_importance = build_ml_baseline_artifacts(rows_by_file, split_manifest, config, feature_table=feature_table)
+        ml_ablation = build_ml_leakage_ablation_artifact(rows_by_file, split_manifest, config, ml_results, feature_table=feature_table)
+    else:
+        ml_results = _skipped_ml_artifact("ml_baseline_disabled")
+        feature_importance = _skipped_ml_artifact("ml_baseline_disabled")
+        ml_ablation = _skipped_ml_artifact("ml_baseline_disabled")
     comparison = _build_rule_vs_ml_comparison(baseline_results, ml_results, ml_ablation, confounder_diagnostics)
     feature_docs = _build_feature_documentation()
     return {
@@ -42,6 +52,15 @@ def build_benchmark_artifacts(rows_by_file: dict[str, list[dict[str, object]]], 
         "feature_documentation.json": feature_docs,
         "dataset_card.md": _dataset_card(split_manifest, baseline_results, ml_results, ml_ablation, comparison, confounder_diagnostics),
         "known_limitations.md": _known_limitations(),
+    }
+
+
+def _skipped_ml_artifact(reason: str) -> dict[str, object]:
+    return {
+        "status": "skipped",
+        "reason": reason,
+        "baseline_name": "skipped",
+        "models": {},
     }
 
 
@@ -143,6 +162,17 @@ def _build_rule_vs_ml_comparison(
     models = ml_results.get("models", {})
     if not isinstance(rule_metrics, dict) or not isinstance(models, dict):
         return {"status": "not_available", "per_typology": {}, "ml_outperforms_rules": [], "rules_dominate": []}
+    if not models:
+        return {
+            "status": "skipped",
+            "reason": ml_results.get("reason", "ml_results_not_available"),
+            "claim_status": "not_available_without_ml_baseline",
+            "per_typology": {},
+            "ml_f1_greater_than_rule_cases": [],
+            "rule_f1_greater_than_ml_cases": [],
+            "ml_outperforms_rules": [],
+            "rules_dominate": [],
+        }
 
     for typology in TYPOLOGY_NAMES:
         rule = rule_metrics.get(typology, {})

@@ -37,6 +37,7 @@ python3 -m kenya_sacco_sim generate [options]
 | `--with-loans` | flag | off | Emit `loans.csv`, `guarantors.csv`, and loan-lifecycle transactions. Implies `--with-transactions`. |
 | `--with-typologies` | flag | off | Inject suspicious typologies and unlabeled near-miss families; emit `alerts_truth.csv` plus `rule_results.json`. Combine with `--with-loans` to enable credit-linked typologies such as fake-affordability and guarantor rings; wallet funneling uses the normal wallet/paybill transaction layer. |
 | `--with-benchmark` | flag | off | Emit the benchmark package: splits, rule baseline, ML baseline, feature docs, dataset card, known limitations, descriptive comparison, leakage ablation, and confounder diagnostics. Requires `--with-typologies`. |
+| `--skip-ml-baseline` | flag | off | With `--with-benchmark`, skip sklearn ML training and emit explicit skipped ML artifacts. Use this for large generated packages, then run `ml-baseline` later if needed. |
 
 CLI flags always win over `world.yaml`. Anything not passed on the command line
 takes its value from the loaded config, which in turn falls back to a built-in
@@ -82,6 +83,18 @@ python3 -m kenya_sacco_sim generate \
   --output ./datasets/KENYA_SACCO_SIM_v1_10k
 ```
 
+A larger package with benchmark diagnostics but no in-generation ML training:
+
+```bash
+python3 -m kenya_sacco_sim generate \
+  --members 50000 \
+  --with-loans \
+  --with-typologies \
+  --with-benchmark \
+  --skip-ml-baseline \
+  --output ./datasets/KENYA_SACCO_SIM_v1_50k
+```
+
 A run pinned to a different seed:
 
 ```bash
@@ -116,6 +129,7 @@ python3 -m kenya_sacco_sim benchmark --seeds 42 1337 2026 [options]
 | `--output` | path | `./benchmarks/v1_multi_seed` | Where the multi-seed report is written. |
 | `--write-seed-datasets` | flag | off | Also write each seed's full generated package under the output directory. |
 | `--jobs` | int | auto | Parallel seed workers. Auto is capped by seed count, CPU count, and an estimated memory budget. Explicit values are still memory-capped. Use `1` for serial execution. |
+| `--skip-ml-baseline` | flag | off | Skip per-seed sklearn ML artifacts while still checking generation, validation, rule, split, and stability metrics. |
 | `--quiet` | flag | off | Suppress benchmark progress logs on stderr. |
 
 There is no `--seed` flag; the loop owns the seed choice. There are also no
@@ -128,11 +142,8 @@ progress logs go to stderr.
 
 For the current 10,000-member benchmark on the local 11-CPU, ~18 GB development
 machine, auto/`--jobs 4` runs four seed workers and completes the five-seed gate
-in about 106 seconds. For 100,000-member probes, the worker heuristic caps the
-run to two workers on the same machine. The latest two-seed 100,000-member
-full-benchmark probe was stopped after ten minutes with no completed seed, so
-that scale remains experimental until runtime, memory, and validation stability
-have been re-audited.
+in about 89 seconds. For large generated packages, use `--skip-ml-baseline` to
+keep ML training out of the generation loop.
 
 ### Output Summary
 
@@ -158,3 +169,17 @@ every typology stayed within the precision/recall stability threshold of
 - Duplicate seeds are rejected before any work is done.
 - An empty `--seeds` list is rejected.
 - A seed with validation errors fails the gate even if precision/recall look stable.
+
+## `ml-baseline`
+
+Runs the ML benchmark layer from an existing generated dataset directory.
+
+```bash
+python3 -m kenya_sacco_sim ml-baseline --input ./datasets/KENYA_SACCO_SIM_v1_10k
+```
+
+This command reads the exported CSVs plus `rule_results.json`, rebuilds split,
+rule, ML, ablation, comparison, feature-documentation, dataset-card, and known
+limitations artifacts, and writes them to `--output` or back into `--input` when
+no output directory is provided. It is intended for large packages generated
+with `--skip-ml-baseline`.

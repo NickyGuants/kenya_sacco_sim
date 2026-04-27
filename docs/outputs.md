@@ -76,6 +76,11 @@ These files require `--with-typologies`.
 | `dataset_card.md` | Human-readable run summary, intended use, near-miss coverage, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |
 
+When `--skip-ml-baseline` is passed, `ml_baseline_results.json`,
+`feature_importance.json`, and `ml_leakage_ablation.json` are still emitted as
+explicit skipped artifacts. Run `python3 -m kenya_sacco_sim ml-baseline --input
+<dataset_dir>` later to generate the ML artifacts from the exported CSVs.
+
 ## Always Emitted Last
 
 | File | What it is |
@@ -88,6 +93,10 @@ These files require `--with-typologies`.
 | File | What it is |
 | --- | --- |
 | `multi_seed_results.json` | Per-seed validation status, rule metrics, evaluation-validity status, and distribution stability statistics. |
+
+`benchmarks/KENYA_SACCO_SIM_scale_probe_results.json` records local scale-probe
+measurements for larger generation runs. It is a diagnostic artifact, not a
+dataset package.
 
 If `--write-seed-datasets` is passed, each seed's full `generate` output is
 also written in a `seed_<seed>` subfolder.

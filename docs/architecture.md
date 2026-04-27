@@ -130,6 +130,13 @@ The benchmark layer is downstream of generation. It produces:
 - temporal/persona confounder diagnostics
 - dataset card and limitations
 
+For large generated packages, the ML portion can be decoupled from generation.
+`generate --with-benchmark --skip-ml-baseline` still emits split, rule,
+confounder, feature-documentation, dataset-card, and skipped ML placeholder
+artifacts. `ml-baseline --input <dataset_dir>` can then run the sklearn models
+later from the exported CSVs. This keeps large-scale generation from being
+blocked by model fitting.
+
 The `benchmark` command wraps the full generation pipeline in a multi-seed loop,
 executes independent seeds in parallel worker processes, and writes
 `multi_seed_results.json`, including near-miss stability, full-feature ML
