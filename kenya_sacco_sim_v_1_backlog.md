@@ -15,8 +15,9 @@ kenya_sacco_sim_v_1_specification.md
 none
 ```
 
-The latest completed slice adds `WALLET_FUNNELING`, a multi-counterparty
-wallet/paybill fan-in typology with normal chama/project collection near-misses.
+The latest completed slice refreshes the v1 100k benchmark with 12 personas,
+correct dormant semantics, three additional typologies, static-confounder
+documentation, organization-age null handling, and observed device `last_seen`.
 
 Completed v1 slices:
 
@@ -25,6 +26,11 @@ DEVICE_SHARING_MULE_NETWORK
 NEGATIVE_CONTROLS_AND_NEAR_MISSES
 GUARANTOR_FRAUD_RING
 WALLET_FUNNELING
+CHURCH_CHARITY_MISUSE
+DORMANT_REACTIVATION_ABUSE
+REMITTANCE_LAYERING
+100K_RELEASE_SCALE_REFRESH
+STATIC_CONFOUNDER_DOCUMENTATION
 ```
 
 ## Next Typology Candidates
@@ -32,9 +38,6 @@ WALLET_FUNNELING
 Priority order:
 
 ```text
-CHURCH_CHARITY_MISUSE
-DORMANT_REACTIVATION_ABUSE
-REMITTANCE_LAYERING
 PAYROLL_PROXY_ABUSE
 PROCUREMENT_CORRUPTION_PARKING
 TILL_PAYBILL_SHELL_ACTIVITY
@@ -43,28 +46,31 @@ TILL_PAYBILL_SHELL_ACTIVITY
 ## Next Recommended Slice
 
 ```text
-CHURCH_CHARITY_MISUSE
+BENCHMARK_STABILITY_AND_RELEASE_HYGIENE
 ```
 
 Rationale:
 
 ```text
-church/org normal behavior, paybill collections, supplier outflows, and
-bulk-family/church near-miss patterns already exist
-it extends the blueprint's charity/church misuse risk without adding new tables
-it should reuse the current near-miss, confounder, and split diagnostics
+the current nine-typology 100k package is generated and raw-audited
+the next risk is benchmark drift, stale summaries, and untested multi-seed
+behavior after the latest persona/dormancy/typology refresh
+new typologies should wait until current nine-typology stability is refreshed
+and release notes/notebook guidance are coherent
 ```
 
 ## Benchmark Backlog
 
 ```text
-Graph neural network benchmark
-100,000+ member scale
+Refresh five-seed stability for the current nine-typology mix
+Multi-seed ML and ablation diagnostics from exported packages
+Temporal/persona/static-confounder stress test report
 Multi-difficulty benchmark suite
 pattern_labels.csv
 edge_labels.csv
-trained baseline model reports
 notebook-based benchmark walkthrough
+Graph neural network benchmark
+100,000+ member scale
 institution-specific calibration packs
 ```
 
@@ -87,6 +93,7 @@ institution concentration calibration
 guarantor concentration false-positive baselines
 dormancy reactivation anomaly baselines
 remittance corridor fan-out baselines
+church/charity misuse false-positive baselines
 device-sharing false-positive baselines
 CTR threshold coverage
 institution concentration targets
