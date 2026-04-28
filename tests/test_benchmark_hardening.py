@@ -4,6 +4,7 @@ import unittest
 
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
 from kenya_sacco_sim.benchmark.baseline_rules import guarantor_fraud_ring_candidates, wallet_funneling_candidates
+from kenya_sacco_sim.benchmark.label_tables import build_edge_labels, build_pattern_labels
 from kenya_sacco_sim.core.config import WorldConfig
 from kenya_sacco_sim.generators.typologies import _merge_near_miss_stats
 from kenya_sacco_sim.validation.distribution import validate_distribution
@@ -188,7 +189,7 @@ class BenchmarkHardeningTests(unittest.TestCase):
 
     def test_feature_documentation_exposes_label_file_role(self) -> None:
         artifacts = build_benchmark_artifacts(
-            {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": []},
+            {"members.csv": [], "transactions.csv": [], "alerts_truth.csv": [], "pattern_labels.csv": [], "edge_labels.csv": []},
             {},
             WorldConfig(member_count=0, suspicious_ratio=0),
         )
@@ -197,8 +198,55 @@ class BenchmarkHardeningTests(unittest.TestCase):
 
         self.assertEqual(docs["files"]["alerts_truth.csv"]["file_role"], "label")
         self.assertTrue(docs["files"]["alerts_truth.csv"]["label_file"])
+        self.assertEqual(docs["files"]["pattern_labels.csv"]["file_role"], "label")
+        self.assertEqual(docs["files"]["edge_labels.csv"]["file_role"], "label")
+        self.assertNotIn("pattern_labels.csv", docs["feature_files"])
+        self.assertNotIn("edge_labels.csv", docs["feature_files"])
         self.assertEqual(docs["feature_files"]["transactions.csv"]["file_role"], "feature")
         self.assertEqual(docs["feature_files"]["transactions.csv"]["split_key"], "member_id_primary")
+
+    def test_pattern_label_table_collapses_alert_rows(self) -> None:
+        alerts = [
+            _alert("ALT00000001", "PAT00000001", "STRUCTURING", "PATTERN", "PAT00000001", "MEM0000001", "ACC00000001"),
+            _alert("ALT00000002", "PAT00000001", "STRUCTURING", "TRANSACTION", "TXN000000000001", "MEM0000001", "ACC00000001", txn_id="TXN000000000001"),
+            _alert("ALT00000003", "PAT00000001", "STRUCTURING", "MEMBER", "MEM0000001", "MEM0000001", "ACC00000001"),
+        ]
+
+        rows = build_pattern_labels(alerts)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["pattern_id"], "PAT00000001")
+        self.assertEqual(rows[0]["typology"], "STRUCTURING")
+        self.assertEqual(rows[0]["transaction_alert_count"], 1)
+        self.assertEqual(rows[0]["member_alert_count"], 1)
+        self.assertEqual(rows[0]["alert_row_count"], 3)
+
+    def test_edge_label_table_derives_guarantor_ring_edges(self) -> None:
+        alerts = [
+            _alert("ALT00000001", "PAT00000001", "GUARANTOR_FRAUD_RING", "PATTERN", "PAT00000001", "MEM0000001", "ACC00000001"),
+        ]
+        nodes = [
+            {"node_id": "NODE00000001", "node_type": "MEMBER", "entity_id": "MEM0000001"},
+            {"node_id": "NODE00000002", "node_type": "MEMBER", "entity_id": "MEM0000002"},
+        ]
+        graph_edges = [
+            {
+                "edge_id": "EDGE00000001",
+                "src_node_id": "NODE00000002",
+                "dst_node_id": "NODE00000001",
+                "edge_type": "GUARANTEES",
+                "metadata_json": '{"loan_id": "LOAN000001"}',
+            }
+        ]
+        loans = [{"loan_id": "LOAN000001", "loan_account_id": "ACC00000001"}]
+
+        rows = build_edge_labels(alerts, graph_edges, nodes, loans)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["edge_label_id"], "EDGELBL00000001")
+        self.assertEqual(rows[0]["pattern_id"], "PAT00000001")
+        self.assertEqual(rows[0]["edge_id"], "EDGE00000001")
+        self.assertEqual(rows[0]["edge_type"], "GUARANTEES")
 
     def test_benchmark_artifacts_can_skip_ml_baseline_for_large_generation(self) -> None:
         artifacts = build_benchmark_artifacts(
@@ -545,6 +593,36 @@ def _transaction(txn_id: str, timestamp: str) -> dict[str, object]:
         "counterparty_id_hash": "CP",
         "account_id_dr": "SRC",
         "account_id_cr": "ACC",
+    }
+
+
+def _alert(
+    alert_id: str,
+    pattern_id: str,
+    typology: str,
+    entity_type: str,
+    entity_id: str,
+    member_id: str,
+    account_id: str,
+    txn_id: str | None = None,
+    edge_id: str | None = None,
+) -> dict[str, object]:
+    return {
+        "alert_id": alert_id,
+        "pattern_id": pattern_id,
+        "typology": typology,
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "member_id": member_id,
+        "account_id": account_id,
+        "txn_id": txn_id,
+        "edge_id": edge_id,
+        "start_timestamp": "2024-01-01T10:00:00+03:00",
+        "end_timestamp": "2024-01-01T11:00:00+03:00",
+        "severity": "HIGH",
+        "truth_label": True,
+        "stage": "PATTERN_SUMMARY" if entity_type == "PATTERN" else "LAYERING",
+        "explanation_code": "SUSPICIOUS_PATTERN_SUMMARY" if entity_type == "PATTERN" else "STRUCTURED_SUB_THRESHOLD_DEPOSITS",
     }
 
 

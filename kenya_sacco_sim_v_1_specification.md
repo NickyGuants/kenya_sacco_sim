@@ -38,6 +38,8 @@ transactions.csv
 loans.csv
 guarantors.csv
 alerts_truth.csv
+pattern_labels.csv
+edge_labels.csv
 rule_results.json
 split_manifest.json
 baseline_model_results.json
@@ -57,7 +59,7 @@ Rules:
 
 ```text
 1. Feature files must not contain typology labels, pattern IDs, alert IDs, or other truth labels.
-2. Label data belongs only in alerts_truth.csv and derived benchmark artifacts.
+2. Label data belongs only in alerts_truth.csv, pattern_labels.csv, edge_labels.csv, and derived benchmark artifacts.
 3. New suspicious behavior must be additive and must not break ledger replay.
 4. nodes.csv and graph_edges.csv remain graph projections, not replacements for support files.
 5. Every generated benchmark package must be reproducible from seed, config, and CLI flags.
@@ -227,8 +229,10 @@ Injection contract:
 4. devices.csv must explain every multi-member device through shared_device_group.
 5. Raw device_id must not be a model input feature.
 6. alerts_truth.csv must contain PATTERN, MEMBER, TRANSACTION, and EDGE context where applicable.
-7. Suspicious start windows must be randomized across the simulation year so month-of-year is not a stable typology shortcut.
-8. Candidate selection should avoid fixed persona-only assignment where the behavior can plausibly occur across broader member segments.
+7. pattern_labels.csv must contain exactly one row per pattern_id emitted in alerts_truth.csv.
+8. edge_labels.csv must expose graph-edge truth rows when suspicious behavior is graph-backed.
+9. Suspicious start windows must be randomized across the simulation year so month-of-year is not a stable typology shortcut.
+10. Candidate selection should avoid fixed persona-only assignment where the behavior can plausibly occur across broader member segments.
 ```
 
 Small-run policy:
@@ -554,6 +558,7 @@ account_id
 device_id
 node_id
 edge_id
+edge_label_id
 typology
 truth_label
 label fields
@@ -571,11 +576,13 @@ claims. Organization rows must encode age as missing/blank, not `0`.
 within a dormant-member subset. `CHURCH_CHARITY_MISUSE` must be evaluated
 without raw organization/persona fields, or within an organization-only subset.
 
-`alerts_truth.csv` is positive injected truth only. It does not contain
-`truth_label=False` historical false positives. Rule false positives are
-population candidates outside the injected truth set, so downstream model
-training must document negative sampling and aggregate unique suspicious cases
-by `pattern_id`.
+`alerts_truth.csv`, `pattern_labels.csv`, and `edge_labels.csv` are positive
+injected truth only. They do not contain `truth_label=False` historical false
+positives. Rule false positives are population candidates outside the injected
+truth set, so downstream model training must document negative sampling. Use
+`pattern_labels.csv` or aggregate `alerts_truth.csv` by `pattern_id` for unique
+suspicious-case counts. Use `edge_labels.csv` only for explicit edge-supervised
+tasks; it is not a member-level model feature file.
 
 Minimum ML feature families:
 

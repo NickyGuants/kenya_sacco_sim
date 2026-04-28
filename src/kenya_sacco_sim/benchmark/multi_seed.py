@@ -10,6 +10,7 @@ from time import perf_counter
 from typing import Any, Callable
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
+from kenya_sacco_sim.benchmark.label_tables import build_edge_labels, build_pattern_labels
 from kenya_sacco_sim.core.config import WorldConfig, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
@@ -170,6 +171,8 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None, include_ml_ba
         "loans.csv": loans,
         "guarantors.csv": guarantors,
         "alerts_truth.csv": alerts_truth,
+        "pattern_labels.csv": build_pattern_labels(alerts_truth),
+        "edge_labels.csv": build_edge_labels(alerts_truth, graph_edges, nodes, loans),
     }
     benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=include_ml_baseline)
     benchmark_validation = benchmark_artifacts["baseline_model_results.json"]["benchmark_checks"]

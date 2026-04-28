@@ -30,6 +30,10 @@ has zero errors.
 8. [Architecture](architecture.md) - code layout and generation order.
 9. [v1 100k Release Notes](release-notes/v1-100k-benchmark.md) - current package commands, gates, and caveats.
 
+Notebook walkthroughs live under `notebooks/`, including
+`02_benchmark_walkthrough.ipynb` for a standard-library audit of the latest
+100k package, label tables, rule metrics, and confounder diagnostics.
+
 ## What Is In This Folder
 
 ```text

@@ -391,12 +391,13 @@ def _parse_timestamp(value: str) -> datetime | None:
 
 
 def _build_feature_documentation() -> dict[str, object]:
+    label_filenames = {"alerts_truth.csv", "pattern_labels.csv", "edge_labels.csv"}
     return {
         "files": {
             filename: {
                 "columns": columns,
-                "file_role": "label" if filename == "alerts_truth.csv" else "feature",
-                "label_file": filename == "alerts_truth.csv",
+                "file_role": "label" if filename in label_filenames else "feature",
+                "label_file": filename in label_filenames,
                 "split_key": _split_key_for_file(filename),
             }
             for filename, columns in REQUIRED_COLUMNS.items()
@@ -404,7 +405,7 @@ def _build_feature_documentation() -> dict[str, object]:
         "feature_files": {
             filename: {"columns": columns, "file_role": "feature", "split_key": _split_key_for_file(filename)}
             for filename, columns in REQUIRED_COLUMNS.items()
-            if filename != "alerts_truth.csv"
+            if filename not in label_filenames
         },
         "label_files": {
             "alerts_truth.csv": {
@@ -413,7 +414,21 @@ def _build_feature_documentation() -> dict[str, object]:
                 "label_file": True,
                 "split_key": _split_key_for_file("alerts_truth.csv"),
                 "purpose": "Ground-truth suspicious pattern labels. Do not use as model features.",
-            }
+            },
+            "pattern_labels.csv": {
+                "columns": REQUIRED_COLUMNS["pattern_labels.csv"],
+                "file_role": "label",
+                "label_file": True,
+                "split_key": _split_key_for_file("pattern_labels.csv"),
+                "purpose": "One row per injected suspicious case for case counts, splits, and documentation. Do not use as model features.",
+            },
+            "edge_labels.csv": {
+                "columns": REQUIRED_COLUMNS["edge_labels.csv"],
+                "file_role": "label",
+                "label_file": True,
+                "split_key": _split_key_for_file("edge_labels.csv"),
+                "purpose": "Graph-edge truth rows for graph-backed typology context. Do not use as model features.",
+            },
         },
         "blocked_feature_columns": {
             "transactions.csv": ["is_suspicious", "typology", "pattern_id", "alert_id", "source_is_illicit", "synthetic_flag"],
@@ -429,6 +444,7 @@ def _build_feature_documentation() -> dict[str, object]:
                 "device_id",
                 "node_id",
                 "edge_id",
+                "edge_label_id",
                 "typology",
                 "truth_label",
                 "label",
@@ -452,12 +468,12 @@ def _build_feature_documentation() -> dict[str, object]:
         "label_semantics": {
             "truth_label_scope": "positive_injected_truth_only",
             "negative_sampling_guidance": (
-                "Rows absent from alerts_truth.csv are treated as negatives by benchmark code, "
+                "Rows absent from label files are treated as negatives by benchmark code, "
                 "which assumes the synthetic injected truth set is complete. Downstream users "
                 "should document any negative sampling or class balancing strategy."
             ),
             "unique_case_key": "pattern_id",
-            "alert_granularity": "The same suspicious case is represented by PATTERN, MEMBER, ACCOUNT, TRANSACTION, or EDGE rows; aggregate by pattern_id for case counts.",
+            "alert_granularity": "alerts_truth.csv can contain PATTERN, MEMBER, ACCOUNT, TRANSACTION, or EDGE rows for the same case; use pattern_labels.csv or aggregate by pattern_id for case counts.",
         },
         "plumbing_and_conventions": {
             "source_sink_accounts": "SOURCE_ACCOUNT and SINK_ACCOUNT rows are ledger plumbing and should be filtered from member-account risk aggregation.",
@@ -488,6 +504,8 @@ def _build_feature_documentation() -> dict[str, object]:
             "loans.csv": "member_id",
             "guarantors.csv": ["borrower_member_id", "guarantor_member_id"],
             "alerts_truth.csv": "pattern_id",
+            "pattern_labels.csv": "pattern_id",
+            "edge_labels.csv": "pattern_id",
         },
     }
 
@@ -524,7 +542,7 @@ The benchmark contains normal SACCO activity, support entity metadata, device ba
 
 ## Benchmark Task
 
-The primary benchmark task is member-level one-vs-rest typology detection. Labels are read only from `alerts_truth.csv`; feature construction uses exported feature files and excludes raw identifiers, references, pattern IDs, alert IDs, and typology fields.
+The primary benchmark task is member-level one-vs-rest typology detection. Labels are read only from label files (`alerts_truth.csv`, `pattern_labels.csv`, and `edge_labels.csv`); feature construction uses exported feature files and excludes raw identifiers, references, pattern IDs, alert IDs, edge-label IDs, and typology fields.
 
 ## Splits
 
@@ -758,10 +776,11 @@ def _known_limitations() -> str:
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
 - `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that ML outperforms rules.
 - `benchmark_confounder_diagnostics.json` reports temporal and persona/static-attribute concentration risks that can inflate ML metrics without explicit label leakage.
-- `alerts_truth.csv` is positive injected truth only; all unlabeled negatives are inferred by sampling the rest of the synthetic population.
+- `alerts_truth.csv`, `pattern_labels.csv`, and `edge_labels.csv` are positive injected truth only; all unlabeled negatives are inferred by sampling the rest of the synthetic population.
 - Static fields such as `persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen` can be useful for auditing but should be held out or stratified before ML lift claims.
 - `SOURCE_ACCOUNT` and `SINK_ACCOUNT` rows are ledger plumbing and should be excluded from customer-account risk aggregation.
-- `alerts_truth.csv` contains PATTERN, MEMBER, ACCOUNT, TRANSACTION, and EDGE context rows for the same case; aggregate by `pattern_id` for unique suspicious-case counts.
+- `alerts_truth.csv` contains PATTERN, MEMBER, ACCOUNT, TRANSACTION, and EDGE context rows for the same case; use `pattern_labels.csv` or aggregate by `pattern_id` for unique suspicious-case counts.
+- `edge_labels.csv` is sparse graph-label context for graph-backed typologies and must not be joined into feature training unless the task is explicitly edge-supervised.
 - The release-scale package is generated through the 100,000-member no-ML path. Full ML artifacts remain intentionally downstream at that scale.
 """
 
@@ -988,6 +1007,8 @@ def _split_key_for_file(filename: str) -> str | list[str] | None:
         "loans.csv": "member_id",
         "guarantors.csv": ["borrower_member_id", "guarantor_member_id"],
         "alerts_truth.csv": "pattern_id",
+        "pattern_labels.csv": "pattern_id",
+        "edge_labels.csv": "pattern_id",
     }.get(filename)
 
 

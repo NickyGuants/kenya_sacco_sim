@@ -46,7 +46,7 @@ Each section has its own `status` plus the metrics that drove the verdict. The
 | `row_counts` | Sanity counts for every emitted file. |
 | `balance_validation` | Debit and credit legs reconcile and final balances replay from the ledger. |
 | `graph_validation` | Nodes and graph edges resolve, and infrastructure entities are projected into the graph. |
-| `label_validation` | Suspicious-member counts are within tolerance, pattern summaries exist, labels do not leak into feature files, and simple `txn_id` thresholds cannot recover labels. |
+| `label_validation` | Suspicious-member counts are within tolerance, pattern summaries exist, `pattern_labels.csv` and `edge_labels.csv` reconcile to truth/graph files, labels do not leak into feature files, and simple `txn_id` thresholds cannot recover labels. |
 | `loan_validation` | Loan dates, principal, status, arrears, disbursement, and repayments are coherent. |
 | `guarantor_validation` | Guarantor pledges point at real loans and members, with bounded concentration. |
 | `credit_distribution_validation` | Loan portfolio distribution, arrears, defaults, and repayment behavior stay in expected ranges. |

@@ -145,6 +145,37 @@ REQUIRED_COLUMNS = {
         "stage",
         "explanation_code",
     ],
+    "pattern_labels.csv": [
+        "pattern_id",
+        "typology",
+        "member_id",
+        "institution_id",
+        "account_id",
+        "severity",
+        "stage",
+        "explanation_code",
+        "start_timestamp",
+        "end_timestamp",
+        "truth_label",
+        "transaction_alert_count",
+        "member_alert_count",
+        "account_alert_count",
+        "edge_alert_count",
+        "alert_row_count",
+    ],
+    "edge_labels.csv": [
+        "edge_label_id",
+        "pattern_id",
+        "typology",
+        "edge_id",
+        "src_node_id",
+        "dst_node_id",
+        "edge_type",
+        "member_id",
+        "severity",
+        "explanation_code",
+        "truth_label",
+    ],
     "institutions.csv": [
         "institution_id",
         "name",
@@ -171,6 +202,8 @@ PRIMARY_KEYS = {
     "loans.csv": "loan_id",
     "guarantors.csv": "guarantee_id",
     "alerts_truth.csv": "alert_id",
+    "pattern_labels.csv": "pattern_id",
+    "edge_labels.csv": "edge_label_id",
     "institutions.csv": "institution_id",
     "branches.csv": "branch_id",
     "agents.csv": "agent_id",
@@ -178,7 +211,19 @@ PRIMARY_KEYS = {
     "devices.csv": "device_id",
 }
 
-OPTIONAL_FILES = {"transactions.csv", "loans.csv", "guarantors.csv", "alerts_truth.csv", "institutions.csv", "branches.csv", "agents.csv", "employers.csv", "devices.csv"}
+OPTIONAL_FILES = {
+    "transactions.csv",
+    "loans.csv",
+    "guarantors.csv",
+    "alerts_truth.csv",
+    "pattern_labels.csv",
+    "edge_labels.csv",
+    "institutions.csv",
+    "branches.csv",
+    "agents.csv",
+    "employers.csv",
+    "devices.csv",
+}
 
 STRICT_ENUMS = {
     ("members.csv", "member_type"): MEMBER_TYPES,
@@ -208,6 +253,42 @@ STRICT_ENUMS = {
     ("alerts_truth.csv", "truth_label"): {True},
     ("alerts_truth.csv", "stage"): ALERT_STAGES,
     ("alerts_truth.csv", "explanation_code"): {
+        "STRUCTURED_SUB_THRESHOLD_DEPOSITS",
+        "RAPID_IN_OUT_MOVEMENT",
+        "HIGH_EXIT_RATIO",
+        "MULTIPLE_OUTBOUND_COUNTERPARTIES",
+        "PRE_LOAN_AFFORDABILITY_BOOST",
+        "SHARED_DEVICE_MULE_ACTIVITY",
+        "RECIPROCAL_GUARANTEE_RING",
+        "WALLET_FUNNEL_ACTIVITY",
+        "DORMANT_REACTIVATION_VELOCITY",
+        "REMITTANCE_FANOUT_LAYERING",
+        "CHARITY_DONOR_DISPERSION",
+        "SUSPICIOUS_PATTERN_SUMMARY",
+    },
+    ("pattern_labels.csv", "typology"): TYPOLOGIES,
+    ("pattern_labels.csv", "severity"): ALERT_SEVERITIES,
+    ("pattern_labels.csv", "truth_label"): {True},
+    ("pattern_labels.csv", "stage"): ALERT_STAGES,
+    ("pattern_labels.csv", "explanation_code"): {
+        "STRUCTURED_SUB_THRESHOLD_DEPOSITS",
+        "RAPID_IN_OUT_MOVEMENT",
+        "HIGH_EXIT_RATIO",
+        "MULTIPLE_OUTBOUND_COUNTERPARTIES",
+        "PRE_LOAN_AFFORDABILITY_BOOST",
+        "SHARED_DEVICE_MULE_ACTIVITY",
+        "RECIPROCAL_GUARANTEE_RING",
+        "WALLET_FUNNEL_ACTIVITY",
+        "DORMANT_REACTIVATION_VELOCITY",
+        "REMITTANCE_FANOUT_LAYERING",
+        "CHARITY_DONOR_DISPERSION",
+        "SUSPICIOUS_PATTERN_SUMMARY",
+    },
+    ("edge_labels.csv", "typology"): TYPOLOGIES,
+    ("edge_labels.csv", "edge_type"): EDGE_TYPES,
+    ("edge_labels.csv", "severity"): ALERT_SEVERITIES,
+    ("edge_labels.csv", "truth_label"): {True},
+    ("edge_labels.csv", "explanation_code"): {
         "STRUCTURED_SUB_THRESHOLD_DEPOSITS",
         "RAPID_IN_OUT_MOVEMENT",
         "HIGH_EXIT_RATIO",
@@ -280,6 +361,8 @@ def _validate_pk(filename: str, rows: list[dict[str, object]], findings: list[Va
         "loans.csv": re.compile(r"^LOAN\d{6}$"),
         "guarantors.csv": re.compile(r"^GUA\d{6}$"),
         "alerts_truth.csv": re.compile(r"^ALT\d{8}$"),
+        "pattern_labels.csv": re.compile(r"^PAT\d{8}$"),
+        "edge_labels.csv": re.compile(r"^EDGELBL\d{8}$"),
         "institutions.csv": re.compile(r"^INST\d{4}$"),
         "branches.csv": re.compile(r"^BRANCH\d{6}$"),
         "agents.csv": re.compile(r"^AGENT\d{6}$"),
@@ -416,7 +499,7 @@ def _validate_transaction_amounts(rows: list[dict[str, object]], findings: list[
 
 
 def _row_id(row: dict[str, object]) -> str | None:
-    for key in ("alert_id", "member_id", "account_id", "node_id", "edge_id", "txn_id", "guarantee_id", "loan_id"):
+    for key in ("edge_label_id", "alert_id", "pattern_id", "member_id", "account_id", "node_id", "edge_id", "txn_id", "guarantee_id", "loan_id"):
         if row.get(key):
             return str(row[key])
     return None

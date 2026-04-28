@@ -39,6 +39,10 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
     members = {str(row["member_id"]) for row in rows_by_file.get("members.csv", [])}
     accounts = {str(row["account_id"]) for row in rows_by_file.get("accounts.csv", [])}
     edges = {str(row["edge_id"]) for row in rows_by_file.get("graph_edges.csv", [])}
+    pattern_label_findings, pattern_label_metrics = _validate_pattern_labels(rows_by_file, alerts)
+    edge_label_findings, edge_label_metrics = _validate_edge_labels(rows_by_file, alerts)
+    findings.extend(pattern_label_findings)
+    findings.extend(edge_label_findings)
     by_pattern: dict[str, list[dict[str, object]]] = defaultdict(list)
     suspicious_txn_ids: set[str] = set()
     suspicious_txn_ids_by_member: dict[str, set[str]] = defaultdict(set)
@@ -118,10 +122,81 @@ def validate_labels(rows_by_file: dict[str, list[dict[str, object]]], suspicious
         "members_below_50pct_normal_share": blend_metrics["members_below_50pct_normal_share"],
         "id_leakage_metrics": id_leakage_metrics,
         "reference_leakage_metrics": reference_metrics,
+        "pattern_label_metrics": pattern_label_metrics,
+        "edge_label_metrics": edge_label_metrics,
         "error_count": sum(1 for finding in findings if finding.severity == "error" and finding.code.startswith("label")),
         "warning_count": sum(1 for finding in findings if finding.severity == "warning" and finding.code.startswith("label")),
     }
     return findings, label_section, typology_section
+
+
+def _validate_pattern_labels(rows_by_file: dict[str, list[dict[str, object]]], alerts: list[dict[str, object]]) -> tuple[list[ValidationFinding], dict[str, object]]:
+    findings: list[ValidationFinding] = []
+    pattern_labels = rows_by_file.get("pattern_labels.csv", [])
+    alert_patterns = {str(alert["pattern_id"]) for alert in alerts if alert.get("pattern_id")}
+    label_patterns = {str(row["pattern_id"]) for row in pattern_labels if row.get("pattern_id")}
+    missing = sorted(alert_patterns.difference(label_patterns))
+    extra = sorted(label_patterns.difference(alert_patterns))
+    if alert_patterns and "pattern_labels.csv" not in rows_by_file:
+        findings.append(_error("label.pattern_labels_missing", "pattern_labels.csv must be emitted when alerts_truth.csv is present", "pattern_labels.csv"))
+    for pattern_id in missing[:20]:
+        findings.append(_error("label.pattern_label_missing", "Every alerts_truth pattern_id must have one pattern_labels row", pattern_id, file="pattern_labels.csv"))
+    for pattern_id in extra[:20]:
+        findings.append(_error("label.pattern_label_extra", "pattern_labels.csv pattern_id must resolve to alerts_truth.csv", pattern_id, file="pattern_labels.csv"))
+
+    counts_by_pattern: dict[str, Counter[str]] = defaultdict(Counter)
+    totals_by_pattern = Counter(str(alert["pattern_id"]) for alert in alerts if alert.get("pattern_id"))
+    for alert in alerts:
+        if alert.get("pattern_id"):
+            counts_by_pattern[str(alert["pattern_id"])][str(alert.get("entity_type") or "")] += 1
+    for row in pattern_labels:
+        pattern_id = str(row.get("pattern_id") or "")
+        if not pattern_id:
+            continue
+        expected = counts_by_pattern[pattern_id]
+        checks = {
+            "transaction_alert_count": expected["TRANSACTION"],
+            "member_alert_count": expected["MEMBER"],
+            "account_alert_count": expected["ACCOUNT"],
+            "edge_alert_count": expected["EDGE"],
+            "alert_row_count": totals_by_pattern[pattern_id],
+        }
+        for column, expected_value in checks.items():
+            if _int(row.get(column)) != expected_value:
+                findings.append(_error("label.pattern_label_count_mismatch", f"{column} must match alerts_truth rows for pattern {pattern_id}", pattern_id, file="pattern_labels.csv"))
+                break
+    return findings, {
+        "status": "available" if pattern_labels else "missing" if alert_patterns else "not_applicable",
+        "pattern_label_count": len(pattern_labels),
+        "alert_pattern_count": len(alert_patterns),
+        "missing_pattern_label_count": len(missing),
+        "extra_pattern_label_count": len(extra),
+    }
+
+
+def _validate_edge_labels(rows_by_file: dict[str, list[dict[str, object]]], alerts: list[dict[str, object]]) -> tuple[list[ValidationFinding], dict[str, object]]:
+    findings: list[ValidationFinding] = []
+    edge_labels = rows_by_file.get("edge_labels.csv", [])
+    alert_patterns = {str(alert["pattern_id"]) for alert in alerts if alert.get("pattern_id")}
+    graph_edges = {str(row["edge_id"]) for row in rows_by_file.get("graph_edges.csv", [])}
+    missing_graph_edges = 0
+    missing_patterns = 0
+    if alerts and "edge_labels.csv" not in rows_by_file:
+        findings.append(_error("label.edge_labels_missing", "edge_labels.csv must be emitted when alerts_truth.csv is present", "edge_labels.csv"))
+    for row in edge_labels:
+        row_id = str(row.get("edge_label_id") or row.get("edge_id") or "")
+        if str(row.get("pattern_id") or "") not in alert_patterns:
+            missing_patterns += 1
+            findings.append(_error("label.edge_label_pattern_missing", "edge label pattern_id must resolve to alerts_truth.csv", row_id, file="edge_labels.csv"))
+        if str(row.get("edge_id") or "") not in graph_edges:
+            missing_graph_edges += 1
+            findings.append(_error("label.edge_label_graph_edge_missing", "edge label edge_id must resolve to graph_edges.csv", row_id, file="edge_labels.csv"))
+    return findings, {
+        "status": "available" if edge_labels else "empty" if alerts else "not_applicable",
+        "edge_label_count": len(edge_labels),
+        "edge_label_missing_pattern_count": missing_patterns,
+        "edge_label_missing_graph_edge_count": missing_graph_edges,
+    }
 
 
 def _empty_label_section(status: str, suspicious_ratio: float, target_count: int, count_tolerance: int, findings: list[ValidationFinding]) -> dict[str, object]:
@@ -143,6 +218,13 @@ def _empty_label_section(status: str, suspicious_ratio: float, target_count: int
 def _target_suspicious_count(member_count: int, suspicious_ratio: float) -> int:
     target = Decimal(str(member_count)) * Decimal(str(suspicious_ratio))
     return max(0, int(target.to_integral_value(rounding=ROUND_HALF_UP)))
+
+
+def _int(value: object) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _suspicious_count_tolerance(member_count: int, ratio_tolerance: float) -> int:

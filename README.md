@@ -37,8 +37,9 @@ Implemented:
   validated for dormant-throughput abuse.
 - Rich near-miss and negative-control families for active typologies, reported
   in `rule_results.json`, `validation_report.json`, and `dataset_card.md`.
-- Ground-truth labels in `alerts_truth.csv` with no label columns leaked into
-  feature files.
+- Ground-truth labels in `alerts_truth.csv`, case-level `pattern_labels.csv`,
+  and sparse graph `edge_labels.csv`, with no label columns leaked into feature
+  files.
 - Deterministic rule reconstruction in `rule_results.json`.
 - Member-level ML baseline using scikit-learn Logistic Regression and Random
   Forest models.
@@ -67,6 +68,12 @@ Latest local output locations:
 ```text
 datasets/KENYA_SACCO_SIM_v1_100k
 benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+```
+
+Notebook walkthrough:
+
+```text
+notebooks/02_benchmark_walkthrough.ipynb
 ```
 
 ## Usage
@@ -174,6 +181,8 @@ Depending on selected options, the generator writes:
 - `loans.csv`
 - `guarantors.csv`
 - `alerts_truth.csv`
+- `pattern_labels.csv`
+- `edge_labels.csv`
 - `rule_results.json`
 - `split_manifest.json`
 - `baseline_model_results.json`
@@ -305,7 +314,9 @@ active typologies:   9
 personas:            12
 ML baseline:         skipped during generation; run downstream with ml-baseline
 transactions:        5,305,344
-total CSV rows:      10,196,191
+pattern labels:      1,500
+edge labels:         668
+total CSV rows:      10,198,359
 ```
 
 Latest multi-seed stability gate:
@@ -355,7 +366,8 @@ FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
 Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
 alerts_truth.csv is positive injected truth only; unlabeled members are sampled
-as negatives by benchmark code and unique cases should be counted by pattern_id.
+as negatives by benchmark code. Use pattern_labels.csv or pattern_id for unique
+case counts; edge_labels.csv is sparse graph-label truth, not a feature file.
 Static descriptive fields such as persona_type, member_type, dormant_flag, age,
 and devices.last_seen must be held out or stratified before ML lift claims.
 Organization member age is blank, not 0.

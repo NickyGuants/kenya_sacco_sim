@@ -316,12 +316,18 @@ Every injected typology produces rows in `alerts_truth.csv`:
 
 The `pattern_id` links these rows together.
 
+`pattern_labels.csv` is the one-row-per-`pattern_id` label table for unique
+case counts, split joins, and benchmark summaries. `edge_labels.csv` is the
+sparse graph label table for typologies with graph-backed edge context, such as
+guarantor rings.
+
 No feature file contains `typology`, `pattern_id`, `alert_id`, or truth-label
 columns. Validation enforces this.
 
-`alerts_truth.csv` is positive injected truth only. It does not include
-`truth_label=False` rows for historical false positives; deterministic rule
-false positives are candidates outside the injected truth set. Aggregate by
+`alerts_truth.csv`, `pattern_labels.csv`, and `edge_labels.csv` are positive
+injected truth only. They do not include `truth_label=False` rows for
+historical false positives; deterministic rule false positives are candidates
+outside the injected truth set. Use `pattern_labels.csv` or aggregate by
 `pattern_id` for unique suspicious cases because the same case can have member,
 account, transaction, and edge context rows.
 

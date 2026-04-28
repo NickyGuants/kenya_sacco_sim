@@ -79,6 +79,9 @@ inject_typologies               only with --with-typologies
 generate_nodes / generate_edges graph projection
     |
     v
+build_pattern_labels / build_edge_labels
+    |
+    v
 build_benchmark_artifacts       only with --with-benchmark
     |
     v

@@ -54,8 +54,8 @@ python3 -m kenya_sacco_sim generate \
 ```
 
 The package preserves zero validation errors and zero warnings at 100,000
-members, with 5,305,344 transactions and 10,196,191 total CSV rows in the
-current generated artifact.
+members, with 5,305,344 transactions, 1,500 pattern-label rows, 668 edge-label
+rows, and 10,198,359 total CSV rows in the current generated artifact.
 
 The current five-seed stability gate is:
 
@@ -76,6 +76,8 @@ Recent audit fixes:
 
 - Organization age is blank/missing rather than `0`.
 - `devices.last_seen` is derived from observed device transaction usage.
+- `pattern_labels.csv` and `edge_labels.csv` are emitted as explicit positive
+  truth label tables alongside `alerts_truth.csv`.
 - Static fields such as `persona_type`, `member_type`, `dormant_flag`, `age`,
   and `devices.last_seen` are documented as holdout/stratification fields for
   ML lift claims.

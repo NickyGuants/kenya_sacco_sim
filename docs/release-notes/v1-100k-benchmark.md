@@ -27,10 +27,12 @@ Raw package summary:
 members:        100,000
 transactions:   5,305,344
 alerts_truth:      11,749
+pattern_labels:     1,500
+edge_labels:          668
 loans:             20,404
 guarantors:        29,287
 devices:          100,000
-total CSV rows: 10,196,191
+total CSV rows: 10,198,359
 validation:     0 errors / 0 warnings
 ledger replay:  0 mismatches
 ```
@@ -65,7 +67,8 @@ near-miss transaction count mean: 2734.8
 Consumer guidance:
 
 - `alerts_truth.csv` is positive injected truth only.
-- Count unique suspicious cases by `pattern_id`, not raw alert rows.
+- Count unique suspicious cases with `pattern_labels.csv` or by `pattern_id`, not raw alert rows.
+- Treat `edge_labels.csv` as sparse graph-label truth, not a member-level model feature file.
 - Hold out or stratify static confounders before ML lift claims: `persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen`.
 - `SOURCE_ACCOUNT` and `SINK_ACCOUNT` rows are ledger plumbing and should be filtered from customer-account risk aggregation.
 - `--skip-ml-baseline` is intentional for 100k generation. Run `python3 -m kenya_sacco_sim ml-baseline --input ./datasets/KENYA_SACCO_SIM_v1_100k` downstream when model artifacts are needed.

@@ -56,12 +56,15 @@ recovery transactions.
 
 | File | What it is |
 | --- | --- |
-| `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
+| `alerts_truth.csv` | Detailed positive injected truth rows. It can contain PATTERN, MEMBER, ACCOUNT, TRANSACTION, and EDGE context rows for the same case. |
+| `pattern_labels.csv` | One row per suspicious case keyed by `pattern_id`, with alert-row counts by granularity. Use this for unique case counts and split joins. |
+| `edge_labels.csv` | Sparse graph-edge truth labels for typologies with graph-backed edge context, currently centered on guarantor-ring edge supervision. |
 | `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, wallet-funnel, dormant-reactivation, remittance, and charity near-misses. |
 
-`alerts_truth.csv` is positive injected truth only. A suspicious case can appear
-as several rows: `PATTERN`, `MEMBER`, `ACCOUNT`, `TRANSACTION`, or `EDGE`.
-Aggregate by `pattern_id` when counting unique cases.
+The three label CSVs are positive injected truth only and must not be used as
+feature files. A suspicious case can appear as several rows in
+`alerts_truth.csv`; use `pattern_labels.csv` or aggregate by `pattern_id` when
+counting unique cases.
 
 ## With `--with-benchmark`
 
@@ -121,9 +124,10 @@ institutions.csv ─┬─ branches.csv
 members.csv ──────┬─ accounts.csv (member-owned rows)
                   ├─ devices.csv
                   ├─ loans.csv ── guarantors.csv
-                  └─ alerts_truth.csv (ground truth only)
+                  └─ alerts_truth.csv + pattern_labels.csv (ground truth only)
 accounts.csv ─────── transactions.csv (both ledger legs)
 nodes.csv + graph_edges.csv  ←  projection of all of the above
+graph_edges.csv ──── edge_labels.csv (sparse graph truth only)
 ```
 
 Foreign-key validation enforces these relationships. A broken reference becomes

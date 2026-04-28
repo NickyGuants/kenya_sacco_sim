@@ -8,6 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from kenya_sacco_sim.benchmark import build_benchmark_artifacts
+from kenya_sacco_sim.benchmark.label_tables import build_edge_labels, build_pattern_labels
 from kenya_sacco_sim.benchmark.multi_seed import run_multi_seed_benchmark, stderr_progress
 from kenya_sacco_sim.core.config import WorldConfig, load_world_config, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
@@ -115,6 +116,8 @@ def generate(args: argparse.Namespace) -> int:
         rows_by_file["guarantors.csv"] = guarantors
     if alerts_truth is not None:
         rows_by_file["alerts_truth.csv"] = alerts_truth
+        rows_by_file["pattern_labels.csv"] = build_pattern_labels(alerts_truth)
+        rows_by_file["edge_labels.csv"] = build_edge_labels(alerts_truth, graph_edges, nodes, loans or [])
     benchmark_artifacts = build_benchmark_artifacts(rows_by_file, rule_results, config, include_ml_baseline=not args.skip_ml_baseline) if args.with_benchmark and rule_results is not None else {}
     benchmark_validation = benchmark_artifacts.get("baseline_model_results.json", {}).get("benchmark_checks") if benchmark_artifacts else None
     report = build_validation_report(rows_by_file, config, rule_results if rule_results else None, benchmark_validation)

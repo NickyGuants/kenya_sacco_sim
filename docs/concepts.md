@@ -117,18 +117,21 @@ and what rule the simulator's baseline detector applies.
 
 ## Labels and leakage
 
-The labels live in `alerts_truth.csv`. They mark the suspicious patterns
-the generator injected. **No other file** carries label columns. The
-generator validates this — it will fail the run if a label-bearing field
-sneaks into a feature file. This is the discipline that lets you train
-a model on the feature files and trust its score on the test split.
+Labels live only in the label CSVs: `alerts_truth.csv`, `pattern_labels.csv`,
+and `edge_labels.csv`. They mark the suspicious patterns the generator
+injected. **No feature file** carries label columns. The generator validates
+this — it will fail the run if a label-bearing field sneaks into a feature
+file. This is the discipline that lets you train a model on the feature files
+and trust its score on the test split.
 
-`alerts_truth.csv` is positive injected truth only. It does not contain
-historical false-positive rows with `truth_label=False`. Benchmark code treats
-members or transactions absent from `alerts_truth.csv` as negatives, so any ML
-pipeline must document its negative sampling and class-balancing strategy.
-Because each case is recorded at multiple granularities, use `pattern_id` for
-unique case counts instead of counting raw alert rows.
+The label CSVs are positive injected truth only. They do not contain historical
+false-positive rows with `truth_label=False`. Benchmark code treats members or
+transactions absent from the label files as negatives, so any ML pipeline must
+document its negative sampling and class-balancing strategy. Because each case
+can be recorded at multiple granularities in `alerts_truth.csv`, use
+`pattern_labels.csv` or `pattern_id` for unique case counts instead of counting
+raw alert rows. Use `edge_labels.csv` only for edge-supervised graph tasks, not
+as a member-level feature file.
 
 Some descriptive fields are valid data but unsafe shortcut features for ML lift
 claims. Hold out or stratify by `persona_type`, `member_type`, `dormant_flag`,
