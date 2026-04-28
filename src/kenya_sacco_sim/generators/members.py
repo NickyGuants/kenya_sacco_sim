@@ -37,7 +37,7 @@ def generate_members(config: WorldConfig, world: InstitutionWorld) -> list[dict[
                 "county": rng.choice(COUNTIES),
                 "urban_rural": urban_rural,
                 "gender": "UNKNOWN" if member_type == "ORGANIZATION" else rng.choice(["MALE", "FEMALE"]),
-                "age": 0 if member_type == "ORGANIZATION" else rng.randint(21, 68),
+                "age": None if member_type == "ORGANIZATION" else rng.randint(21, 68),
                 "occupation": _occupation(persona),
                 "employer_id": employer_id,
                 "join_date": _random_date(rng, date(2015, 1, 1), date.fromisoformat(config.start_date)).isoformat(),

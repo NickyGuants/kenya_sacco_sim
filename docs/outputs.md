@@ -15,14 +15,14 @@ These files appear on every `generate` run.
 | `branches.csv` | Branch | Branch type is `HQ`, `BRANCH`, or `AGENT_DESK`. |
 | `agents.csv` | Cash or wallet agent | Agents belong to an institution and branch. |
 | `employers.csv` | Payroll employer | Used by salary and checkoff transactions. |
-| `devices.csv` | Device identity | Linked to a member. May belong to a `shared_device_group`. |
+| `devices.csv` | Device identity | Linked to a member. May belong to a `shared_device_group`; `last_seen` is derived from actual device transaction usage, not blindly set to simulation end. |
 
 ### Members And Accounts
 
 | File | One row per | Notes |
 | --- | --- | --- |
-| `members.csv` | Member | Persona, KYC level, risk segment, county, declared income, and institution. |
-| `accounts.csv` | Account | Member BOSA/FOSA/share/wallet/loan accounts plus institution source and sink accounts. |
+| `members.csv` | Member | Persona, KYC level, risk segment, county, declared income, and institution. Organization members have blank `age`; treat age as missing unless `member_type=INDIVIDUAL`. |
+| `accounts.csv` | Account | Member BOSA/FOSA/share/wallet/loan accounts plus institution source and sink accounts. Filter `SOURCE_ACCOUNT` and `SINK_ACCOUNT` out of customer-account risk aggregation. |
 
 ### Graph Projection
 
@@ -47,7 +47,7 @@ Balance reconciliation is enforced by validation.
 | File | What it is |
 | --- | --- |
 | `loans.csv` | One row per loan: principal, rate, term, application/approval/disbursement dates, status, arrears, and linked loan account. |
-| `guarantors.csv` | One row per guarantor pledge linking a guarantor member to a borrower loan. |
+| `guarantors.csv` | One row per guarantor pledge linking a guarantor member to a borrower loan. Normal guaranteed loans usually cover 60% through guarantors; remaining coverage is modeled as deposits or collateral. |
 
 `--with-loans` also adds loan disbursement, repayment, interest, penalty, and
 recovery transactions.
@@ -58,6 +58,10 @@ recovery transactions.
 | --- | --- |
 | `alerts_truth.csv` | Ground-truth labels. This is the only CSV with typology labels. |
 | `rule_results.json` | Deterministic rule baseline output with executable rule config, candidates, true positives, false positives, false negatives, candidate IDs, and `near_miss_disclosure` for transaction, device, guarantor, wallet-funnel, dormant-reactivation, remittance, and charity near-misses. |
+
+`alerts_truth.csv` is positive injected truth only. A suspicious case can appear
+as several rows: `PATTERN`, `MEMBER`, `ACCOUNT`, `TRANSACTION`, or `EDGE`.
+Aggregate by `pattern_id` when counting unique cases.
 
 ## With `--with-benchmark`
 
@@ -75,6 +79,12 @@ These files require `--with-typologies`.
 | `feature_documentation.json` | Per-file feature dictionary and split guidance. |
 | `dataset_card.md` | Human-readable run summary, intended use, near-miss coverage, metrics, and limitations. |
 | `known_limitations.md` | Known shortcomings copied into the dataset for downstream readers. |
+
+`feature_documentation.json` also marks static confounder columns such as
+`persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen`.
+These fields are useful for audit and slicing, but should be held out or
+stratified before claiming ML lift on organization-scoped or dormant-scoped
+typologies.
 
 When `--skip-ml-baseline` is passed, `ml_baseline_results.json`,
 `feature_importance.json`, and `ml_leakage_ablation.json` are still emitted as

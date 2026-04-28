@@ -240,6 +240,10 @@ Injector behavior:
   carrier.
 - Leaves legitimate low-velocity dormant reactivations unlabeled.
 
+Benchmark caveat: this typology is dormant-lifecycle-scoped by design. Do not
+use raw `dormant_flag` as an ML feature when claiming behavioral detection
+lift; hold it out or evaluate inside the dormant-member subset.
+
 Rule contract:
 
 ```text
@@ -286,6 +290,9 @@ Injector behavior:
 - Keeps legitimate church project and charity disbursement near-misses
   unlabeled.
 
+Benchmark caveat: this typology is organization-scoped by design. Hold out or
+stratify by `persona_type` and `member_type` before making ML lift claims.
+
 Rule contract:
 
 ```text
@@ -311,6 +318,12 @@ The `pattern_id` links these rows together.
 
 No feature file contains `typology`, `pattern_id`, `alert_id`, or truth-label
 columns. Validation enforces this.
+
+`alerts_truth.csv` is positive injected truth only. It does not include
+`truth_label=False` rows for historical false positives; deterministic rule
+false positives are candidates outside the injected truth set. Aggregate by
+`pattern_id` for unique suspicious cases because the same case can have member,
+account, transaction, and edge context rows.
 
 ## Current Typology Discipline
 

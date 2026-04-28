@@ -13,7 +13,7 @@ from kenya_sacco_sim.benchmark import build_benchmark_artifacts
 from kenya_sacco_sim.core.config import WorldConfig, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
-from kenya_sacco_sim.generators.devices import generate_devices
+from kenya_sacco_sim.generators.devices import generate_devices, update_device_last_seen
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
 from kenya_sacco_sim.generators.loans import generate_loans_and_guarantors
@@ -153,6 +153,7 @@ def _run_seed(config: WorldConfig, output_dir: Path | None = None, include_ml_ba
     loans, guarantors = generate_loans_and_guarantors(config, members, accounts, institution_world)
     transactions = generate_transactions(config, members, accounts, institution_world, loans)
     alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world, loans, guarantors)
+    update_device_last_seen(institution_world.devices, transactions)
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors)
     rows_by_file = {

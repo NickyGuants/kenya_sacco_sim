@@ -12,7 +12,7 @@ from kenya_sacco_sim.benchmark.multi_seed import run_multi_seed_benchmark, stder
 from kenya_sacco_sim.core.config import WorldConfig, load_world_config, start_timestamp, with_cli_overrides
 from kenya_sacco_sim.export.csv import write_csvs, write_json
 from kenya_sacco_sim.generators.accounts import generate_accounts
-from kenya_sacco_sim.generators.devices import generate_devices
+from kenya_sacco_sim.generators.devices import generate_devices, update_device_last_seen
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
 from kenya_sacco_sim.generators.loans import generate_loans_and_guarantors
@@ -91,6 +91,8 @@ def generate(args: argparse.Namespace) -> int:
     if args.with_typologies:
         assert transactions is not None
         alerts_truth, rule_results = inject_typologies(config, members, accounts, transactions, institution_world, loans or [], guarantors or [])
+    if transactions is not None:
+        update_device_last_seen(institution_world.devices, transactions)
     nodes = generate_nodes(institution_world, members, accounts)
     graph_edges = generate_edges(members, accounts, institution_world, nodes, guarantors or [])
 

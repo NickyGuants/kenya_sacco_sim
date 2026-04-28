@@ -123,6 +123,18 @@ generator validates this — it will fail the run if a label-bearing field
 sneaks into a feature file. This is the discipline that lets you train
 a model on the feature files and trust its score on the test split.
 
+`alerts_truth.csv` is positive injected truth only. It does not contain
+historical false-positive rows with `truth_label=False`. Benchmark code treats
+members or transactions absent from `alerts_truth.csv` as negatives, so any ML
+pipeline must document its negative sampling and class-balancing strategy.
+Because each case is recorded at multiple granularities, use `pattern_id` for
+unique case counts instead of counting raw alert rows.
+
+Some descriptive fields are valid data but unsafe shortcut features for ML lift
+claims. Hold out or stratify by `persona_type`, `member_type`, `dormant_flag`,
+`age`, and `devices.last_seen` when evaluating typologies that are scoped to
+organizations, dormant accounts, or device lifecycle.
+
 There is also a "near-miss" concept. Some normal members happen to do
 things that look suspicious without being injected typologies. The
 validation report tracks them so you know how messy the negative class

@@ -40,7 +40,7 @@ official sources.
 
 ## Current 100k Release Gate
 
-The current generated package target is:
+The current generated package is:
 
 ```bash
 python3 -m kenya_sacco_sim generate \
@@ -56,3 +56,11 @@ python3 -m kenya_sacco_sim generate \
 The package preserves zero validation errors and zero warnings at 100,000
 members, with 5,305,344 transactions and 10,196,191 total CSV rows in the
 current generated artifact.
+
+Recent audit fixes:
+
+- Organization age is blank/missing rather than `0`.
+- `devices.last_seen` is derived from observed device transaction usage.
+- Static fields such as `persona_type`, `member_type`, `dormant_flag`, `age`,
+  and `devices.last_seen` are documented as holdout/stratification fields for
+  ML lift claims.

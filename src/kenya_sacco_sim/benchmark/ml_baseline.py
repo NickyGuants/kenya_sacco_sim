@@ -24,7 +24,25 @@ TYPOLOGY_NAMES = (
     "REMITTANCE_LAYERING",
     "CHURCH_CHARITY_MISUSE",
 )
-BLOCKED_FEATURE_TOKENS = ("member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label")
+BLOCKED_FEATURE_TOKENS = (
+    "member_id",
+    "txn_id",
+    "reference",
+    "pattern_id",
+    "alert_id",
+    "account_id",
+    "device_id",
+    "node_id",
+    "edge_id",
+    "typology",
+    "truth_label",
+    "label",
+    "persona_type",
+    "member_type",
+    "dormant_flag",
+    "last_seen",
+)
+BLOCKED_EXACT_FEATURE_NAMES = ("age",)
 RULE_PROXY_FEATURES_BY_TYPOLOGY = {
     "STRUCTURING": {
         "sub_100k_inbound_deposit_count",
@@ -902,7 +920,7 @@ def _is_round_100(amount: float) -> bool:
 def _assert_no_blocked_features(feature_names: list[str]) -> None:
     for feature_name in feature_names:
         lowered = feature_name.lower()
-        if any(token in lowered for token in BLOCKED_FEATURE_TOKENS):
+        if lowered in BLOCKED_EXACT_FEATURE_NAMES or any(token in lowered for token in BLOCKED_FEATURE_TOKENS):
             raise ValueError(f"Blocked leakage-prone feature name: {feature_name}")
 
 

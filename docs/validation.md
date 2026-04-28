@@ -114,6 +114,9 @@ shared_device_member_share
 ```
 
 Required digital device coverage is `100%`.
+`devices.last_seen` is also summarized so consumers can detect whether the
+field is behaving as observed device usage or as a constant simulation-end
+placeholder.
 
 ## Near-Miss Validation
 

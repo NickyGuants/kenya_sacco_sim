@@ -10,7 +10,7 @@ from pathlib import Path
 from kenya_sacco_sim.benchmark.artifacts import build_benchmark_artifacts
 from kenya_sacco_sim.benchmark.baseline_rules import build_rule_results, fake_affordability_candidates
 from kenya_sacco_sim.core.config import load_world_config, with_cli_overrides
-from kenya_sacco_sim.generators.devices import generate_devices
+from kenya_sacco_sim.generators.devices import generate_devices, update_device_last_seen
 from kenya_sacco_sim.generators.edges import generate_edges
 from kenya_sacco_sim.generators.institutions import generate_institution_world
 from kenya_sacco_sim.generators.members import generate_members
@@ -92,6 +92,31 @@ class V02FoundationTests(unittest.TestCase):
 
         self.assertIsNone(devices[0]["shared_device_group"])
 
+    def test_organization_members_have_blank_age(self) -> None:
+        base = load_world_config(Path("missing-config-dir"))
+        config = replace(base, member_count=5, personas={"CHURCH_ORG": {**base.personas["CHURCH_ORG"], "share": 1.0}})
+        world = generate_institution_world(config)
+
+        members = generate_members(config, world)
+
+        self.assertEqual({member["member_type"] for member in members}, {"ORGANIZATION"})
+        self.assertEqual({member["age"] for member in members}, {None})
+
+    def test_device_last_seen_tracks_latest_transaction_usage(self) -> None:
+        devices = [
+            {"device_id": "DEVICE000001", "member_id": "MEM0000001", "last_seen": "2024-01-01"},
+            {"device_id": "DEVICE000002", "member_id": "MEM0000002", "last_seen": "2024-01-01"},
+        ]
+        transactions = [
+            {"txn_id": "TXN000000000001", "device_id": "DEVICE000001", "timestamp": "2024-03-01T09:00:00+03:00"},
+            {"txn_id": "TXN000000000002", "device_id": "DEVICE000001", "timestamp": "2024-08-15T12:00:00+03:00"},
+        ]
+
+        update_device_last_seen(devices, transactions)
+
+        self.assertEqual(devices[0]["last_seen"], "2024-08-15")
+        self.assertEqual(devices[1]["last_seen"], "2024-01-01")
+
     def test_device_validation_reports_required_missing_device_ids(self) -> None:
         rows = _device_validation_rows()
         rows["transactions.csv"] = [
@@ -113,6 +138,7 @@ class V02FoundationTests(unittest.TestCase):
         self.assertEqual(device_section["missing_transaction_device_id_count"], 1)
         self.assertEqual(device_section["unresolved_transaction_device_id_count"], 0)
         self.assertEqual(device_section["unresolved_transaction_device_id_distinct_count"], 0)
+        self.assertFalse(device_section["device_last_seen_uniform"])
 
     def test_shared_device_validation_requires_shared_group(self) -> None:
         rows = _device_validation_rows(member_count=2)

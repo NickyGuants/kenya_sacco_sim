@@ -353,6 +353,13 @@ Known benchmark behavior:
 FAKE_AFFORDABILITY_BEFORE_LOAN intentionally has low rule precision.
 Normal borrowers may receive legitimate large pre-loan inflows, so false
 positives are expected and make the benchmark less cartoon-clean.
+alerts_truth.csv is positive injected truth only; unlabeled members are sampled
+as negatives by benchmark code and unique cases should be counted by pattern_id.
+Static descriptive fields such as persona_type, member_type, dormant_flag, age,
+and devices.last_seen must be held out or stratified before ML lift claims.
+Organization member age is blank, not 0.
+SOURCE_ACCOUNT and SINK_ACCOUNT rows are ledger plumbing and must be filtered
+from customer-account risk aggregation.
 Near-miss families intentionally create legitimate behavior that can pressure
 typology rules without appearing in alerts_truth.csv.
 Rule-vs-ML comparison is descriptive. Use ablation and confounder diagnostics

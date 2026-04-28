@@ -85,6 +85,8 @@ def _device_metrics(rows_by_file: dict[str, list[dict[str, object]]], device_ids
 
     device_owner = {str(row["device_id"]): str(row["member_id"]) for row in rows_by_file.get("devices.csv", [])}
     device_group = {str(row["device_id"]): str(row.get("shared_device_group") or "") for row in rows_by_file.get("devices.csv", [])}
+    device_last_seen_values = [str(row.get("last_seen") or "") for row in rows_by_file.get("devices.csv", [])]
+    distinct_last_seen = {value for value in device_last_seen_values if value}
     groups_by_member: dict[str, set[str]] = defaultdict(set)
     for device in rows_by_file.get("devices.csv", []):
         group = str(device.get("shared_device_group") or "")
@@ -137,6 +139,8 @@ def _device_metrics(rows_by_file: dict[str, list[dict[str, object]]], device_ids
         "shared_device_group_missing_count": len(shared_device_group_missing),
         "shared_device_unexplained_member_count": len(unexplained_shared_usage),
         "shared_device_member_share": round(shared_member_share, 4),
+        "device_last_seen_distinct_count": len(distinct_last_seen),
+        "device_last_seen_uniform": len(distinct_last_seen) == 1 if device_last_seen_values else False,
         "devices_without_uses_device_edge_count": len(devices_without_edges),
         "missing_transaction_device_id_count": len(required_missing_device_rows),
         "unresolved_transaction_device_id_count": len(unresolved_device_rows),

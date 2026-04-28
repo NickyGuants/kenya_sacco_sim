@@ -557,7 +557,25 @@ edge_id
 typology
 truth_label
 label fields
+persona_type
+member_type
+dormant_flag
+age
+devices.last_seen
 ```
+
+`persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen`
+are valid descriptive fields, but they are static confounders for ML lift
+claims. Organization rows must encode age as missing/blank, not `0`.
+`DORMANT_REACTIVATION_ABUSE` must be evaluated without raw `dormant_flag`, or
+within a dormant-member subset. `CHURCH_CHARITY_MISUSE` must be evaluated
+without raw organization/persona fields, or within an organization-only subset.
+
+`alerts_truth.csv` is positive injected truth only. It does not contain
+`truth_label=False` historical false positives. Rule false positives are
+population candidates outside the injected truth set, so downstream model
+training must document negative sampling and aggregate unique suspicious cases
+by `pattern_id`.
 
 Minimum ML feature families:
 

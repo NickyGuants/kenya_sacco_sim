@@ -419,7 +419,50 @@ def _build_feature_documentation() -> dict[str, object]:
             "transactions.csv": ["is_suspicious", "typology", "pattern_id", "alert_id", "source_is_illicit", "synthetic_flag"],
             "members.csv": ["criminal_flag", "shell_flag", "suspicious_member", "injected_typology"],
             "accounts.csv": ["mule_account_flag", "laundering_account_flag"],
-            "ml_feature_table": ["member_id", "txn_id", "reference", "pattern_id", "alert_id", "account_id", "device_id", "node_id", "edge_id", "typology", "label"],
+            "ml_feature_table": [
+                "member_id",
+                "txn_id",
+                "reference",
+                "pattern_id",
+                "alert_id",
+                "account_id",
+                "device_id",
+                "node_id",
+                "edge_id",
+                "typology",
+                "truth_label",
+                "label",
+                "persona_type",
+                "member_type",
+                "dormant_flag",
+                "age",
+                "last_seen",
+            ],
+        },
+        "static_confounder_columns": {
+            "members.csv": ["persona_type", "member_type", "dormant_flag", "age"],
+            "devices.csv": ["last_seen"],
+            "guidance": (
+                "These columns are valid descriptive fields, but should be excluded, "
+                "held out, or explicitly stratified for ML lift claims. "
+                "CHURCH_CHARITY_MISUSE is organization-scoped, and "
+                "DORMANT_REACTIVATION_ABUSE is dormant-lifecycle-scoped."
+            ),
+        },
+        "label_semantics": {
+            "truth_label_scope": "positive_injected_truth_only",
+            "negative_sampling_guidance": (
+                "Rows absent from alerts_truth.csv are treated as negatives by benchmark code, "
+                "which assumes the synthetic injected truth set is complete. Downstream users "
+                "should document any negative sampling or class balancing strategy."
+            ),
+            "unique_case_key": "pattern_id",
+            "alert_granularity": "The same suspicious case is represented by PATTERN, MEMBER, ACCOUNT, TRANSACTION, or EDGE rows; aggregate by pattern_id for case counts.",
+        },
+        "plumbing_and_conventions": {
+            "source_sink_accounts": "SOURCE_ACCOUNT and SINK_ACCOUNT rows are ledger plumbing and should be filtered from member-account risk aggregation.",
+            "organization_age": "ORGANIZATION rows have blank age; treat age as missing unless member_type=INDIVIDUAL.",
+            "guarantee_pct": "Guarantee percentages normally cover 60% of principal, with remaining coverage supplied by deposits or collateral.",
         },
         "derived_ml_features": {
             "temporal": ["max_txns_24h", "max_txns_7d", "max_inflow_7d_kes", "max_outflow_7d_kes", "max_48h_exit_ratio", "max_wallet_fan_in_counterparties_7d", "max_wallet_fan_in_value_7d_kes"],
@@ -526,7 +569,11 @@ The ML baseline is `{ml_results.get("baseline_name", "not_available")}`. It trai
 
 ## Leakage Controls
 
-Feature files exclude explicit suspicious labels. The validator checks transaction-ID threshold leakage and reference mirroring, and benchmark artifacts report those metrics. `benchmark_confounder_diagnostics.json` also reports temporal and persona/static-attribute concentration risks that can make ML scores look stronger than they are.
+Feature files exclude explicit suspicious labels. The validator checks transaction-ID threshold leakage and reference mirroring, and benchmark artifacts report those metrics. `benchmark_confounder_diagnostics.json` also reports temporal and persona/static-attribute concentration risks that can make ML scores look stronger than they are. Treat `persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen` as static confounder fields for ML lift claims: hold them out, stratify by them, or report a separate ablation.
+
+## Label Semantics
+
+`alerts_truth.csv` is positive injected truth only. It records the same case at multiple granularities, so aggregate by `pattern_id` for unique cases. Members or transactions absent from `alerts_truth.csv` are assumed negative by the benchmark code; downstream training should document the negative sampling and class-balancing strategy rather than treating `truth_label=False` rows as present.
 
 ## Seed Stability
 
@@ -711,6 +758,10 @@ def _known_limitations() -> str:
 - `ml_leakage_ablation.json` tests rule-proxy dependence, but it is still an internal benchmark diagnostic rather than proof of model validity.
 - `rule_vs_ml_comparison.json` is descriptive and should not be read as proof that ML outperforms rules.
 - `benchmark_confounder_diagnostics.json` reports temporal and persona/static-attribute concentration risks that can inflate ML metrics without explicit label leakage.
+- `alerts_truth.csv` is positive injected truth only; all unlabeled negatives are inferred by sampling the rest of the synthetic population.
+- Static fields such as `persona_type`, `member_type`, `dormant_flag`, `age`, and `devices.last_seen` can be useful for auditing but should be held out or stratified before ML lift claims.
+- `SOURCE_ACCOUNT` and `SINK_ACCOUNT` rows are ledger plumbing and should be excluded from customer-account risk aggregation.
+- `alerts_truth.csv` contains PATTERN, MEMBER, ACCOUNT, TRANSACTION, and EDGE context rows for the same case; aggregate by `pattern_id` for unique suspicious-case counts.
 - The release-scale package is generated through the 100,000-member no-ML path. Full ML artifacts remain intentionally downstream at that scale.
 """
 
