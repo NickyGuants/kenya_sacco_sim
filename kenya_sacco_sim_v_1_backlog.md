@@ -17,7 +17,8 @@ none
 
 The latest completed slice refreshes the v1 100k benchmark with 12 personas,
 correct dormant semantics, three additional typologies, static-confounder
-documentation, organization-age null handling, and observed device `last_seen`.
+documentation, organization-age null handling, observed device `last_seen`, and
+a refreshed 30k five-seed stability gate for the current nine-typology mix.
 
 Completed v1 slices:
 
@@ -31,6 +32,7 @@ DORMANT_REACTIVATION_ABUSE
 REMITTANCE_LAYERING
 100K_RELEASE_SCALE_REFRESH
 STATIC_CONFOUNDER_DOCUMENTATION
+BENCHMARK_STABILITY_REFRESH
 ```
 
 ## Next Typology Candidates
@@ -46,29 +48,28 @@ TILL_PAYBILL_SHELL_ACTIVITY
 ## Next Recommended Slice
 
 ```text
-BENCHMARK_STABILITY_AND_RELEASE_HYGIENE
+RELEASE_NOTEBOOK_AND_LABEL_TABLES
 ```
 
 Rationale:
 
 ```text
-the current nine-typology 100k package is generated and raw-audited
-the next risk is benchmark drift, stale summaries, and untested multi-seed
-behavior after the latest persona/dormancy/typology refresh
-new typologies should wait until current nine-typology stability is refreshed
-and release notes/notebook guidance are coherent
+the current nine-typology 100k package is generated, raw-audited, and covered
+by a 30k five-seed stability gate
+the next release risk is consumer confusion around alert granularity and
+benchmark usage
+pattern_labels.csv, edge_labels.csv, release notes, and a notebook walkthrough
+would make the package easier to consume without adding new suspicious behavior
 ```
 
 ## Benchmark Backlog
 
 ```text
-Refresh five-seed stability for the current nine-typology mix
-Multi-seed ML and ablation diagnostics from exported packages
-Temporal/persona/static-confounder stress test report
-Multi-difficulty benchmark suite
 pattern_labels.csv
 edge_labels.csv
 notebook-based benchmark walkthrough
+release notes for the v1 100k package
+Multi-difficulty benchmark suite
 Graph neural network benchmark
 100,000+ member scale
 institution-specific calibration packs

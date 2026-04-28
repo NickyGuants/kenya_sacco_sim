@@ -28,6 +28,7 @@ has zero errors.
 6. [Typologies](typologies.md) - suspicious patterns and rule baselines.
 7. [Validation](validation.md) - validation report and benchmark gates.
 8. [Architecture](architecture.md) - code layout and generation order.
+9. [v1 100k Release Notes](release-notes/v1-100k-benchmark.md) - current package commands, gates, and caveats.
 
 ## What Is In This Folder
 
@@ -42,6 +43,8 @@ docs/
   typologies.md
   validation.md
   architecture.md
+  release-notes/
+    v1-100k-benchmark.md
   research/
     deep-research-report.md
     current-calibration-notes.md

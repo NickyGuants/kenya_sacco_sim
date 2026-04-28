@@ -145,9 +145,10 @@ worker processes by default. The final JSON summary is still printed on stdout;
 progress logs go to stderr.
 
 For the current multi-seed benchmark on the local 11-CPU, ~18 GB development
-machine, auto/`--jobs 4` runs four seed workers and completes the five-seed gate
-in about 89 seconds. For large generated packages, use `--skip-ml-baseline` to
-keep ML training out of the generation loop.
+machine, auto/`--jobs 4` runs four seed workers. The release-hygiene gate uses
+30,000 members, five seeds, `--suspicious-ratio 0.015`, and full ML/ablation
+artifacts; it completes in about 8m32s locally. For larger generated packages,
+use `--skip-ml-baseline` to keep ML training out of the generation loop.
 
 ### Output Summary
 

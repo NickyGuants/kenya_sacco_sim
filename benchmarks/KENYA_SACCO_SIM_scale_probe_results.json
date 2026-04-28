@@ -4,14 +4,14 @@
   "machine_context": {
     "cpu_count": 11,
     "memory_gb_approx": 18,
-    "date": "2026-04-27"
+    "date": "2026-04-28"
   },
   "current_package": {
     "name": "KENYA_SACCO_SIM_v1_100k",
     "path": "datasets/KENYA_SACCO_SIM_v1_100k",
     "command": "python3 -m kenya_sacco_sim generate --members 100000 --with-loans --with-typologies --with-benchmark --skip-ml-baseline --suspicious-ratio 0.015 --output ./datasets/KENYA_SACCO_SIM_v1_100k",
     "members": 100000,
-    "wall_seconds": 719.9,
+    "wall_seconds": 713.3,
     "validation_errors": 0,
     "validation_warnings": 0,
     "ml_status": "skipped_for_generation_scale",
@@ -65,6 +65,26 @@
     "device_last_seen_uniform": false,
     "devices_used_by_multiple_members_count": 3058,
     "max_members_per_device": 5
+  },
+  "multi_seed_gate": {
+    "name": "KENYA_SACCO_SIM_v1_multi_seed",
+    "path": "benchmarks/KENYA_SACCO_SIM_v1_multi_seed/multi_seed_results.json",
+    "command": "python3 -m kenya_sacco_sim benchmark --members 30000 --seeds 42 1337 2026 9001 314159 --jobs 4 --suspicious-ratio 0.015 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed",
+    "members_per_seed": 30000,
+    "seed_count": 5,
+    "wall_seconds": 511.7,
+    "validation_error_free": true,
+    "precision_recall_variance_within_threshold": true,
+    "threshold": 0.1,
+    "confounder_diagnostics_all_clear": true,
+    "cash_rail_share_mean": 0.1859,
+    "digital_device_coverage_mean": 1.0,
+    "loan_active_member_ratio_mean": 0.2055,
+    "arrears_share_mean": 0.0941,
+    "default_share_mean": 0.0214,
+    "near_miss_member_count_mean": 653.0,
+    "near_miss_transaction_count_mean": 2734.8,
+    "near_miss_guarantee_count_mean": 29.0
   },
   "typology_member_counts": {
     "CHURCH_CHARITY_MISUSE": 166,

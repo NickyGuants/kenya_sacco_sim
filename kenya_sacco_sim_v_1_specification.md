@@ -678,8 +678,10 @@ Required command:
 
 ```bash
 python3 -m kenya_sacco_sim benchmark \
-  --members 10000 \
+  --members 30000 \
   --seeds 42 1337 2026 9001 314159 \
+  --jobs 4 \
+  --suspicious-ratio 0.015 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
@@ -690,6 +692,7 @@ all seeds have validation_error_count = 0
 all seeds are valid benchmark evaluations
 precision/recall range per typology <= 0.10
 distribution stability reported for cash, devices, loan activity, arrears, and defaults
+confounder diagnostic review_required = false for every seed
 ```
 
 ---
@@ -722,7 +725,7 @@ total CSV rows: 10,196,191
 ```
 
 The benchmark runner caps parallel seed workers by CPU count and estimated
-memory budget. The current local gate uses four workers for 10k runs.
+memory budget. The current local gate uses four workers for 30k runs.
 Generation and ML are decoupled for larger packages: use
 `--with-benchmark --skip-ml-baseline` during generation, then run
 `ml-baseline --input <dataset_dir>` from the exported CSV package. The 100k

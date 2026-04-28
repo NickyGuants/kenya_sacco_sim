@@ -80,9 +80,10 @@ For a stronger guarantee that the benchmark is not seed-fragile:
 
 ```bash
 python3 -m kenya_sacco_sim benchmark \
-  --members 10000 \
+  --members 30000 \
   --seeds 42 1337 2026 9001 314159 \
   --jobs 4 \
+  --suspicious-ratio 0.015 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 

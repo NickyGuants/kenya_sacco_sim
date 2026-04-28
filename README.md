@@ -100,9 +100,10 @@ Run the multi-seed stability harness:
 
 ```bash
 python3 -m kenya_sacco_sim benchmark \
-  --members 10000 \
+  --members 30000 \
   --seeds 42 1337 2026 9001 314159 \
   --jobs 4 \
+  --suspicious-ratio 0.015 \
   --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 ```
 
@@ -310,25 +311,25 @@ total CSV rows:      10,196,191
 Latest multi-seed stability gate:
 
 ```text
-command: python3 -m kenya_sacco_sim benchmark --members 10000 --seeds 42 1337 2026 9001 314159 --jobs 4 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+command: python3 -m kenya_sacco_sim benchmark --members 30000 --seeds 42 1337 2026 9001 314159 --jobs 4 --suspicious-ratio 0.015 --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
 validation error free: true
 precision/recall variance within threshold: true
 evaluation validity: valid for all seeds
 digital device coverage mean: 1.0000
-shared-device member share mean: 0.0429
-cash rail share mean: 0.1935
-loan active member mean: 0.2385
-arrears share mean: 0.0927
-near-miss member count mean: 213.8
-near-miss transaction count mean: 860.2
-near-miss guarantee count mean: 18.8
-wall clock: 89.0s on this 11-CPU local machine with --jobs 4
-first four seeds completed in ~49-50s; final queued seed completed at 88.6s
-single 10k package wall clock: 44.4s
+shared-device member share mean: 0.0412
+cash rail share mean: 0.1859
+loan active member mean: 0.2055
+arrears share mean: 0.0941
+default share mean: 0.0214
+near-miss member count mean: 653.0
+near-miss transaction count mean: 2734.8
+near-miss guarantee count mean: 29.0
+confounder diagnostics: all clear across 5 seeds
+wall clock: 8m31.7s on this 11-CPU local machine with --jobs 4
 ```
 
 The benchmark runner now caps parallel workers by both CPU count and an
-estimated memory budget. On this local 11-CPU, ~18 GB host, 10k runs use four
+estimated memory budget. On this local 11-CPU, ~18 GB host, 30k runs use four
 workers.
 
 Latest local scale probe:

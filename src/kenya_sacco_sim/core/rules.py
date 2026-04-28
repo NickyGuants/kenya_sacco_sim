@@ -95,7 +95,7 @@ REMITTANCE_LAYERING_RULE_CONFIG = {
 
 CHURCH_CHARITY_MISUSE_RULE_CONFIG = {
     "candidate_personas": ["CHURCH_ORG", "CHAMA_GROUP"],
-    "inbound_txn_types": ["PESALINK_IN", "MPESA_PAYBILL_IN", "CHURCH_COLLECTION_IN"],
+    "inbound_txn_types": ["PESALINK_IN", "MPESA_PAYBILL_IN"],
     "outbound_txn_types": ["PESALINK_OUT", "SUPPLIER_PAYMENT_OUT"],
     "window_hours": 96,
     "min_inbound_kes": 180_000,

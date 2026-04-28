@@ -57,6 +57,21 @@ The package preserves zero validation errors and zero warnings at 100,000
 members, with 5,305,344 transactions and 10,196,191 total CSV rows in the
 current generated artifact.
 
+The current five-seed stability gate is:
+
+```bash
+python3 -m kenya_sacco_sim benchmark \
+  --members 30000 \
+  --seeds 42 1337 2026 9001 314159 \
+  --jobs 4 \
+  --suspicious-ratio 0.015 \
+  --output ./benchmarks/KENYA_SACCO_SIM_v1_multi_seed
+```
+
+It passes with zero validation errors across all seeds, typology
+precision/recall ranges within the `0.10` stability threshold, and no temporal
+or persona/static-confounder review flags.
+
 Recent audit fixes:
 
 - Organization age is blank/missing rather than `0`.
